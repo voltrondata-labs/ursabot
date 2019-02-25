@@ -1,0 +1,19 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+# TODO(kszucs): configure flake8 to check master.cfg
+repos:
+  - repo: local
+    hooks:
+      - id: buildbot-checkconfig
+        name: Check Buildbot Config
+        language: system
+        entry: bash -c "buildbot checkconfig"
+        always_run: true
+        pass_filenames: false
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
