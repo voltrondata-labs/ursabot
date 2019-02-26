@@ -1,2 +1,2 @@
 dask
-dockermap
+docker-map
