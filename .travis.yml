@@ -4,8 +4,12 @@ python:
 cache:
   - pip
 script:
+  - pip install -r requirements.txt pytest flake8
+
+  # run linter
+  - flake8
+
   # run the worker tests (docker utilities for now)
-  - pip install -r requirements.txt pytest
   - pytest -v workers
 
   # check the buildbot configuration

@@ -5,7 +5,7 @@ import pytest
 from dockermap.api import DockerFile
 
 from ..docker import (DockerImage, ADD, RUN, CMD, apk, apt, pip, conda,
-                      arrow_images, collect)
+                      arrow_images)
 
 
 @pytest.fixture
