@@ -2,18 +2,17 @@ from textwrap import dedent
 
 import dask
 import pytest
-from dockermap.api import DockerFile
+from dockermap.api import DockerFile, DockerClientWrapper
 
-from ..docker import (DockerImage, ADD, RUN, CMD, apk, apt, pip, conda,
+from ..docker import (DockerImage, RUN, CMD, apk, apt, pip, conda,
                       arrow_images)
 
 
 @pytest.fixture
 def testimg():
-    return DockerImage('test', base='ubuntu', steps=[
+    return DockerImage('worker-testimg', base='ubuntu', steps=[
         RUN(apt('python', 'python-pip')),
-        ADD('requirements.txt'),
-        RUN(pip('six', 'numpy', files=['requirements.txt'])),
+        RUN(pip('six', 'toolz')),
         CMD('python')
     ])
 
@@ -37,7 +36,7 @@ def test_shortcuts_smoke():
 
 
 def test_dockerfile_dsl(testimg):
-    assert testimg.repo == 'test'
+    assert testimg.repo == 'worker-testimg'
     assert testimg.base == 'ubuntu'
 
     dockerfile = str(testimg.dockerfile)
@@ -50,11 +49,9 @@ def test_dockerfile_dsl(testimg):
                 python-pip && \\
             rm -rf /var/lib/apt/lists/*
 
-        ADD requirements.txt requirements.txt
         RUN pip install \\
-                -r requirements.txt \\
                 six \\
-                numpy
+                toolz
 
         CMD ["python"]
     """)
@@ -67,8 +64,12 @@ def test_docker_image_save(tmp_path, testimg):
     assert target.read_text().startswith('FROM ubuntu')
 
 
-def test_docker_image_build():
-    pass
+@pytest.mark.slow
+def test_docker_image_build(testimg):
+    client = DockerClientWrapper()
+    image_id = testimg.build(client=client)
+    assert len(client.history(image_id))
+    assert len(client.images('worker-testimg'))
 
 
 def test_docker_image_push():
