@@ -4,5 +4,10 @@ python:
 cache:
   - pip
 script:
+  # run the worker tests (docker utilities for now)
+  - pip install -r requirements.txt pytest
+  - pytest -v workers
+
+  # check the buildbot configuration
   - pip install buildbot
   - buildbot checkconfig
