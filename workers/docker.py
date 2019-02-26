@@ -289,4 +289,7 @@ for arch in ['amd64']:
         images.append(python)
 
 
+# TODO(kszucs): We need to bookeep a couple of flags to each image, like
+#               the architecture and required nvidia-docker runtime to
+#               pair with the docker daemons on the worker machines
 arrow_images = images
