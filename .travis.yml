@@ -6,7 +6,7 @@ python:
 cache:
   - pip
 script:
-  - pip install -r requirements.txt pytest flake8
+  - pip install -r requirements.txt pytest>=3.9 flake8
 
   # run linter
   - flake8
