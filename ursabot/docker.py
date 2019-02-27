@@ -4,8 +4,6 @@ from operator import methodcaller
 from textwrap import indent, dedent
 
 from dask import delayed
-# from dask.diagnostics import ProgressBar
-
 from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 
@@ -40,7 +38,6 @@ class DockerImage:
                 'each `step` must be a callable, use `run` function'
             )
 
-        self.id = None
         self.tag = tag
         self.repo = repo
         self.base = base
@@ -67,8 +64,7 @@ class DockerImage:
 
         # wrap it in a try catch and serialize the failing dockerfile
         # also consider to use add an `org` argument to directly tag the image
-        self.id = client.build_from_file(self.dockerfile, self.repo, **kwargs)
-        return self.id
+        return client.build_from_file(self.dockerfile, self.repo, **kwargs)
 
     def push(self, org, repo=None, tag=None, client=None, **kwargs):
         if client is None:
@@ -76,7 +72,7 @@ class DockerImage:
 
         # ensure it's tagged
         repo = f'{org}/{self.repo}'
-        client.tag(self.id, repo, self.tag)
+        client.tag(self.repo, repo, self.tag)
 
         return client.push(repo, tag=tag, **kwargs)
 
@@ -175,8 +171,7 @@ def conda(*packages, files=tuple()):
 
 
 images = []
-envs = Path('envs')
-scripts = Path('scripts')
+docker = Path(__file__).parent.parent / 'docker'
 
 
 ubuntu_pkgs = [
@@ -217,13 +212,12 @@ alpine_pkgs = [
 worker_steps = [
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
-    ADD('buildbot.tac', '/buildbot/buildbot.tac'),
+    ADD(docker / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot'),
     CMD('twistd --pidfile= -ny buildbot.tac')
 ]
 
 
-collect = delayed(list)
 DelayedDockerImage = delayed(DockerImage)
 
 
@@ -238,7 +232,7 @@ for arch in ['amd64', 'arm64v8']:
         ] + worker_steps)
 
         python = DelayedDockerImage(f'{prefix}-python', base=cpp, steps=[
-            ADD(envs / 'requirements.txt'),
+            ADD(docker / 'requirements.txt'),
             RUN(pip(files=['requirements.txt']))
         ])
 
@@ -255,7 +249,7 @@ for arch in ['amd64', 'arm64v8']:
         ] + worker_steps)
 
         python = DelayedDockerImage(f'{prefix}-python', base=cpp, steps=[
-            ADD(envs / 'requirements.txt'),
+            ADD(docker / 'requirements.txt'),
             RUN(pip(files=['requirements.txt']))
         ])
 
@@ -269,11 +263,11 @@ for arch in ['amd64']:
         RUN(apt('wget')),
         # install miniconda
         ENV(PATH='/opt/conda/bin:$PATH'),
-        ADD(scripts / 'install_conda.sh'),
+        ADD(docker / 'install_conda.sh'),
         RUN('/install_conda.sh', arch, '/opt/conda'),
         # install cpp dependencies
-        ADD(envs / 'conda-linux.txt'),
-        ADD(envs / 'conda-cpp.txt'),
+        ADD(docker / 'conda-linux.txt'),
+        ADD(docker / 'conda-cpp.txt'),
         RUN(conda('twisted', files=['conda-linux.txt',
                                     'conda-cpp.txt']))
     ] + worker_steps)
@@ -283,7 +277,7 @@ for arch in ['amd64']:
     for pyversion in ['2.7', '3.6', '3.7']:
         repo = f'{arch}-conda-python-{pyversion}'
         python = DelayedDockerImage(repo, base=cpp, steps=[
-            ADD(envs / 'conda-python.txt'),
+            ADD(docker / 'conda-python.txt'),
             RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
         ])
         images.append(python)

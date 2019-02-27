@@ -155,6 +155,7 @@ compile = steps.Compile(
     command=['ninja'],
     workdir='build'
 )
+
 test = steps.Test(
     command=['ninja', 'test'],
     workdir='build'

@@ -4,8 +4,8 @@ import dask
 import pytest
 from dockermap.api import DockerFile, DockerClientWrapper
 
-from ..docker import (DockerImage, RUN, CMD, apk, apt, pip, conda,
-                      arrow_images)
+from ursabot.docker import (DockerImage, RUN, CMD, apk, apt, pip, conda,
+                            arrow_images)
 
 
 @pytest.fixture
@@ -67,8 +67,7 @@ def test_docker_image_save(tmp_path, testimg):
 @pytest.mark.slow
 def test_docker_image_build(testimg):
     client = DockerClientWrapper()
-    image_id = testimg.build(client=client)
-    assert len(client.history(image_id))
+    testimg.build(client=client)
     assert len(client.images('worker-testimg'))
 
 

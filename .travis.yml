@@ -6,7 +6,7 @@ python:
 cache:
   - pip
 script:
-  - pip install -r requirements.txt -r requirements-test.txt
+  - pip install pytest flake8 -e .
 
   # run linter
   - flake8
