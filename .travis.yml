@@ -13,5 +13,4 @@ script:
   - pytest -v ursabot
 
   # check the buildbot configuration
-  - pip install buildbot
   - buildbot checkconfig
