@@ -2,7 +2,6 @@ import dask
 import click
 # import platform
 
-from dask import delayed
 from dask.diagnostics import ProgressBar
 
 from .docker import arrow_images
@@ -26,14 +25,6 @@ def docker():
 @click.option('--architecture', '-a', default=None,  # TODO(kszucs) detect
               help='Build docker images for this specifig architecture')
 def build(push, organization, architecture):
-    @delayed
-    def builder(img):
-        id = img.build()
-        # click.echo(f'{img} built with id: {id}')
-        if push:
-            img.push(organization)
-        return id
-
     if architecture is not None:
         imgs = [img for (arch, img) in arrow_images if arch == architecture]
     else:
@@ -44,6 +35,9 @@ def build(push, organization, architecture):
     click.echo('The following images are going to be built:{}'
                .format(delimiter + delimiter.join(image_names)))
 
-    results = map(builder, imgs)
+    imgs = [img.build() for img in imgs]
+    if push:
+        imgs = [img.push(organization) for img in imgs]
+
     with ProgressBar():
-        dask.compute(*results)
+        dask.compute(*imgs)

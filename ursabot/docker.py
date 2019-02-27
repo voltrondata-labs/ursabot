@@ -65,7 +65,8 @@ class DockerImage:
         # wrap it in a try catch and serialize the failing dockerfile
         # also consider to use add an `org` argument to directly tag the image
         # TODO(kszucs): pass platform argument
-        return client.build_from_file(self.dockerfile, self.repo, **kwargs)
+        client.build_from_file(self.dockerfile, self.repo, **kwargs)
+        return self
 
     def push(self, org, repo=None, tag=None, client=None, **kwargs):
         if client is None:
@@ -74,8 +75,8 @@ class DockerImage:
         # ensure it's tagged
         repo = f'{org}/{self.repo}'
         client.tag(self.repo, repo, self.tag)
-
-        return client.push(repo, tag=tag, **kwargs)
+        client.push(repo, tag=tag, **kwargs)
+        return self
 
 
 # functions to define dockerfiles from python
