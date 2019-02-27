@@ -9,7 +9,7 @@ script:
   - pip install pytest flake8 -e .
 
   # run linter
-  - flake8
+  - flake8 ursabot
 
   # run the worker tests (docker utilities for now)
   - pytest -v workers
