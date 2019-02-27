@@ -1,8 +1,7 @@
-import dask
 import click
+# import dask
 # import platform
-
-from dask.diagnostics import ProgressBar
+# from dask.diagnostics import ProgressBar
 
 from .docker import arrow_images
 
@@ -30,14 +29,20 @@ def build(push, organization, architecture):
     else:
         imgs = [img for (_, img) in arrow_images]
 
-    delimiter = '\n - '
-    image_names = map(str, dask.compute(*imgs))
-    click.echo('The following images are going to be built:{}'
-               .format(delimiter + delimiter.join(image_names)))
+    # delimiter = '\n - '
+    # image_names = map(str, imgs)
+    # click.echo('The following images are going to be built:{}'
+    #            .format(delimiter + delimiter.join(image_names)))
 
-    imgs = [img.build() for img in imgs]
+    for img in imgs:
+        click.echo(f'Building {img}...')
+        img.build()
+
     if push:
-        imgs = [img.push(organization) for img in imgs]
+        for img in imgs:
+            click.echo(f'Pushing {img}...')
+            img.push(organization)
 
-    with ProgressBar():
-        dask.compute(*imgs)
+    # Build eagerly for now
+    # with ProgressBar():
+    #     dask.compute(*imgs)

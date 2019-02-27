@@ -3,7 +3,7 @@ from functools import wraps
 from operator import methodcaller
 from textwrap import indent, dedent
 
-from dask import delayed
+# from dask import delayed
 from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 
@@ -222,7 +222,8 @@ worker_steps = [
 ]
 
 
-DelayedDockerImage = delayed(DockerImage)
+# Build eagerly for now
+# DelayedDockerImage = delayed(DockerImage)
 
 
 for arch in ['amd64', 'arm64v8']:
@@ -231,11 +232,11 @@ for arch in ['amd64', 'arm64v8']:
         prefix = f'{arch}-ubuntu-{version}'
         base = f'{arch}/ubuntu:{version}'
 
-        cpp = DelayedDockerImage(f'{prefix}-cpp', base=base, steps=[
+        cpp = DockerImage(f'{prefix}-cpp', base=base, steps=[
             RUN(apt(*ubuntu_pkgs))
         ] + worker_steps)
 
-        python = DelayedDockerImage(f'{prefix}-python', base=cpp, steps=[
+        python = DockerImage(f'{prefix}-python', base=cpp, steps=[
             ADD(docker / 'requirements.txt'),
             RUN(pip(files=['requirements.txt']))
         ])
@@ -248,12 +249,12 @@ for arch in ['amd64', 'arm64v8']:
         prefix = f'{arch}-alpine-{version}'
         base = f'{arch}/alpine:{version}'
 
-        cpp = DelayedDockerImage(f'{prefix}-cpp', base=base, steps=[
+        cpp = DockerImage(f'{prefix}-cpp', base=base, steps=[
             RUN(apk(*alpine_pkgs)),
             RUN('python -m ensurepip'),
         ] + worker_steps)
 
-        python = DelayedDockerImage(f'{prefix}-python', base=cpp, steps=[
+        python = DockerImage(f'{prefix}-python', base=cpp, steps=[
             ADD(docker / 'requirements.txt'),
             RUN(pip(files=['requirements.txt']))
         ])
@@ -265,7 +266,7 @@ for arch in ['amd64', 'arm64v8']:
 for arch in ['amd64']:
     base = f'{arch}/ubuntu:18.04'
 
-    cpp = DelayedDockerImage(f'{arch}-conda-cpp', base=base, steps=[
+    cpp = DockerImage(f'{arch}-conda-cpp', base=base, steps=[
         RUN(apt('wget')),
         # install miniconda
         ENV(PATH='/opt/conda/bin:$PATH'),
@@ -282,7 +283,7 @@ for arch in ['amd64']:
 
     for pyversion in ['2.7', '3.6', '3.7']:
         repo = f'{arch}-conda-python-{pyversion}'
-        python = DelayedDockerImage(repo, base=cpp, steps=[
+        python = DockerImage(repo, base=cpp, steps=[
             ADD(docker / 'conda-python.txt'),
             RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
         ])
