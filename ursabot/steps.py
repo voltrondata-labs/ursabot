@@ -143,11 +143,15 @@ flags = {
     'PARQUET_MINIMAL_DEPENDENCY': 'OFF'
 }
 
+mkdir = steps.MakeDirectory(
+    dir='build'
+)
+
 cmake = steps.CMake(
     path='cpp',
     workdir='build',
     generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
-    definitions={k: steps.Property(k, default=v) for k, v in flags.items()}
+    definitions={k: util.Property(k, default=v) for k, v in flags.items()}
 )
 
 # TODO(kszucs): use property
@@ -159,4 +163,12 @@ compile = steps.Compile(
 test = steps.Test(
     command=['ninja', 'test'],
     workdir='build'
+)
+
+ls = steps.ShellCommand(
+    command=['ls', '-lah']
+)
+
+echo = steps.ShellCommand(
+    command=['echo', 'testing...']
 )

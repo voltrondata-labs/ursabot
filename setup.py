@@ -12,7 +12,7 @@ setup(
     maintainer='Krisztian Szucs',
     maintainer_email='szucs.krisztian@gmail.com',
     packages=['ursabot'],
-    setup_requires=['setuptools_scm', 'pytest-runner'],
+    setup_requires=['setuptools_scm'],
     install_requires=['click', 'dask', 'docker', 'docker-map', 'toolz',
                       'buildbot'],
     tests_require=['pytest>=3.9'],
