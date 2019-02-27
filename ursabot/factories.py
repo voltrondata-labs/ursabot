@@ -11,6 +11,7 @@ factory.addStep(cmake)
 factory.addStep(compile)
 factory.addStep(test)
 
+
 echo_factory = util.BuildFactory()
 echo_factory.addStep(checkout)
 echo_factory.addStep(ls)

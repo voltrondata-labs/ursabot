@@ -117,4 +117,5 @@ dmypy.json
 
 # Buildbot specific
 *.log
+*.pid
 local.py

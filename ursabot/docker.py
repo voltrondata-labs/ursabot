@@ -64,6 +64,7 @@ class DockerImage:
 
         # wrap it in a try catch and serialize the failing dockerfile
         # also consider to use add an `org` argument to directly tag the image
+        # TODO(kszucs): pass platform argument
         return client.build_from_file(self.dockerfile, self.repo, **kwargs)
 
     def push(self, org, repo=None, tag=None, client=None, **kwargs):
@@ -170,7 +171,7 @@ def conda(*packages, files=tuple()):
 # define the docker images
 
 
-images = []
+images = []  # list of tuple(arch, image)
 docker = Path(__file__).parent.parent / 'docker'
 
 
@@ -185,7 +186,9 @@ ubuntu_pkgs = [
     'python',
     'python-pip',
     'bison',
-    'flex'
+    'flex',
+    'git',
+    'ninja-build'
 ]
 
 alpine_pkgs = [
@@ -236,7 +239,8 @@ for arch in ['amd64', 'arm64v8']:
             RUN(pip(files=['requirements.txt']))
         ])
 
-        images.extend([cpp, python])
+        images.extend([(arch, cpp),
+                       (arch, python)])
 
     # ALPINE
     for version in ['3.8', '3.9']:
@@ -253,7 +257,8 @@ for arch in ['amd64', 'arm64v8']:
             RUN(pip(files=['requirements.txt']))
         ])
 
-        images.extend([cpp, python])
+        images.extend([(arch, cpp),
+                       (arch, python)])
 
 # CONDA
 for arch in ['amd64']:
@@ -272,7 +277,7 @@ for arch in ['amd64']:
                                     'conda-cpp.txt']))
     ] + worker_steps)
 
-    images.append(cpp)
+    images.append((arch, cpp))
 
     for pyversion in ['2.7', '3.6', '3.7']:
         repo = f'{arch}-conda-python-{pyversion}'
@@ -280,7 +285,7 @@ for arch in ['amd64']:
             ADD(docker / 'conda-python.txt'),
             RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
         ])
-        images.append(python)
+        images.append((arch, python))
 
 
 # TODO(kszucs): We need to bookeep a couple of flags to each image, like
