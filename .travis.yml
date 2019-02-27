@@ -3,10 +3,8 @@ services:
   - docker
 python:
   - 3.6
-cache:
-  - pip
 script:
-  - pip install pytest flake8 -e .
+  - pip install "pytest>=3.9" flake8 -e .
 
   # run linter
   - flake8 ursabot
