@@ -12,7 +12,7 @@ script:
   - flake8 ursabot
 
   # run the worker tests (docker utilities for now)
-  - pytest -v workers
+  - pytest -v ursabot
 
   # check the buildbot configuration
   - pip install buildbot
