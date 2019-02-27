@@ -1,6 +1,5 @@
 from textwrap import dedent
 
-import dask
 import pytest
 from dockermap.api import DockerFile, DockerClientWrapper
 
@@ -77,6 +76,5 @@ def test_docker_image_push():
 
 def test_arrow_images():
     dockerfiles = [img.dockerfile for img in arrow_images]
-
-    for df in dask.compute(*dockerfiles):
+    for df in dockerfiles:
         assert isinstance(df, DockerFile)
