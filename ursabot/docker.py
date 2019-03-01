@@ -16,18 +16,41 @@ class DockerFile(DockerFile):
 
 class DockerImage:
 
-    def __init__(self, repo, base, tag='latest', steps=tuple()):
+    def __init__(self, name, base, tag='latest', org='ursalab', arch=None,
+                 os=None, variant=None, steps=tuple()):
         if isinstance(base, DockerImage):
-            base = base.repo
+            if os is not None and os != base.os:
+                raise ValueError(
+                    f"Given os `{os}` is not equal with the base "
+                    f"image's os `{base.os}`"
+                )
+            if arch is not None and arch != base.arch:
+                raise ValueError(
+                    f"Given architecture `{arch}` is not equal with the base "
+                    f"image's architecture `{base.arch}`"
+                )
+            arch = base.arch
+            os = base.os
+            variant = base.variant
+            base = base.fqn  # keep it last
         elif not isinstance(base, str):
             raise TypeError(
                 '`tag` argument must be an instance of DockerImage or str'
             )
 
-        if not isinstance(repo, str):
-            raise TypeError('`repo` argument must be an instance of str')
+        if not isinstance(name, str):
+            raise TypeError(f'`name` argument must be an instance of str')
+        if not isinstance(org, str):
+            raise TypeError(f'`org` argument must be an instance of str')
         if not isinstance(tag, str):
-            raise TypeError('`tag` argument must be an instance of str')
+            raise TypeError(f'`tag` argument must be an instance of str')
+        if not isinstance(os, str):
+            raise TypeError(f'`os` argument must be an instance of str')
+        if variant is not None and not isinstance(variant, str):
+            raise TypeError(f'`variant` argument must be an instance of str')
+
+        if arch not in {'amd64', 'arm64v8'}:
+            raise ValueError(f'invalid architecture `{arch}`')
 
         if not isinstance(steps, (tuple, list)):
             raise TypeError(
@@ -38,13 +61,38 @@ class DockerImage:
                 'each `step` must be a callable, use `run` function'
             )
 
-        self.tag = tag
-        self.repo = repo
+        self.name = name
         self.base = base
+        self.org = org
+        self.tag = tag
+        self.arch = arch
+        self.os = os
+        self.variant = variant
         self.steps = steps
+
+    def __str__(self):
+        return self.fqn
 
     def __repr__(self):
         return f'<DockerImage: {self.repo}:{self.tag} at {id(self)}>'
+
+    def __hash__(self):
+        return hash(self.fqn)
+
+    @property
+    def fqn(self):
+        return f'{self.org}/{self.repo}:{self.tag}'
+
+    @property
+    def repo(self):
+        repo = f'{self.arch}-{self.os}'
+        if self.variant is not None:
+            repo += f'-{self.variant}'
+        return repo + f'-{self.name}'
+
+    @property
+    def platform(self):
+        return (self.arch, self.os, self.variant)
 
     @property
     def dockerfile(self):
@@ -65,17 +113,14 @@ class DockerImage:
         # wrap it in a try catch and serialize the failing dockerfile
         # also consider to use add an `org` argument to directly tag the image
         # TODO(kszucs): pass platform argument
-        client.build_from_file(self.dockerfile, self.repo, **kwargs)
+        client.build_from_file(self.dockerfile, self.fqn, **kwargs)
         return self
 
-    def push(self, org, repo=None, tag=None, client=None, **kwargs):
+    def push(self, client=None, **kwargs):
         if client is None:
             client = DockerClientWrapper()
 
-        # ensure it's tagged
-        repo = f'{org}/{self.repo}'
-        client.tag(self.repo, repo, self.tag)
-        client.push(repo, tag=tag, **kwargs)
+        client.push(self.fqn, **kwargs)
         return self
 
 
@@ -169,9 +214,6 @@ def conda(*packages, files=tuple()):
     return cmd.lstrip()
 
 
-# define the docker images
-
-
 images = []  # list of tuple(arch, image)
 docker = Path(__file__).parent.parent / 'docker'
 
@@ -211,7 +253,6 @@ alpine_pkgs = [
     'python-dev'
 ]
 
-
 # TODO(kszucs): add buildbot user
 worker_steps = [
     RUN(pip('buildbot-worker')),
@@ -221,52 +262,46 @@ worker_steps = [
     CMD('twistd --pidfile= -ny buildbot.tac')
 ]
 
-
-# Build eagerly for now
-# DelayedDockerImage = delayed(DockerImage)
-
-
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
     for version in ['16.04', '18.04', '18.10']:
-        prefix = f'{arch}-ubuntu-{version}'
+        os = f'ubuntu-{version}'
         base = f'{arch}/ubuntu:{version}'
 
-        cpp = DockerImage(f'{prefix}-cpp', base=base, steps=[
+        cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apt(*ubuntu_pkgs))
         ] + worker_steps)
 
-        python = DockerImage(f'{prefix}-python', base=cpp, steps=[
+        python = DockerImage('python', base=cpp, steps=[
             ADD(docker / 'requirements.txt'),
             RUN(pip(files=['requirements.txt']))
         ])
 
-        images.extend([(arch, cpp),
-                       (arch, python)])
+        images.extend([cpp, python])
 
     # ALPINE
     for version in ['3.8', '3.9']:
-        prefix = f'{arch}-alpine-{version}'
+        os = f'alpine-{version}'
         base = f'{arch}/alpine:{version}'
 
-        cpp = DockerImage(f'{prefix}-cpp', base=base, steps=[
+        cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apk(*alpine_pkgs)),
             RUN('python -m ensurepip'),
         ] + worker_steps)
 
-        python = DockerImage(f'{prefix}-python', base=cpp, steps=[
+        python = DockerImage('python', base=cpp, steps=[
             ADD(docker / 'requirements.txt'),
             RUN(pip(files=['requirements.txt']))
         ])
 
-        images.extend([(arch, cpp),
-                       (arch, python)])
+        images.extend([cpp, python])
 
 # CONDA
 for arch in ['amd64']:
+    os = 'ubuntu-18.04'
     base = f'{arch}/ubuntu:18.04'
 
-    cpp = DockerImage(f'{arch}-conda-cpp', base=base, steps=[
+    steps = [
         RUN(apt('wget')),
         # install miniconda
         ENV(PATH='/opt/conda/bin:$PATH'),
@@ -277,18 +312,18 @@ for arch in ['amd64']:
         ADD(docker / 'conda-cpp.txt'),
         RUN(conda('twisted', files=['conda-linux.txt',
                                     'conda-cpp.txt']))
-    ] + worker_steps)
-
-    images.append((arch, cpp))
+    ]
+    cpp = DockerImage('cpp', base=base, arch=arch, os=os, variant='conda',
+                      steps=steps + worker_steps)
+    images.append(cpp)
 
     for pyversion in ['2.7', '3.6', '3.7']:
         repo = f'{arch}-conda-python-{pyversion}'
-        python = DockerImage(repo, base=cpp, steps=[
+        python = DockerImage(f'python-{pyversion}', base=cpp, steps=[
             ADD(docker / 'conda-python.txt'),
             RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
         ])
-        images.append((arch, python))
-
+        images.append(python)
 
 # TODO(kszucs): We need to bookeep a couple of flags to each image, like
 #               the architecture and required nvidia-docker runtime to

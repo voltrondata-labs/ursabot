@@ -19,29 +19,22 @@ def docker():
 @docker.command()
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
-@click.option('--organization', '-o', default='ursalab',
-              help='DockerHub organization to push images to')
-@click.option('--architecture', '-a', default=None,  # TODO(kszucs) detect
+@click.option('--architecture', '-a', default=None,
               help='Build docker images for this specifig architecture')
-def build(push, organization, architecture):
+def build(push, architecture):
     if architecture is not None:
-        imgs = [img for (arch, img) in arrow_images if arch == architecture]
+        imgs = [img for img in arrow_images if img.arch == architecture]
     else:
-        imgs = [img for (_, img) in arrow_images]
-
-    # delimiter = '\n - '
-    # image_names = map(str, imgs)
-    # click.echo('The following images are going to be built:{}'
-    #            .format(delimiter + delimiter.join(image_names)))
+        imgs = arrow_images
 
     for img in imgs:
-        click.echo(f'Building {img}...')
+        click.echo(f'Building {img.fqn}')
         img.build()
 
     if push:
         for img in imgs:
             click.echo(f'Pushing {img}...')
-            img.push(organization)
+            img.push()
 
     # Build eagerly for now
     # with ProgressBar():
