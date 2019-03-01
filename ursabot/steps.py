@@ -32,7 +32,7 @@ flags = {
     # Build static libraries
     'ARROW_BUILD_STATIC': 'ON',
     # Build the Arrow googletest unit tests
-    'ARROW_BUILD_TESTS': 'OFF',
+    'ARROW_BUILD_TESTS': 'ON',
     # Build Arrow commandline utilities
     'ARROW_BUILD_UTILITIES': 'ON',
     # Build the Arrow Compute Modules
