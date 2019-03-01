@@ -21,11 +21,16 @@ def docker():
               help='Push the built images')
 @click.option('--architecture', '-a', default=None,
               help='Build docker images for this specifig architecture')
-def build(push, architecture):
+@click.option('--filter', '-f', default=None,
+              help='Filter images by name')
+def build(push, architecture, filter):
     if architecture is not None:
         imgs = [img for img in arrow_images if img.arch == architecture]
     else:
         imgs = arrow_images
+
+    if filter is not None:
+        imgs = [img for img in imgs if filter in img.fqn]
 
     for img in imgs:
         click.echo(f'Building {img.fqn}')
@@ -33,7 +38,7 @@ def build(push, architecture):
 
     if push:
         for img in imgs:
-            click.echo(f'Pushing {img}...')
+            click.echo(f'Pushing {img.fqn}...')
             img.push()
 
     # Build eagerly for now

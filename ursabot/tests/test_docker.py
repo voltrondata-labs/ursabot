@@ -9,11 +9,13 @@ from ursabot.docker import (DockerImage, RUN, CMD, apk, apt, pip, conda,
 
 @pytest.fixture
 def testimg():
-    return DockerImage('worker-testimg', base='ubuntu', steps=[
+    steps = [
         RUN(apt('python', 'python-pip')),
         RUN(pip('six', 'toolz')),
         CMD('python')
-    ])
+    ]
+    return DockerImage('worker-testimg', base='ubuntu', os='ubuntu',
+                       arch='amd64', steps=steps)
 
 
 def test_apk():
@@ -35,7 +37,7 @@ def test_shortcuts_smoke():
 
 
 def test_dockerfile_dsl(testimg):
-    assert testimg.repo == 'worker-testimg'
+    assert testimg.repo == 'amd64-ubuntu-worker-testimg'
     assert testimg.base == 'ubuntu'
 
     dockerfile = str(testimg.dockerfile)
@@ -67,7 +69,7 @@ def test_docker_image_save(tmp_path, testimg):
 def test_docker_image_build(testimg):
     client = DockerClientWrapper()
     testimg.build(client=client)
-    assert len(client.images('worker-testimg'))
+    assert len(client.images(testimg.fqn))
 
 
 def test_docker_image_push():

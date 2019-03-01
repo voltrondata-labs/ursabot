@@ -132,7 +132,7 @@ flags = {
     # Build with zlib compression
     'ARROW_WITH_ZLIB': 'ON',
     # Build with zstd compression
-    'ARROW_WITH_ZSTD': 'ON',
+    'ARROW_WITH_ZSTD': 'OFF',
     # Build the Parquet examples. Requires static libraries to be built.
     'PARQUET_BUILD_EXAMPLES': 'OFF',
     # Build the Parquet executable CLI tools.
@@ -172,3 +172,6 @@ ls = steps.ShellCommand(
 echo = steps.ShellCommand(
     command=['echo', 'testing...']
 )
+
+# TODO(kszucs)
+# compile_python = steps.ShellCommand()
