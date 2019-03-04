@@ -264,7 +264,7 @@ worker_steps = [
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
-    for version in ['16.04', '18.04', '18.10']:
+    for version in ['16.04', '18.04']:
         os = f'ubuntu-{version}'
         base = f'{arch}/ubuntu:{version}'
 
@@ -280,7 +280,7 @@ for arch in ['amd64', 'arm64v8']:
         images.extend([cpp, python])
 
     # ALPINE
-    for version in ['3.8', '3.9']:
+    for version in ['3.9']:
         os = f'alpine-{version}'
         base = f'{arch}/alpine:{version}'
 
