@@ -173,5 +173,9 @@ echo = steps.ShellCommand(
     command=['echo', 'testing...']
 )
 
+conda_init = steps.ShellCommand(
+    command=['conda', 'init']
+)
+
 # TODO(kszucs)
 # compile_python = steps.ShellCommand()

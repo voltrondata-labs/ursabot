@@ -1,9 +1,8 @@
-from buildbot.plugins import util
+from .steps import checkout, ls, mkdir, cmake, compile, test, echo, conda_init
+from .utils import BuildFactory
 
-from .steps import checkout, ls, mkdir, cmake, compile, test, echo
 
-
-factory = util.BuildFactory([
+cpp = BuildFactory([
     checkout,
     ls,
     mkdir,
@@ -12,8 +11,10 @@ factory = util.BuildFactory([
     test
 ])
 
+conda_cpp = cpp.clone()
+conda_cpp.prepend_step(conda_init)
 
-echo_factory = util.BuildFactory()
-echo_factory.addStep(checkout)
-echo_factory.addStep(ls)
-echo_factory.addStep(echo)
+echo_factory = BuildFactory()
+echo_factory.add_step(checkout)
+echo_factory.add_step(ls)
+echo_factory.add_step(echo)
