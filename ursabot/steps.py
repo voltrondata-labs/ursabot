@@ -118,7 +118,7 @@ flags = {
     'ARROW_VERBOSE_LINT': 'OFF',
     # If off, output from ExternalProjects will be logged to files rather
     # than shown
-    'ARROW_VERBOSE_THIRDPARTY_BUILD': 'OFF',
+    'ARROW_VERBOSE_THIRDPARTY_BUILD': 'ON',
     # Build with backtrace support
     'ARROW_WITH_BACKTRACE': 'ON',
     # Build with Brotli compression
