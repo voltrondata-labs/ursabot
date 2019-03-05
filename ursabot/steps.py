@@ -1,23 +1,32 @@
 from buildbot.plugins import steps, util
 
 
-class BashCommand(steps.ShellCommand):
+class BashCommandMixin:
 
     """Added ability to run commands within a conda environment"""
 
-    def __init__(self, command=None,
-                 conda=util.Property('CONDA', default=None), **kwargs):
+    name = 'bash'
+
+    def buildCommandKwargs(self, warnings):
+        kwargs = super().buildCommandKwargs(warnings)
+
+        conda = self.getProperty('CONDA', default=None)
         cmd = ['bash', '-c']
 
         if conda:
             cmd.append(f'conda init;')
             if isinstance(conda, str):
-                cmd.append(f'conda activate {conda}')
+                cmd.append(f'conda activate {conda};')
 
-        if command is not None:
-            cmd.extend(command)
+        kwargs['command'] = cmd + kwargs.get('command', [])
 
-        super().__init__(self, command=cmd, **kwargs)
+        return kwargs
+
+
+class BashCommand(steps.ShellCommand, BashCommandMixin): pass  # noqa
+class CMake(steps.CMake, BashCommandMixin): pass  # noqa
+class Compile(steps.Compile, BashCommandMixin): pass  # noqa
+class Test(steps.Test, BashCommandMixin): pass  # noqa
 
 
 checkout = steps.Git(
@@ -166,7 +175,7 @@ mkdir = steps.MakeDirectory(
     dir='build'
 )
 
-cmake = steps.CMake(
+cmake = CMake(
     path='cpp',
     workdir='build',
     generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
@@ -174,25 +183,25 @@ cmake = steps.CMake(
 )
 
 # TODO(kszucs): use property
-compile = steps.Compile(
+compile = Compile(
     command=['ninja'],
     workdir='build'
 )
 
-test = steps.Test(
+test = Test(
     command=['ninja', 'test'],
     workdir='build'
 )
 
-ls = steps.ShellCommand(
+ls = BashCommand(
     command=['ls', '-lah']
 )
 
-echo = steps.ShellCommand(
+echo = BashCommand(
     command=['echo', 'testing...']
 )
 
-conda_init = steps.ShellCommand(
+conda_init = BashCommand(
     command=['conda', 'init']
 )
 
