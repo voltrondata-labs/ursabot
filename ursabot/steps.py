@@ -30,7 +30,13 @@ from buildbot.plugins import steps, util
 
 
 class CMake(steps.CMake):
-    cmake = ['bash', '-ic', 'cmake']
+    command = ['bash', '-ic', 'cmake']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Ignore the commands: buildbot/steps/cmake.py#L66
+        self.cmake = self.command + [self.cmake]
 
 
 class Ninja(steps.Compile):
