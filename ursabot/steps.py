@@ -31,6 +31,7 @@ from buildbot.plugins import steps, util
 
 class CMake(steps.CMake):
     command = ['bash', '-ic']
+    usePTY = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,10 +41,12 @@ class CMake(steps.CMake):
 
 class Ninja(steps.Compile):
     command = ['bash', '-ic', 'ninja']
+    usePTY = True
 
 
 class Test(steps.Compile):
     command = ['bash', '-ic', 'ninja', 'test']
+    usePTY = True
 
 
 checkout = steps.Git(
@@ -188,9 +191,7 @@ flags = {
     'PARQUET_MINIMAL_DEPENDENCY': 'OFF'
 }
 
-mkdir = steps.MakeDirectory(
-    dir='build'
-)
+mkdir = steps.MakeDirectory(dir='build')
 
 cmake = CMake(
     path='cpp',
