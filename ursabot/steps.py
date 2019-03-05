@@ -1,6 +1,25 @@
 from buildbot.plugins import steps, util
 
 
+class BashCommand(steps.ShellCommand):
+
+    """Added ability to run commands within a conda environment"""
+
+    def __init__(self, command=None,
+                 conda=util.Property('CONDA', default=None), **kwargs):
+        cmd = ['bash', '-c']
+
+        if conda:
+            cmd.append(f'conda init;')
+            if isinstance(conda, str):
+                cmd.append(f'conda activate {conda}')
+
+        if command is not None:
+            cmd.extend(command)
+
+        super().__init__(self, command=cmd, **kwargs)
+
+
 checkout = steps.Git(
     repourl='https://github.com/apache/arrow',
     mode='incremental',
