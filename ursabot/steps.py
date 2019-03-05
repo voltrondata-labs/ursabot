@@ -10,7 +10,7 @@ class BashCommandMixin:
     def buildCommandKwargs(self, warnings):
         kwargs = super().buildCommandKwargs(warnings)
 
-        conda = self.getProperty('CONDA', default=None)
+        conda = self.getProperty('conda', default=None)
         cmd = ['bash', '-c']
 
         if conda:
@@ -23,10 +23,10 @@ class BashCommandMixin:
         return kwargs
 
 
-class BashCommand(steps.ShellCommand, BashCommandMixin): pass  # noqa
-class CMake(steps.CMake, BashCommandMixin): pass  # noqa
-class Compile(steps.Compile, BashCommandMixin): pass  # noqa
-class Test(steps.Test, BashCommandMixin): pass  # noqa
+class BashCommand(BashCommandMixin, steps.ShellCommand): pass  # noqa
+class CMake(BashCommandMixin, steps.CMake): pass  # noqa
+class Compile(BashCommandMixin, steps.Compile): pass  # noqa
+class Test(BashCommandMixin, steps.Test): pass  # noqa
 
 
 checkout = steps.Git(
@@ -199,10 +199,6 @@ ls = BashCommand(
 
 echo = BashCommand(
     command=['echo', 'testing...']
-)
-
-conda_init = BashCommand(
-    command=['conda', 'init']
 )
 
 # TODO(kszucs)

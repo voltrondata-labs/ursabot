@@ -2,7 +2,7 @@ import copy
 from buildbot import interfaces
 from buildbot.plugins import util
 
-from .steps import checkout, ls, mkdir, cmake, compile, test, echo, conda_init
+from .steps import checkout, ls, mkdir, cmake, compile, test, echo
 
 
 class BuildFactory(util.BuildFactory):
@@ -28,9 +28,6 @@ cpp = BuildFactory([
     compile,
     test
 ])
-
-conda_cpp = cpp.clone()
-conda_cpp.prepend_step(conda_init)
 
 echo_factory = BuildFactory()
 echo_factory.add_step(checkout)
