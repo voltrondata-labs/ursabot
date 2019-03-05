@@ -1,32 +1,44 @@
 from buildbot.plugins import steps, util
 
 
-class BashCommandMixin:
+# class BashCommandMixin:
+#
+#     """Added ability to run commands within a conda environment"""
+#
+#     name = 'bash'
+#
+#     def buildCommandKwargs(self, warnings):
+#         kwargs = super().buildCommandKwargs(warnings)
+#
+#         conda = self.getProperty('conda', default=None)
+#         cmd = ['bash', '-i', '-c'] + kwargs.get('command', [])
+#
+#         if conda:
+#             cmd.append(f'conda init;')
+#             if isinstance(conda, str):
+#                 cmd.append(f'conda activate {conda};')
+#
+#         kwargs['command'] = cmd + kwargs.get('command', [])
+#
+#         return kwargs
+#
+#
+# class BashCommand(BashCommandMixin, steps.ShellCommand): pass  # noqa
+# class CMake(BashCommandMixin, steps.CMake): pass  # noqa
+# class Compile(BashCommandMixin, steps.Compile): pass  # noqa
+# class Test(BashCommandMixin, steps.Test): pass  # noqa
 
-    """Added ability to run commands within a conda environment"""
 
-    name = 'bash'
-
-    def buildCommandKwargs(self, warnings):
-        kwargs = super().buildCommandKwargs(warnings)
-
-        conda = self.getProperty('conda', default=None)
-        cmd = ['bash', '-c']
-
-        if conda:
-            cmd.append(f'conda init;')
-            if isinstance(conda, str):
-                cmd.append(f'conda activate {conda};')
-
-        kwargs['command'] = cmd + kwargs.get('command', [])
-
-        return kwargs
+class CMake(steps.CMake):
+    cmake = ['bash', '-ic', 'cmake']
 
 
-class BashCommand(BashCommandMixin, steps.ShellCommand): pass  # noqa
-class CMake(BashCommandMixin, steps.CMake): pass  # noqa
-class Compile(BashCommandMixin, steps.Compile): pass  # noqa
-class Test(BashCommandMixin, steps.Test): pass  # noqa
+class Ninja(steps.Compile):
+    command = ['bash', '-ic', 'ninja']
+
+
+class Test(steps.Compile):
+    command = ['bash', '-ic', 'ninja', 'test']
 
 
 checkout = steps.Git(
@@ -183,23 +195,11 @@ cmake = CMake(
 )
 
 # TODO(kszucs): use property
-compile = Compile(
-    command=['ninja'],
-    workdir='build'
-)
+compile = Ninja(workdir='build')
+test = Test(workdir='build')
 
-test = Test(
-    command=['ninja', 'test'],
-    workdir='build'
-)
-
-ls = BashCommand(
-    command=['ls', '-lah']
-)
-
-echo = BashCommand(
-    command=['echo', 'testing...']
-)
+ls = steps.ShellCommand(command=['ls', '-lah'])
+echo = steps.ShellCommand(command=['echo', 'testing...'])
 
 # TODO(kszucs)
 # compile_python = steps.ShellCommand()
