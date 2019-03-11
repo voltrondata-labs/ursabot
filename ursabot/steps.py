@@ -1,52 +1,45 @@
 from buildbot.plugins import steps, util
+from buildbot.process.buildstep import ShellMixin
 
 
-# class BashCommandMixin:
-#
-#     """Added ability to run commands within a conda environment"""
-#
-#     name = 'bash'
-#
-#     def buildCommandKwargs(self, warnings):
-#         kwargs = super().buildCommandKwargs(warnings)
-#
-#         conda = self.getProperty('conda', default=None)
-#         cmd = ['bash', '-i', '-c'] + kwargs.get('command', [])
-#
-#         if conda:
-#             cmd.append(f'conda init;')
-#             if isinstance(conda, str):
-#                 cmd.append(f'conda activate {conda};')
-#
-#         kwargs['command'] = cmd + kwargs.get('command', [])
-#
-#         return kwargs
-#
-#
-# class BashCommand(BashCommandMixin, steps.ShellCommand): pass  # noqa
-# class CMake(BashCommandMixin, steps.CMake): pass  # noqa
-# class Compile(BashCommandMixin, steps.Compile): pass  # noqa
-# class Test(BashCommandMixin, steps.Test): pass  # noqa
+class BashMixin(ShellMixin):
+    """Run command in a login bash shell
 
+    ShellCommand uses the old-style API but commands like CMake uses the
+    new style, ShellMixin based API. Buildbot runs each command with a
+    non-login /bin/sh, thus .bashrc is not loaded.
 
-class CMake(steps.CMake):
-    command = ['bash', '-ic']
+    The primary purpose of this mixin to use with conda environments.
+    """
+
     usePTY = True
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Ignore the commands: buildbot/steps/cmake.py#L66
-        self.cmake = self.command + [self.cmake]
+    def makeRemoteShellCommand(self, **kwargs):
+        import pipes  # only available on unix
+
+        def quote(e):  # copied from buildbot_worker.runprocess
+            if not e:
+                return '""'
+            return pipes.quote(e)
+
+        # follow the semantics of the parent method, but don't flatten
+        command = kwargs.pop('command', self.command)
+        command = ' '.join(map(quote, command))
+        command = ['/bin/bash', '-l', '-c', quote(command)]
+
+        return super().makeRemoteShellCommand(command=command, **kwargs)
+
+
+class CMake(BashMixin, steps.CMake):
+    pass
 
 
 class Ninja(steps.Compile):
-    command = ['bash', '-ic', 'ninja']
-    usePTY = True
+    pass
 
 
 class Test(steps.Compile):
-    command = ['bash', '-ic', 'ninja', 'test']
-    usePTY = True
+    pass
 
 
 checkout = steps.Git(
