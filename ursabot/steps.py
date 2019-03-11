@@ -1,10 +1,10 @@
 from twisted.internet import defer
 
 from buildbot.plugins import steps, util
-from buildbot.process.buildstep import ShellMixin, BuildStep
+from buildbot.process import buildstep
 
 
-class BashMixin(ShellMixin):
+class ShellMixin(buildstep.ShellMixin):
     """Run command in a login bash shell
 
     ShellCommand uses the old-style API but commands like CMake uses the
@@ -14,7 +14,7 @@ class BashMixin(ShellMixin):
     The primary purpose of this mixin to use with conda environments.
     """
 
-    usePTY = True
+    shell = tuple()  # will run sh on unix and batch on windows
 
     def makeRemoteShellCommand(self, **kwargs):
         import pipes  # only available on unix
@@ -26,13 +26,27 @@ class BashMixin(ShellMixin):
 
         # follow the semantics of the parent method, but don't flatten
         command = kwargs.pop('command', self.command)
+
+        # command should be validated during the construction
+        if isinstance(command, (tuple, list)):
+            command = tuple(command)
+        else:
+            raise ValueError('Command must be an instance of list or tuple')
+
+        # render the command and prepend with the shell
         command = ' '.join(map(quote, command))
-        command = ['/bin/bash', '-l', '-c', command]
+        command = self.shell + (command,)
 
         return super().makeRemoteShellCommand(command=command, **kwargs)
 
 
-class BashCommand(BashMixin, BuildStep):
+class BashMixin(ShellMixin):
+    # TODO(kszucs): validate that the platform is unix
+    usePTY = True
+    shell = ('/bin/bash', '-l', '-c')
+
+
+class BashCommand(BashMixin, buildstep.BuildStep):
 
     @defer.inlineCallbacks
     def run(self):
@@ -54,7 +68,7 @@ class Test(steps.Compile):
 
 
 class Env(BashCommand):
-    command = 'env'
+    command = ['env']
 
 
 checkout = steps.Git(
