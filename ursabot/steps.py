@@ -84,9 +84,9 @@ flags = {
     # Build type
     'CMAKE_BUILD_TYPE': 'debug',
     # AR path, required for conda builds
-    'CMAKE_AR': '${AR}',
+    # 'CMAKE_AR': '${AR}',
     # RUNLIB path, required for conda builds
-    'CMAKE_RANLIB': '${RANLIB}',
+    # 'CMAKE_RANLIB': '${RANLIB}',
     # Build Arrow with Altivec
     'ARROW_ALTIVEC': 'ON',
     # Rely on boost shared libraries where relevant
