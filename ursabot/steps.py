@@ -35,7 +35,7 @@ class ShellMixin(buildstep.ShellMixin):
 
         # render the command and prepend with the shell
         command = ' '.join(map(quote, command))
-        command = self.shell + (command,)
+        command = self.shell + (command,)  # TODO(kszucs) validate self.shell
 
         return super().makeRemoteShellCommand(command=command, **kwargs)
 
@@ -43,10 +43,14 @@ class ShellMixin(buildstep.ShellMixin):
 class BashMixin(ShellMixin):
     # TODO(kszucs): validate that the platform is unix
     usePTY = True
-    shell = ('/bin/bash', '-l', '-c')
+    shell = ('/bin/bash', '-l', '-i', '-c')
 
 
 class BashCommand(BashMixin, buildstep.BuildStep):
+
+    def __init__(self, **kwargs):
+        kwargs = self.setupShellMixin(kwargs)
+        super().__init__(**kwargs)
 
     @defer.inlineCallbacks
     def run(self):
@@ -57,18 +61,6 @@ class BashCommand(BashMixin, buildstep.BuildStep):
 
 class CMake(BashMixin, steps.CMake):
     pass
-
-
-class Ninja(steps.Compile):
-    pass
-
-
-class Test(steps.Compile):
-    pass
-
-
-class Env(BashCommand):
-    command = ['env']
 
 
 checkout = steps.Git(
@@ -223,10 +215,16 @@ cmake = CMake(
 )
 
 # TODO(kszucs): use property
-compile = Ninja(workdir='build')
-test = Test(workdir='build')
+compile = BashCommand(
+    command=['ninja'],
+    workdir='build'
+)
+test = BashCommand(
+    command=['ninja', 'test'],
+    workdir='build'
+)
 
-env = Env()
+env = BashCommand(command=['env'])
 
 ls = steps.ShellCommand(command=['ls', '-lah'])
 echo = steps.ShellCommand(command=['echo', 'testing...'])
