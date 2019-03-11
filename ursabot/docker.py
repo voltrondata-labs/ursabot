@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from functools import wraps
 from operator import methodcaller
@@ -6,6 +7,7 @@ from textwrap import indent, dedent
 # from dask import delayed
 from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
+from dockermap.build.dockerfile import format_command
 
 
 class DockerFile(DockerFile):
@@ -146,10 +148,6 @@ def ENV(**kwargs):
     return methodcaller('prefix', 'ENV', args)
 
 
-def CMD(command):
-    return lambda df: setattr(df, 'command', command)
-
-
 def WORKDIR(workdir):
     return lambda df: setattr(df, 'command_workdir', workdir)
 
@@ -158,8 +156,29 @@ def USER(username):
     return lambda df: setattr(df, 'command_user', username)
 
 
+def _command(prefix, cmd):
+    assert isinstance(cmd, (str, list, tuple))
+    is_shell = isinstance(cmd, str)
+
+    # required because a bug in dockermap/build/dockerfile.py#L77
+    if not is_shell and isinstance(cmd, (list, tuple)):
+        cmd = json.dumps(list(map(str, cmd)))
+    else:
+        cmd = format_command(cmd, is_shell)
+
+    return methodcaller('prefix', prefix, cmd)
+
+
+def CMD(cmd):
+    return _command('CMD', cmd)
+
+
+def ENTRYPOINT(entrypoint):
+    return _command('ENTRYPOINT', entrypoint)
+
+
 def SHELL(shell):
-    return lambda df: setattr(df, 'shell', shell)
+    return _command('SHELL', shell)
 
 
 # command shortcuts
@@ -311,7 +330,9 @@ for arch in ['amd64']:
         ADD(docker / 'conda-linux.txt'),
         ADD(docker / 'conda-cpp.txt'),
         RUN(conda('twisted', files=['conda-linux.txt',
-                                    'conda-cpp.txt']))
+                                    'conda-cpp.txt'])),
+        # load .bashrc and run conda init
+        ENTRYPOINT(['/bin/bash', '-i', '-c'])
     ]
     cpp = DockerImage('cpp', base=base, arch=arch, os=os, variant='conda',
                       steps=steps + worker_steps)

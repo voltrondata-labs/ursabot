@@ -2,7 +2,8 @@ import copy
 from buildbot import interfaces
 from buildbot.plugins import util
 
-from .steps import checkout, ls, mkdir, cmake, compile, test, echo, env
+from .steps import (checkout, ls, mkdir, cmake, compile, test, echo, env,
+                    env_old)
 
 
 class BuildFactory(util.BuildFactory):
@@ -24,6 +25,7 @@ cpp = BuildFactory([
     checkout,
     ls,
     mkdir,
+    env_old,
     env,
     cmake,
     compile,

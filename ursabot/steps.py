@@ -40,14 +40,7 @@ class ShellMixin(buildstep.ShellMixin):
         return super().makeRemoteShellCommand(command=command, **kwargs)
 
 
-class BashMixin(ShellMixin):
-    # TODO(kszucs): validate that the platform is unix
-    usePTY = True
-    shell = ('/bin/bash', '-l', '-i', '-c')
-    haltOnFailure = True
-
-
-class BashCommand(BashMixin, buildstep.BuildStep):
+class ShellCommand(ShellMixin, buildstep.BuildStep):
 
     def __init__(self, **kwargs):
         kwargs = self.setupShellMixin(kwargs)
@@ -58,6 +51,17 @@ class BashCommand(BashMixin, buildstep.BuildStep):
         cmd = yield self.makeRemoteShellCommand(command=self.command)
         yield self.runCommand(cmd)
         return cmd.results()
+
+
+class BashMixin(ShellMixin):
+    # TODO(kszucs): validate that the platform is unix
+    usePTY = True
+    shell = ('/bin/bash', '-l', '-i', '-c')
+    haltOnFailure = True
+
+
+class BashCommand(BashMixin, ShellCommand):
+    pass
 
 
 class CMake(BashMixin, steps.CMake):
@@ -230,6 +234,7 @@ test = BashCommand(
     workdir='build'
 )
 
+env_old = steps.ShellCommand(command=['env'])
 env = BashCommand(command=['env'])
 
 ls = steps.ShellCommand(command=['ls', '-lah'])
