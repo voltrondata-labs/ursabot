@@ -44,6 +44,7 @@ class BashMixin(ShellMixin):
     # TODO(kszucs): validate that the platform is unix
     usePTY = True
     shell = ('/bin/bash', '-l', '-i', '-c')
+    haltOnFailure = True
 
 
 class BashCommand(BashMixin, buildstep.BuildStep):
@@ -78,6 +79,10 @@ checkout = steps.Git(
 flags = {
     # Build type
     'CMAKE_BUILD_TYPE': 'debug',
+    # AR path, required for conda builds
+    'CMAKE_AR': '${AR}',
+    # RUNLIB path, required for conda builds
+    'CMAKE_RANLIB': '${RANLIB}',
     # Build Arrow with Altivec
     'ARROW_ALTIVEC': 'ON',
     # Rely on boost shared libraries where relevant
@@ -193,7 +198,8 @@ flags = {
     'ARROW_WITH_SNAPPY': 'ON',
     # Build with zlib compression
     'ARROW_WITH_ZLIB': 'ON',
-    # Build with zstd compression
+    # Build with zstd compression, turned off until
+    # https://issues.apache.org/jira/browse/ARROW-4831 is resolved
     'ARROW_WITH_ZSTD': 'OFF',
     # Build the Parquet examples. Requires static libraries to be built.
     'PARQUET_BUILD_EXAMPLES': 'OFF',

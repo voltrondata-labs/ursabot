@@ -24,3 +24,5 @@ gfortran_linux-64
 autoconf
 ninja
 git
+# make is a hard dependency because of the bundled jemalloc
+make
