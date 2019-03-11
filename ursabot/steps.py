@@ -1,3 +1,5 @@
+from twisted.internet import defer
+
 from buildbot.plugins import steps, util
 from buildbot.process.buildstep import ShellMixin, BuildStep
 
@@ -25,13 +27,18 @@ class BashMixin(ShellMixin):
         # follow the semantics of the parent method, but don't flatten
         command = kwargs.pop('command', self.command)
         command = ' '.join(map(quote, command))
-        command = ['/bin/bash', '-l', '-c', quote(command)]
+        command = ['/bin/bash', '-l', '-c', command]
 
         return super().makeRemoteShellCommand(command=command, **kwargs)
 
 
 class BashCommand(BashMixin, BuildStep):
-    pass
+
+    @defer.inlineCallbacks
+    def run(self):
+        cmd = yield self.makeRemoteShellCommand(command=self.command)
+        yield self.runCommand(cmd)
+        return cmd.results()
 
 
 class CMake(BashMixin, steps.CMake):
