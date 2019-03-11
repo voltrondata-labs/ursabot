@@ -1,5 +1,5 @@
 from buildbot.plugins import steps, util
-from buildbot.process.buildstep import ShellMixin
+from buildbot.process.buildstep import ShellMixin, BuildStep
 
 
 class BashMixin(ShellMixin):
@@ -30,6 +30,10 @@ class BashMixin(ShellMixin):
         return super().makeRemoteShellCommand(command=command, **kwargs)
 
 
+class BashCommand(BashMixin, BuildStep):
+    pass
+
+
 class CMake(BashMixin, steps.CMake):
     pass
 
@@ -40,6 +44,10 @@ class Ninja(steps.Compile):
 
 class Test(steps.Compile):
     pass
+
+
+class Env(BashCommand):
+    command = 'env'
 
 
 checkout = steps.Git(
@@ -196,6 +204,8 @@ cmake = CMake(
 # TODO(kszucs): use property
 compile = Ninja(workdir='build')
 test = Test(workdir='build')
+
+env = Env()
 
 ls = steps.ShellCommand(command=['ls', '-lah'])
 echo = steps.ShellCommand(command=['echo', 'testing...'])
