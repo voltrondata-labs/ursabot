@@ -12,7 +12,7 @@ def testimg():
     steps = [
         RUN(apt('python', 'python-pip')),
         RUN(pip('six', 'toolz')),
-        CMD('python')
+        CMD(['python'])
     ]
     return DockerImage('worker-testimg', base='ubuntu', os='ubuntu',
                        arch='amd64', steps=steps)
