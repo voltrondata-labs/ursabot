@@ -215,9 +215,9 @@ definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 # SetPropertiesFromEnv doesn't support prefix, so handle them manually
 definitions.update({
     # AR path, required for conda builds
-    'CMAKE_AR': util.Property('AR', default=None),
+    'CMAKE_AR': util.Property('AR'),
     # RUNLIB path, required for conda builds
-    'CMAKE_RANLIB': util.Property('RUNLIB', default=None),
+    'CMAKE_RANLIB': util.Property('RUNLIB'),
 })
 
 mkdir = steps.MakeDirectory(dir='build')
