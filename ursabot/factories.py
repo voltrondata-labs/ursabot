@@ -34,15 +34,12 @@ cpp = BuildFactory([
 
 python = BuildFactory([
     checkout,
-    ls,
     env,
     python_props,
     mkdir,
-    ls,
     cmake,
     compile,
     install,
-    ls,
     setup,
     pytest
 ])

@@ -228,7 +228,7 @@ definitions = {
     # Build the Arrow ORC adapter
     # 'ARROW_ORC': 'OFF',
     # Build the Parquet libraries
-    # 'ARROW_PARQUET': 'OFF',
+    'ARROW_PARQUET': 'OFF',
     # Build the plasma object store along with Arrow
     # 'ARROW_PLASMA': 'OFF',
     # Build the plasma object store java client
@@ -332,13 +332,14 @@ install = ShellCommand(
 pyarrow_env = {
     'ARROW_HOME': util.Property('CMAKE_INSTALL_PREFIX', None),
     'PYARROW_CMAKE_GENERATOR': 'Ninja',
-    'PYARROW_BUILD_TYPE': 'debug'
+    'PYARROW_BUILD_TYPE': 'debug',
+    'PYARROW_WITH_PARQUET': util.Property('ARROW_PARQUET', None),
 }
 pyarrow_env = {k: util.Property(k, default=v) for k, v in pyarrow_env.items()}
 
 setup = ShellCommand(
     name='Build Python Extension',
-    command=['python', 'setup.py', 'build'],
+    command=['python', 'setup.py', 'build_ext', '--inplace'],
     workdir='python',
     env=pyarrow_env
 )
