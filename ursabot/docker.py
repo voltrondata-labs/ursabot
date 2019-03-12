@@ -279,13 +279,20 @@ worker_steps = [
     RUN(mkdir('/buildbot')),
     ADD(docker / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot'),
-    CMD(worker_command)
+    CMD(worker_command)  # not this is string!
 ]
 conda_worker_steps = (
     [RUN(conda('twisted'))] +
     worker_steps +
-    [CMD([worker_command])]  # note the list!
+    [CMD([worker_command])]  # note this is list!
 )
+
+python_steps = [
+    ADD(docker / 'requirements.txt'),
+    ADD(docker / 'requirements-test.txt'),
+    RUN(pip('pip', 'cython', files=['requirements.txt'])),
+    RUN(pip(files=['requirements-test.txt']))  # pandas requires numpy
+]
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
@@ -296,10 +303,7 @@ for arch in ['amd64', 'arm64v8']:
         cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apt(*ubuntu_pkgs))
         ])
-        python = DockerImage('python', base=cpp, steps=[
-            ADD(docker / 'requirements.txt'),
-            RUN(pip(files=['requirements.txt']))
-        ])
+        python = DockerImage('python', base=cpp, steps=python_steps)
 
         cpp_worker = DockerImage('cpp', base=cpp, tag='worker',
                                  steps=worker_steps)
@@ -317,10 +321,7 @@ for arch in ['amd64', 'arm64v8']:
             RUN(apk(*alpine_pkgs)),
             RUN('python -m ensurepip'),
         ])
-        python = DockerImage('python', base=cpp, steps=[
-            ADD(docker / 'requirements.txt'),
-            RUN(pip(files=['requirements.txt']))
-        ])
+        python = DockerImage('python', base=cpp, steps=python_steps)
 
         cpp_worker = DockerImage('cpp', base=cpp, tag='worker',
                                  steps=worker_steps)
