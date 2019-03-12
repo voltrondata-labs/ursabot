@@ -3,7 +3,7 @@ from buildbot import interfaces
 from buildbot.plugins import util
 
 from .steps import (checkout, ls, cmake, compile, test, aranlib, env,
-                    setup, pytest, install, mkdir)
+                    setup, pytest, install, mkdir, conda_props)
 
 
 class BuildFactory(util.BuildFactory):
@@ -44,6 +44,28 @@ python = BuildFactory([
     compile,
     install,
     ls,
+    setup,
+    pytest
+])
+
+cpp_conda = BuildFactory([
+    checkout,
+    env,
+    conda_props,
+    mkdir,
+    cmake,
+    compile,
+    test
+])
+
+python_conda = BuildFactory([
+    checkout,
+    env,
+    conda_props,
+    mkdir,
+    cmake,
+    compile,
+    install,
     setup,
     pytest
 ])

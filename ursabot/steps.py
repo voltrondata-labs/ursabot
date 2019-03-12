@@ -2,6 +2,7 @@ from twisted.internet import defer
 
 from buildbot.plugins import steps, util
 from buildbot.process import buildstep
+from buildbot.process.results import SUCCESS
 
 
 class ShellMixin(buildstep.ShellMixin):
@@ -104,6 +105,41 @@ class ShowEnv(ShellCommand):
     command = ['env']
 
 
+class SetPropertiesFromEnv(buildstep.BuildStep):
+    """Sets properties from environment variables on the worker."""
+
+    name = 'SetPropertiesFromEnv'
+    description = ['Setting']
+    descriptionDone = ['Set']
+
+    def __init__(self, variables, source='WorkerEnvironment', **kwargs):
+        self.variables = variables
+        self.source = source
+        super().__init__(**kwargs)
+
+    @defer.inlineCallbacks
+    def run(self):
+        # on Windows, environment variables are case-insensitive, but we have
+        # a case-sensitive dictionary in worker_environ.  Fortunately, that
+        # dictionary is also folded to uppercase, so we can simply fold the
+        # variable names to uppercase to duplicate the case-insensitivity.
+        fold_to_uppercase = (self.worker.worker_system == 'win32')
+
+        properties = self.build.getProperties()
+        environ = self.worker.worker_environ
+
+        for var, prop in self.variables.items():
+            if fold_to_uppercase:
+                var = var.upper()
+
+            value = environ.get(var, None)
+            if value:
+                # note that the property is not uppercased
+                properties.setProperty(prop, value, self.source, runtime=True)
+
+        return SUCCESS
+
+
 checkout = steps.Git(
     name='Clone Arrow',
     repourl='https://github.com/apache/arrow',
@@ -116,9 +152,9 @@ checkout = steps.Git(
 definitions = {
     # CMake flags
     'CMAKE_BUILD_TYPE': 'debug',
-    # 'CMAKE_INSTALL_PREFIX': None,
-    # 'CMAKE_INSTALL_LIBDIR': None,
-    # 'CMAKE_CXX_FLAGS': None,
+    'CMAKE_INSTALL_PREFIX': None,
+    'CMAKE_INSTALL_LIBDIR': None,
+    'CMAKE_CXX_FLAGS': None,
     # Build Arrow with Altivec
     # 'ARROW_ALTIVEC': 'ON',
     # Rely on boost shared libraries where relevant
@@ -250,10 +286,13 @@ definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 
 # SetPropertiesFromEnv doesn't support prefix, so handle them manually
 definitions.update({
-    # AR path, required for conda builds
-    'CMAKE_AR': util.Property('AR'),
-    # RUNLIB path, required for conda builds
-    'CMAKE_RANLIB': util.Property('RANLIB'),
+
+})
+
+conda_props = SetPropertiesFromEnv({
+    'AR': 'CMAKE_AR',
+    'RANLIB': 'CMAKE_RANLIB',
+    'CONDA_PREFIX': 'CMAKE_INSTALL_PREFIX',
 })
 
 mkdir = steps.MakeDirectory(
