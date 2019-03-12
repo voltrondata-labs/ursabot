@@ -65,7 +65,34 @@ class BashCommand(BashMixin, ShellCommand):
 
 
 class CMake(BashMixin, steps.CMake):
-    pass
+
+    @defer.inlineCallbacks
+    def run(self):
+        """Create and run CMake command
+
+        Copied from the original CMake implementation to handle None values as
+        missing ones.
+        """
+        command = [self.cmake]
+
+        if self.generator:
+            command.extend(['-G', self.generator])
+        if self.path:
+            command.append(self.path)
+
+        if self.definitions is not None:
+            for k, v in self.definitions.items():
+                # handle None values as missing
+                if v is not None:
+                    command.append(f'-D{k}={v}')
+
+        if self.options is not None:
+            command.extend(self.options)
+
+        cmd = yield self.makeRemoteShellCommand(command=command)
+        yield self.runCommand(cmd)
+
+        return cmd.results()
 
 
 checkout = steps.Git(
