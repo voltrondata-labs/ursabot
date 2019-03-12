@@ -107,8 +107,9 @@ class ShowEnv(ShellCommand):
 checkout = steps.Git(
     name='Clone Arrow',
     repourl='https://github.com/apache/arrow',
-    mode='incremental',
-    submodules=True
+    workdir='arrow',
+    submodules=True,
+    mode='full'
 )
 
 # explicitly define build definitions, exported via cmake -LAH
@@ -255,11 +256,14 @@ definitions.update({
     'CMAKE_RANLIB': util.Property('RANLIB'),
 })
 
-mkdir = steps.MakeDirectory(dir='build')
+mkdir = steps.MakeDirectory(
+    name='Create C++ build directory',
+    dir='cpp/build'
+)
 
 cmake = CMake(
-    path='cpp',
-    workdir='build',
+    path='..',
+    workdir='cpp/build',
     generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
     definitions=definitions
 )
@@ -268,18 +272,19 @@ cmake = CMake(
 compile = ShellCommand(
     name='Compile C++',
     command=['ninja'],
-    workdir='build'
+    workdir='cpp/build'
 )
 
 test = ShellCommand(
     name='Test C++',
     command=['ninja', 'test'],
-    workdir='build'
+    workdir='cpp/build'
 )
 
 install = ShellCommand(
     name='Install C++',
-    command=['ninja', 'install']
+    command=['ninja', 'install'],
+    workdir='cpp/build',
 )
 
 setup = ShellCommand(
