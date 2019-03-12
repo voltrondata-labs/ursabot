@@ -135,6 +135,8 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
             value = environ.get(var, None)
             if value:
                 # note that the property is not uppercased
+
+                # TODO(kszucs) try with self.setProperty
                 properties.setProperty(prop, value, self.source, runtime=True)
                 yield self.addCompleteLog('set-prop', f'{prop}: {value}')
 
@@ -325,10 +327,16 @@ install = ShellCommand(
     workdir='cpp/build',
 )
 
+pyarrow_env = {
+    'ARROW_HOME': util.Property('CMAKE_INSTALL_PREFIX', None),
+}
+pyarrow_env = {k: util.Property(k, default=v) for k, v in pyarrow_env.items()}
+
 setup = ShellCommand(
     name='Build Python Extension',
     command=['python', 'setup.py', 'build'],
-    workdir='python'
+    workdir='python',
+    env=pyarrow_env
 )
 
 pytest = ShellCommand(
