@@ -128,7 +128,7 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
         properties = self.build.getProperties()
         environ = self.worker.worker_environ
 
-        for var, prop in self.variables.items():
+        for prop, var in self.variables.items():
             if fold_to_uppercase:
                 var = var.upper()
 
@@ -136,7 +136,8 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
             if value:
                 # note that the property is not uppercased
 
-                # TODO(kszucs) try with self.setProperty
+                # TODO(kszucs) try with self.setProperty similarly like in
+                # SetProperties
                 properties.setProperty(prop, value, self.source, runtime=True)
                 yield self.addCompleteLog('set-prop', f'{prop}: {value}')
 
@@ -291,9 +292,10 @@ definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 
 
 conda_props = SetPropertiesFromEnv({
-    'AR': 'CMAKE_AR',
-    'RANLIB': 'CMAKE_RANLIB',
-    'CONDA_PREFIX': 'CMAKE_INSTALL_PREFIX',
+    'CMAKE_AR': 'AR',
+    'CMAKE_RANLIB': 'RANLIB',
+    'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
+    'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
 })
 
 mkdir = steps.MakeDirectory(
@@ -329,6 +331,8 @@ install = ShellCommand(
 
 pyarrow_env = {
     'ARROW_HOME': util.Property('CMAKE_INSTALL_PREFIX', None),
+    'PYARROW_CMAKE_GENERATOR': 'Ninja',
+    'PYARROW_BUILD_TYPE': 'debug'
 }
 pyarrow_env = {k: util.Property(k, default=v) for k, v in pyarrow_env.items()}
 
@@ -353,8 +357,10 @@ ls = ShellCommand(
     workdir='.'
 )
 
-aranlib = steps.SetPropertiesFromEnv(variables=['AR', 'RANLIB'])
-
+python_props = steps.SetProperties({
+    'ARROW_PYTHON': 'ON',
+    'ARROW_PLASMA': 'ON'
+})
 
 # TODO(kszucs)
 # compile_python = steps.ShellCommand()

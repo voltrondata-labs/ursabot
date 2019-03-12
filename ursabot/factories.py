@@ -2,8 +2,8 @@ import copy
 from buildbot import interfaces
 from buildbot.plugins import util
 
-from .steps import (checkout, ls, cmake, compile, test, aranlib, env,
-                    setup, pytest, install, mkdir, conda_props)
+from .steps import (checkout, ls, cmake, compile, test, env,
+                    setup, pytest, install, mkdir, conda_props, python_props)
 
 
 class BuildFactory(util.BuildFactory):
@@ -25,7 +25,6 @@ cpp = BuildFactory([
     checkout,
     ls,
     env,
-    aranlib,
     mkdir,
     ls,
     cmake,
@@ -37,7 +36,7 @@ python = BuildFactory([
     checkout,
     ls,
     env,
-    aranlib,
+    python_props,
     mkdir,
     ls,
     cmake,
@@ -62,6 +61,7 @@ python_conda = BuildFactory([
     checkout,
     env,
     conda_props,
+    python_props,
     mkdir,
     cmake,
     compile,
