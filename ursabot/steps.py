@@ -262,11 +262,23 @@ compile = ShellCommand(
     workdir='build'
 )
 
-# TODO(kszucs): use ninja test once https://github.com/apache/arrow/pull/3874
-# is merged
 test = ShellCommand(
-    command=['ctest', '-j2', '--output-on-failure', '-L', 'unittest'],
+    command=['ninja', 'test'],
     workdir='build'
+)
+
+install = ShellCommand(
+    command=['ninja', 'install']
+)
+
+setup = ShellCommand(
+    command=['python', 'setup.py', 'build_ext'],
+    workdir='python'
+)
+
+pytest = ShellCommand(
+    command=['pytest', '-v', 'pyarrow'],
+    workdir='python'
 )
 
 aranlib = steps.SetPropertiesFromEnv(variables=['AR', 'RANLIB'])
