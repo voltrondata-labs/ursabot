@@ -80,13 +80,9 @@ checkout = steps.Git(
 # -DCMAKE_CXX_FLAGS
 
 # explicitly define build definitions, exported via cmake -LAH
-flags = {
+definitions = {
     # Build type
     'CMAKE_BUILD_TYPE': 'debug',
-    # AR path, required for conda builds
-    # 'CMAKE_AR': '${AR}',
-    # RUNLIB path, required for conda builds
-    # 'CMAKE_RANLIB': '${RANLIB}',
     # Build Arrow with Altivec
     'ARROW_ALTIVEC': 'ON',
     # Rely on boost shared libraries where relevant
@@ -214,6 +210,15 @@ flags = {
     # Always OFF if building binaries
     'PARQUET_MINIMAL_DEPENDENCY': 'OFF'
 }
+definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
+
+# SetPropertiesFromEnv doesn't support prefix, so handle them manually
+definitions.update({
+    # AR path, required for conda builds
+    'CMAKE_AR': util.Property('AR', default=None),
+    # RUNLIB path, required for conda builds
+    'CMAKE_RANLIB': util.Property('RUNLIB', default=None),
+})
 
 mkdir = steps.MakeDirectory(dir='build')
 
@@ -221,7 +226,7 @@ cmake = CMake(
     path='cpp',
     workdir='build',
     generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
-    definitions={k: util.Property(k, default=v) for k, v in flags.items()}
+    definitions=definitions
 )
 
 # TODO(kszucs): use property
@@ -233,6 +238,8 @@ test = BashCommand(
     command=['ninja', 'test'],
     workdir='build'
 )
+
+aranlib = steps.SetPropertiesFromEnv(variables=['AR', 'RANLIB'])
 
 env_old = steps.ShellCommand(command=['env'])
 env = BashCommand(command=['env'])

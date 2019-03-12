@@ -289,14 +289,18 @@ for arch in ['amd64', 'arm64v8']:
 
         cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apt(*ubuntu_pkgs))
-        ] + worker_steps)
-
+        ])
         python = DockerImage('python', base=cpp, steps=[
             ADD(docker / 'requirements.txt'),
             RUN(pip(files=['requirements.txt']))
         ])
 
-        images.extend([cpp, python])
+        cpp_worker = DockerImage('cpp', base=cpp, tag='worker',
+                                 steps=worker_steps)
+        python_worker = DockerImage('python', base=python, tag='worker',
+                                    steps=worker_steps)
+
+        images.extend([cpp, python, cpp_worker, python_worker])
 
     # ALPINE
     for version in ['3.9']:
@@ -306,20 +310,23 @@ for arch in ['amd64', 'arm64v8']:
         cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apk(*alpine_pkgs)),
             RUN('python -m ensurepip'),
-        ] + worker_steps)
-
+        ])
         python = DockerImage('python', base=cpp, steps=[
             ADD(docker / 'requirements.txt'),
             RUN(pip(files=['requirements.txt']))
         ])
 
-        images.extend([cpp, python])
+        cpp_worker = DockerImage('cpp', base=cpp, tag='worker',
+                                 steps=worker_steps)
+        python_worker = DockerImage('python', base=python, tag='worker',
+                                    steps=worker_steps)
+
+        images.extend([cpp, python, cpp_worker, python_worker])
 
 # CONDA
 for arch in ['amd64']:
     os = 'ubuntu-18.04'
     base = f'{arch}/ubuntu:18.04'
-
     steps = [
         RUN(apt('wget')),
         # install miniconda
@@ -329,24 +336,28 @@ for arch in ['amd64']:
         # install cpp dependencies
         ADD(docker / 'conda-linux.txt'),
         ADD(docker / 'conda-cpp.txt'),
-        RUN(conda('twisted', files=['conda-linux.txt',
-                                    'conda-cpp.txt'])),
+        RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
         # load .bashrc and run conda init
         ENTRYPOINT(['/bin/bash', '-i', '-c'])
     ]
     cpp = DockerImage('cpp', base=base, arch=arch, os=os, variant='conda',
-                      steps=steps + worker_steps)
-    images.append(cpp)
+                      steps=steps)
+    cpp_worker = DockerImage('cpp', base=cpp, tag='worker', steps=worker_steps)
+    images.extend([cpp, cpp_worker])
 
     for pyversion in ['2.7', '3.6', '3.7']:
         repo = f'{arch}-conda-python-{pyversion}'
-        python = DockerImage(f'python-{pyversion}', base=cpp, steps=[
+        name = f'python-{pyversion}'
+        python = DockerImage(name, base=cpp, steps=[
             ADD(docker / 'conda-python.txt'),
             RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
         ])
-        images.append(python)
+        python_worker = DockerImage(name, base=python, tag='worker',
+                                    steps=worker_steps)
+        images.extend([python, python_worker])
 
 # TODO(kszucs): We need to bookeep a couple of flags to each image, like
 #               the architecture and required nvidia-docker runtime to
 #               pair with the docker daemons on the worker machines
 arrow_images = images
+worker_images = [i for i in images if i.tag == 'worker']
