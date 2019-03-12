@@ -1,4 +1,5 @@
 import click
+import logging
 # import dask
 # import platform
 # from dask.diagnostics import ProgressBar
@@ -6,9 +7,16 @@ import click
 from .docker import arrow_images
 
 
+logger = logging.getLogger(__name__)
+
+
 @click.group()
-def ursabot():
-    pass
+@click.option('--quiet/--verbose', '-q', default=False, is_flag=True)
+def ursabot(quiet):
+    if quiet:
+        logger.setLevel(logging.ERROR)
+    else:
+        logger.setLevel(logging.INFO)
 
 
 @ursabot.group()

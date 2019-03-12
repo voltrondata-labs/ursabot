@@ -280,6 +280,9 @@ worker_steps = [
     WORKDIR('/buildbot'),
     CMD(['twistd --pidfile= -ny buildbot.tac'])
 ]
+conda_worker_steps = [
+    RUN(conda('twisted'))
+] + worker_steps
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
@@ -342,7 +345,8 @@ for arch in ['amd64']:
     ]
     cpp = DockerImage('cpp', base=base, arch=arch, os=os, variant='conda',
                       steps=steps)
-    cpp_worker = DockerImage('cpp', base=cpp, tag='worker', steps=worker_steps)
+    cpp_worker = DockerImage('cpp', base=cpp, tag='worker',
+                             steps=conda_worker_steps)
     images.extend([cpp, cpp_worker])
 
     for pyversion in ['2.7', '3.6', '3.7']:
@@ -353,7 +357,7 @@ for arch in ['amd64']:
             RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
         ])
         python_worker = DockerImage(name, base=python, tag='worker',
-                                    steps=worker_steps)
+                                    steps=conda_worker_steps)
         images.extend([python, python_worker])
 
 # TODO(kszucs): We need to bookeep a couple of flags to each image, like
