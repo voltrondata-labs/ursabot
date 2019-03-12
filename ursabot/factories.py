@@ -2,8 +2,7 @@ import copy
 from buildbot import interfaces
 from buildbot.plugins import util
 
-from .steps import (checkout, ls, cmake, compile, test, echo, env_old, aranlib,
-                    conda_cmake)
+from .steps import checkout, ls, cmake, compile, test, echo, env_old, aranlib
 
 
 class BuildFactory(util.BuildFactory):
@@ -24,16 +23,8 @@ class BuildFactory(util.BuildFactory):
 cpp = BuildFactory([
     checkout,
     env_old,
-    cmake,
-    compile,
-    test
-])
-
-conda_cpp = BuildFactory([
-    checkout,
-    env_old,
     aranlib,
-    conda_cmake,
+    cmake,
     compile,
     test
 ])

@@ -284,7 +284,7 @@ worker_steps = [
 conda_worker_steps = (
     [RUN(conda('twisted'))] +
     worker_steps +
-    [CMD([worker_command])]
+    [CMD([worker_command])]  # note the list!
 )
 
 for arch in ['amd64', 'arm64v8']:
