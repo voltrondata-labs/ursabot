@@ -14,7 +14,7 @@ class ShellMixin(buildstep.ShellMixin):
     The primary purpose of this mixin to use with conda environments.
     """
 
-    shell = tuple()  # will run sh on unix and batch on windows
+    shell = tuple()  # will run sh on unix and batch on windows by default
 
     def makeRemoteShellCommand(self, **kwargs):
         import pipes  # only available on unix
@@ -33,9 +33,11 @@ class ShellMixin(buildstep.ShellMixin):
         else:
             raise ValueError('Command must be an instance of list or tuple')
 
-        # render the command and prepend with the shell
-        command = ' '.join(map(quote, command))
-        command = self.shell + (command,)  # TODO(kszucs) validate self.shell
+        if self.shell:
+            # render the command and prepend with the shell
+            # TODO(kszucs) validate self.shell
+            command = ' '.join(map(quote, command))
+            command = self.shell + (command,)
 
         return super().makeRemoteShellCommand(command=command, **kwargs)
 
@@ -54,17 +56,17 @@ class ShellCommand(ShellMixin, buildstep.BuildStep):
 
 
 class BashMixin(ShellMixin):
+    """Runs command in an interactive bash session"""
     # TODO(kszucs): validate that the platform is unix
     usePTY = True
     shell = ('/bin/bash', '-l', '-i', '-c')
-    haltOnFailure = True
 
 
 class BashCommand(BashMixin, ShellCommand):
     pass
 
 
-class CMake(BashMixin, steps.CMake):
+class CMake(ShellMixin, steps.CMake):
 
     @defer.inlineCallbacks
     def run(self):
