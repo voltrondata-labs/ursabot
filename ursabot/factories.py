@@ -2,7 +2,7 @@ import copy
 from buildbot import interfaces
 from buildbot.plugins import util
 
-from .steps import (checkout, ls, cmake, compile, test, echo, aranlib, env,
+from .steps import (checkout, ls, cmake, compile, test, aranlib, env,
                     setup, pytest, install, mkdir)
 
 
@@ -47,8 +47,3 @@ python = BuildFactory([
     setup,
     pytest
 ])
-
-echo_factory = BuildFactory()
-echo_factory.add_step(checkout)
-echo_factory.add_step(ls)
-echo_factory.add_step(echo)

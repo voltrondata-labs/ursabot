@@ -263,7 +263,7 @@ mkdir = steps.MakeDirectory(
 
 cmake = CMake(
     path='..',
-    workdir='arrow/cpp/build',
+    workdir='cpp/build',
     generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
     definitions=definitions
 )
@@ -299,11 +299,16 @@ pytest = ShellCommand(
     workdir='python'
 )
 
+env = ShowEnv()
+
+ls = ShellCommand(
+    name='List files',
+    command=['ls', '-lah'],
+    workdir='.'
+)
+
 aranlib = steps.SetPropertiesFromEnv(variables=['AR', 'RANLIB'])
 
-env = ShowEnv()
-ls = steps.ShellCommand(command=['ls', '-lah'])
-echo = steps.ShellCommand(command=['echo', 'testing...'])
 
 # TODO(kszucs)
 # compile_python = steps.ShellCommand()
