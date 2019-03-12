@@ -68,6 +68,8 @@ class BashCommand(BashMixin, ShellCommand):
 
 class CMake(ShellMixin, steps.CMake):
 
+    name = 'CMake'
+
     @defer.inlineCallbacks
     def run(self):
         """Create and run CMake command
@@ -97,7 +99,13 @@ class CMake(ShellMixin, steps.CMake):
         return cmd.results()
 
 
+class ShowEnv(ShellCommand):
+    name = 'ShowEnv'
+    command = ['env']
+
+
 checkout = steps.Git(
+    name='Clone Arrow',
     repourl='https://github.com/apache/arrow',
     mode='incremental',
     submodules=True
@@ -258,34 +266,37 @@ cmake = CMake(
 
 # TODO(kszucs): use property
 compile = ShellCommand(
+    name='Compile C++',
     command=['ninja'],
     workdir='build'
 )
 
 test = ShellCommand(
+    name='Test C++',
     command=['ninja', 'test'],
     workdir='build'
 )
 
 install = ShellCommand(
+    name='Install C++',
     command=['ninja', 'install']
 )
 
 setup = ShellCommand(
+    name='Build Python Extension',
     command=['python', 'setup.py', 'build_ext'],
     workdir='python'
 )
 
 pytest = ShellCommand(
+    name='Run Pytest',
     command=['pytest', '-v', 'pyarrow'],
     workdir='python'
 )
 
 aranlib = steps.SetPropertiesFromEnv(variables=['AR', 'RANLIB'])
 
-env_old = steps.ShellCommand(command=['env'])
-env = ShellCommand(command=['env'])
-
+env = ShowEnv()
 ls = steps.ShellCommand(command=['ls', '-lah'])
 echo = steps.ShellCommand(command=['echo', 'testing...'])
 

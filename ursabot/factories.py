@@ -2,7 +2,7 @@ import copy
 from buildbot import interfaces
 from buildbot.plugins import util
 
-from .steps import (checkout, ls, cmake, compile, test, echo, env_old, aranlib,
+from .steps import (checkout, ls, cmake, compile, test, echo, aranlib, env,
                     setup, pytest, install)
 
 
@@ -23,7 +23,7 @@ class BuildFactory(util.BuildFactory):
 
 cpp = BuildFactory([
     checkout,
-    env_old,
+    env,
     aranlib,
     cmake,
     compile,
@@ -32,11 +32,12 @@ cpp = BuildFactory([
 
 python = BuildFactory([
     checkout,
-    env_old,
+    env,
     aranlib,
     cmake,
     compile,
     install,
+    ls,
     setup,
     pytest
 ])
