@@ -136,7 +136,7 @@ definitions = {
     # Compiler flags to append when compiling Arrow
     # 'ARROW_CXXFLAGS': '',
     # Compile with extra error context (line numbers, code)
-    'ARROW_EXTRA_ERROR_CONTEXT': 'OFF',
+    'ARROW_EXTRA_ERROR_CONTEXT': 'ON',
     # Build the Arrow Flight RPC System (requires GRPC, Protocol Buffers)
     # 'ARROW_FLIGHT': 'OFF',
     # Build Arrow Fuzzing executables
@@ -261,8 +261,11 @@ compile = ShellCommand(
     command=['ninja'],
     workdir='build'
 )
+
+# TODO(kszucs): use ninja test once https://github.com/apache/arrow/pull/3874
+# is merged
 test = ShellCommand(
-    command=['ninja', 'test'],
+    command=['ctest', '-j2', '--output-on-failure', '-L', 'unittest'],
     workdir='build'
 )
 
