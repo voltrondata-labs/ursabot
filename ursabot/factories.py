@@ -57,6 +57,9 @@ cpp_conda = BuildFactory([
     test
 ])
 
+# TODO(kszucs): subclass buildfactory to explicitly pass properties, like:
+# ARROW_PYTHON=ON
+
 python_conda = BuildFactory([
     checkout,
     env,

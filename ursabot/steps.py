@@ -236,7 +236,7 @@ definitions = {
     # Rely on Protocol Buffers shared libraries where relevant
     # 'ARROW_PROTOBUF_USE_SHARED': 'OFF',
     # Build the Arrow CPython extensions
-    # 'ARROW_PYTHON': 'OFF',
+    'ARROW_PYTHON': 'OFF',
     # How to link the re2 library. static|shared
     # 'ARROW_RE2_LINKAGE': 'static',
     # Build Arrow libraries with RATH set to $ORIGIN
@@ -361,6 +361,3 @@ python_props = steps.SetProperties({
     'ARROW_PYTHON': 'ON',
     'ARROW_PLASMA': 'ON'
 })
-
-# TODO(kszucs)
-# compile_python = steps.ShellCommand()
