@@ -23,9 +23,11 @@ class BuildFactory(util.BuildFactory):
 
 cpp = BuildFactory([
     checkout,
+    ls,
     env,
     aranlib,
     mkdir,
+    ls,
     cmake,
     compile,
     test
@@ -33,9 +35,11 @@ cpp = BuildFactory([
 
 python = BuildFactory([
     checkout,
+    ls,
     env,
     aranlib,
     mkdir,
+    ls,
     cmake,
     compile,
     install,

@@ -107,7 +107,7 @@ class ShowEnv(ShellCommand):
 checkout = steps.Git(
     name='Clone Arrow',
     repourl='https://github.com/apache/arrow',
-    workdir='arrow',
+    workdir='.',
     submodules=True,
     mode='full'
 )
@@ -263,7 +263,7 @@ mkdir = steps.MakeDirectory(
 
 cmake = CMake(
     path='..',
-    workdir='cpp/build',
+    workdir='arrow/cpp/build',
     generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
     definitions=definitions
 )
