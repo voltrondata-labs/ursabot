@@ -213,12 +213,12 @@ definitions = {
 definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 
 # SetPropertiesFromEnv doesn't support prefix, so handle them manually
-definitions.update({
+conda_definitions = {
     # AR path, required for conda builds
     'CMAKE_AR': util.Property('AR'),
     # RUNLIB path, required for conda builds
     'CMAKE_RANLIB': util.Property('RUNLIB'),
-})
+}
 
 mkdir = steps.MakeDirectory(dir='build')
 
@@ -227,6 +227,12 @@ cmake = CMake(
     workdir='build',
     generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
     definitions=definitions
+)
+conda_cmake = CMake(
+    path='cpp',
+    workdir='build',
+    generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
+    definitions={**definitions, **conda_definitions}
 )
 
 # TODO(kszucs): use property
