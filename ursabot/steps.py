@@ -136,6 +136,7 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
             if value:
                 # note that the property is not uppercased
                 properties.setProperty(prop, value, self.source, runtime=True)
+                yield self.addCompleteLog('set-prop', f'{prop}: {value}')
 
         return SUCCESS
 
@@ -155,6 +156,8 @@ definitions = {
     'CMAKE_INSTALL_PREFIX': None,
     'CMAKE_INSTALL_LIBDIR': None,
     'CMAKE_CXX_FLAGS': None,
+    'CMAKE_AR': None,
+    'CMAKE_RANLIB': None,
     # Build Arrow with Altivec
     # 'ARROW_ALTIVEC': 'ON',
     # Rely on boost shared libraries where relevant
@@ -284,10 +287,6 @@ definitions = {
 }
 definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 
-# SetPropertiesFromEnv doesn't support prefix, so handle them manually
-definitions.update({
-
-})
 
 conda_props = SetPropertiesFromEnv({
     'AR': 'CMAKE_AR',
@@ -328,7 +327,7 @@ install = ShellCommand(
 
 setup = ShellCommand(
     name='Build Python Extension',
-    command=['python', 'setup.py', 'build_ext'],
+    command=['python', 'setup.py', 'build'],
     workdir='python'
 )
 
