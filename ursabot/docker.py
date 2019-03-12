@@ -278,7 +278,7 @@ worker_steps = [
     RUN(mkdir('/buildbot')),
     ADD(docker / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot'),
-    CMD('twistd --pidfile= -ny buildbot.tac')
+    CMD(['twistd --pidfile= -ny buildbot.tac'])
 ]
 
 for arch in ['amd64', 'arm64v8']:
