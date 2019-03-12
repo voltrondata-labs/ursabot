@@ -273,16 +273,19 @@ alpine_pkgs = [
 ]
 
 # TODO(kszucs): add buildbot user
+worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
     ADD(docker / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot'),
-    CMD(['twistd --pidfile= -ny buildbot.tac'])
+    CMD(worker_command)
 ]
-conda_worker_steps = [
-    RUN(conda('twisted'))
-] + worker_steps
+conda_worker_steps = (
+    [RUN(conda('twisted'))] +
+    worker_steps +
+    [CMD([worker_command])]
+)
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
