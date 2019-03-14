@@ -14,7 +14,7 @@ setup(
     packages=['ursabot'],
     setup_requires=['setuptools_scm'],
     install_requires=['click', 'dask', 'docker', 'docker-map', 'toolz',
-                      'buildbot'],
+                      'buildbot', 'treq'],
     tests_require=['pytest>=3.9'],
     entry_points='''
         [console_scripts]
