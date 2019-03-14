@@ -271,14 +271,14 @@ definitions = {
     # Build with BZ2 compression
     # 'ARROW_WITH_BZ2': 'OFF',
     # Build with lz4 compression
-    # 'ARROW_WITH_LZ4': 'ON',
+    'ARROW_WITH_LZ4': 'ON',
     # Build with Snappy compression
-    # 'ARROW_WITH_SNAPPY': 'ON',
+    'ARROW_WITH_SNAPPY': 'ON',
     # Build with zlib compression
-    # 'ARROW_WITH_ZLIB': 'ON',
+    'ARROW_WITH_ZLIB': 'ON',
     # Build with zstd compression, turned off until
     # https://issues.apache.org/jira/browse/ARROW-4831 is resolved
-    'ARROW_WITH_ZSTD': 'OFF',
+    'ARROW_WITH_ZSTD': 'ON',
     # Build the Parquet examples. Requires static libraries to be built.
     # 'PARQUET_BUILD_EXAMPLES': 'OFF',
     # Build the Parquet executable CLI tools.
