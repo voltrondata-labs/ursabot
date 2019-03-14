@@ -2,7 +2,7 @@ import copy
 from buildbot import interfaces
 from buildbot.plugins import util
 
-from .steps import (checkout, ls, cmake, compile, test, env,
+from .steps import (checkout, ls, cmake, compile, test, env, cpp_props,
                     setup, pytest, install, mkdir, conda_props, python_props)
 
 
@@ -27,6 +27,7 @@ cpp = BuildFactory([
     env,
     mkdir,
     ls,
+    cpp_props,
     cmake,
     compile,
     test
@@ -35,6 +36,7 @@ cpp = BuildFactory([
 python = BuildFactory([
     checkout,
     env,
+    cpp_props,
     python_props,
     mkdir,
     cmake,

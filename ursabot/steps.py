@@ -358,6 +358,10 @@ ls = ShellCommand(
     workdir='.'
 )
 
+cpp_props = steps.SetProperties({
+    'CMAKE_INSTALL_PREFIX': '/usr/local'
+})
+
 python_props = steps.SetProperties({
     'ARROW_PYTHON': 'ON',
     'ARROW_PLASMA': 'ON'
