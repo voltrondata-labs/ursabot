@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from twisted.python import log
 from twisted.internet import defer
 
@@ -26,12 +28,12 @@ class GithubHook(GitHubEventHandler):
         else:
             response = 'Wrong command, start with @ursabot!'
 
-        url = payload['issue']['comments_url']
+        url = urlparse(payload['issue']['comments_url'])
         data = {'body': response}
         log.msg(f'Sending comment {response} to {url}')
 
         client = yield self._get_github_client()
-        yield client.post(url, data=data)
+        yield client.post(url.path, data=data)
 
         log.msg('Comment sent')
 
