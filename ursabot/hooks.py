@@ -7,6 +7,9 @@ from buildbot.www.hooks.github import GitHubEventHandler
 from buildbot.util.httpclientservice import HTTPClientService
 
 
+BOTNAME = 'ursabot'
+
+
 # rename it to listener
 class GithubHook(GitHubEventHandler):
 
@@ -21,9 +24,14 @@ class GithubHook(GitHubEventHandler):
 
     @defer.inlineCallbacks
     def handle_issue_comment(self, payload, event):
+        user = payload['user']['login']
         body = payload['comment']['body']
 
-        if body.startswith('@ursabot '):
+        if user == BOTNAME:
+            # don't respond to itself
+            return [], 'git'
+
+        if body.startswith(f'@{BOTNAME} '):
             response = 'Good command!'
         else:
             response = 'Wrong command, start with @ursabot!'
@@ -33,7 +41,8 @@ class GithubHook(GitHubEventHandler):
         log.msg(f'Sending comment {response} to {url}')
 
         client = yield self._get_github_client()
-        result = yield client.post(url.path, data=data)
-        log.msg(f'Comment sent with the following result: {result.json()}')
+        result = yield client.post(url.path, json=data)
+        data = yield result.json()
+        log.msg(f'Comment sent with the following result: {data}')
 
         return [], 'git'
