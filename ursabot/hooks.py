@@ -1,4 +1,4 @@
-# from twisted.python import log
+from twisted.python import log
 from twisted.internet import defer
 
 from buildbot.www.hooks.github import GitHubEventHandler
@@ -26,7 +26,13 @@ class GithubHook(GitHubEventHandler):
         else:
             response = 'Wrong command, start with @ursabot!'
 
-        client = self._get_github_client()
         url = payload['issue']['comments_url']
         data = {'body': response}
+        log.msg(f'Sending comment {response} to {url}')
+
+        client = self._get_github_client()
         yield client.post(url, data=data)
+
+        log.msg('Comment sent')
+
+        return [], 'git'
