@@ -24,13 +24,12 @@ class GithubHook(GitHubEventHandler):
 
     @defer.inlineCallbacks
     def handle_issue_comment(self, payload, event):
-        user = payload['user']['login']
-        body = payload['comment']['body']
-
-        if user == BOTNAME:
+        sender = payload['sender']['login']
+        if sender == BOTNAME:
             # don't respond to itself
             return [], 'git'
 
+        body = payload['comment']['body']
         if body.startswith(f'@{BOTNAME} '):
             response = 'Good command!'
         else:
