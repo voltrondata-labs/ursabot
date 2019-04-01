@@ -33,8 +33,7 @@ class GithubHook(GitHubEventHandler):
         log.msg(f'Sending comment {response} to {url}')
 
         client = yield self._get_github_client()
-        yield client.post(url.path, data=data)
-
-        log.msg('Comment sent')
+        result = yield client.post(url.path, data=data)
+        log.msg(f'Comment sent with the following result: {result.json()}')
 
         return [], 'git'
