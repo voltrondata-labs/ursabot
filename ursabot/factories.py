@@ -75,13 +75,13 @@ python_conda = BuildFactory([
 ])
 
 ursabot_test = BuildFactory([
-    _steps.GitHub(name='Clone Ursabot',
-                  repourl='https://github.com/ursa-labs/ursabot',
-                  workdir='.',
-                  mode='full'),
+    _steps.Git(name='Clone Ursabot',
+               repourl='https://github.com/ursa-labs/ursabot',
+               mode='full'),
+    ShellCommand(command=['ls', '-lah']),
     ShellCommand(command=['pip', 'install', 'pytest', 'flake8']),
     ShellCommand(command=['pip', 'install', '-e', '.']),
     ShellCommand(command=['flake8']),
-    ShellCommand(command=['pytest', '-v', 'ursabot']),
+    ShellCommand(command=['pytest', '-v', '-m', '"not docker"', 'ursabot']),
     ShellCommand(command=['buildbot', 'checkconfig', '.'])
 ])
