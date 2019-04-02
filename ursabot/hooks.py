@@ -37,11 +37,6 @@ class GithubHook(GitHubEventHandler):
         result = yield response.json()
         return result
 
-    # TODO(kszucs):
-    # handle_commit_comment - there is no comments_url?
-    # handle_pull_request_review
-    # handle_pull_request_review_comment
-
     def _parse_command(self, message):
         # TODO(kszucs): make it more sophisticated
         mention = f'@{BOTNAME}'
@@ -93,3 +88,8 @@ class GithubHook(GitHubEventHandler):
         log.msg(f'Comment is sent with the following result: {result}')
 
         return changes, 'git'
+
+    # TODO(kszucs):
+    # handle_commit_comment - there is no comments_url?
+    # handle_pull_request_review
+    # handle_pull_request_review_comment
