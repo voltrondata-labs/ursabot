@@ -82,6 +82,6 @@ ursabot_test = BuildFactory([
     ShellCommand(command=['pip', 'install', 'pytest', 'flake8']),
     ShellCommand(command=['pip', 'install', '-e', '.']),
     ShellCommand(command=['flake8']),
-    ShellCommand(command=['pytest', '-v', '-m', '"not docker"', 'ursabot']),
+    ShellCommand(command=['pytest', '-v', '-m', 'not docker', 'ursabot']),
     ShellCommand(command=['buildbot', 'checkconfig', '.'])
 ])
