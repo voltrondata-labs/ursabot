@@ -72,7 +72,7 @@ class GithubHook(GitHubEventHandler):
                 pr = yield self._get(pull_request['url'])
                 changes = [{
                     'author': sender,
-                    'repository': repo['url'],
+                    'repository': repo['html_url'],  # use codebases instead
                     'project': repo['full_name'],
                     'revision': pr['head']['sha'],
                     # parse it
