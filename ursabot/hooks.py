@@ -90,6 +90,6 @@ class GithubHook(GitHubEventHandler):
         return changes, 'git'
 
     # TODO(kszucs):
-    # handle_commit_comment
+    # handle_commit_comment d
     # handle_pull_request_review
     # handle_pull_request_review_comment
