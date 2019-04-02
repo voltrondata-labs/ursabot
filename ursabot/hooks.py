@@ -87,7 +87,7 @@ class GithubHook(GitHubEventHandler):
         else:
             message = f'Unknown command "{command}"'
 
-        log.msg(f'Sending answer "{message}" to {url.path}')
+        log.msg(f'Sending answer "{message}" to {url}')
         result = yield self._post(url, {'body': message})
         log.msg(f'Comment is sent with the following result: {result}')
 
