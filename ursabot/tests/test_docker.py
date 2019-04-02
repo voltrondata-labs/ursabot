@@ -66,6 +66,7 @@ def test_docker_image_save(tmp_path, testimg):
 
 
 @pytest.mark.slow
+@pytest.mark.docker
 def test_docker_image_build(testimg):
     client = DockerClientWrapper()
     testimg.build(client=client)
