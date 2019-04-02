@@ -71,7 +71,7 @@ class GithubHook(GitHubEventHandler):
                 message = "I've started builds for this PR"
                 pr = yield self._get(pull_request['url'])
                 changes = [{
-                    'author': sender['login'],
+                    'author': sender,
                     'repository': repo['url'],
                     'project': repo['full_name'],
                     'revision': pr['head']['sha'],
@@ -81,9 +81,9 @@ class GithubHook(GitHubEventHandler):
                     'category': 'build',
                     'comments': body
                 }]
-            except Exception:
-                # TODO(kszucs) log the exception
+            except Exception as e:
                 message = "I've failed to start builds for this PR"
+                log.err(f'{message}: {e}')
         else:
             message = f'Unknown command "{command}"'
 
