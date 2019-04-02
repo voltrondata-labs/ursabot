@@ -78,7 +78,8 @@ class GithubHook(GitHubEventHandler):
                     # parse it
                     # 'when_timestamp': payload['comment']['updated_at']
                     'revlink': pull_request['html_url'],
-                    'category': 'build',
+                    # 'category': 'build',
+                    'category': None,
                     'comments': body
                 }]
             except Exception as e:
