@@ -32,7 +32,7 @@ class GithubHook(GitHubEventHandler):
     @defer.inlineCallbacks
     def _post(self, url, data):
         url = urlparse(url)
-        client = yield self._get_github_client()
+        client = yield self._client()
         response = yield client.post(url.path, json=data)
         result = yield response.json()
         return result
