@@ -56,15 +56,15 @@ class ShellCommand(ShellMixin, buildstep.BuildStep):
         return cmd.results()
 
 
-class BashMixin(ShellMixin):
-    """Runs command in an interactive bash session"""
-    # TODO(kszucs): validate that the platform is unix
-    usePTY = True
-    shell = ('/bin/bash', '-l', '-i', '-c')
-
-
-class BashCommand(BashMixin, ShellCommand):
-    pass
+# class BashMixin(ShellMixin):
+#     """Runs command in an interactive bash session"""
+#     # TODO(kszucs): validate that the platform is unix
+#     usePTY = True
+#     shell = ('/bin/bash', '-l', '-i', '-c')
+#
+#
+# class BashCommand(BashMixin, ShellCommand):
+#     pass
 
 
 class CMake(ShellMixin, steps.CMake):

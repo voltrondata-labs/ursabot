@@ -12,7 +12,7 @@ BOTNAME = 'ursabot'
 
 class GithubHook(GitHubEventHandler):
 
-    def _get_github_client(self):
+    def _client(self):
         headers = {'User-Agent': 'Buildbot'}
         if self._token:
             headers['Authorization'] = 'token ' + self._token
@@ -21,45 +21,75 @@ class GithubHook(GitHubEventHandler):
             self.master, self.github_api_endpoint, headers=headers,
             debug=self.debug, verify=self.verify)
 
+    @defer.inlineCallbacks
+    def _get(self, url):
+        url = urlparse(url)
+        client = yield self._client()
+        response = yield client.get(url.path)
+        result = yield response.json()
+        return result
+
+    @defer.inlineCallbacks
+    def _post(self, url, data):
+        url = urlparse(url)
+        client = yield self._client()
+        response = yield client.post(url.path, json=data)
+        result = yield response.json()
+        return result
+
     def _parse_command(self, message):
         # TODO(kszucs): make it more sophisticated
         mention = f'@{BOTNAME}'
         if mention in message:
-            return message.split(mention)[-1]
+            return message.split(mention)[-1].lower().strip()
         return None
-
-    @defer.inlineCallbacks
-    def _answer(self, to_url, message):
-        url = urlparse(to_url)
-        data = {'body': message}
-        log.msg(f'Sending answer "{message}" to {url.path}')
-
-        client = yield self._get_github_client()
-        result = yield client.post(url.path, json=data)
-        data = yield result.json()
-        log.msg(f'Comment is sent with the following result: {data}')
-
-    # TODO(kszucs):
-    # handle_commit_comment - there is no comments_url?
-    # handle_pull_request_review
-    # handle_pull_request_review_comment
 
     @defer.inlineCallbacks
     def handle_issue_comment(self, payload, event):
         url = payload['issue']['comments_url']
+        repo = payload['repository']
         body = payload['comment']['body']
         sender = payload['sender']['login']
+        pull_request = payload['issue'].get('pull_request', None)
+        command = self._parse_command(body)
 
-        if sender == BOTNAME:
-            # don't respond to itself!
+        if sender == BOTNAME or command is None:
+            # don't respond to itself
             return [], 'git'
 
-        command = self._parse_command(body)
-        if command is None:
-            message = 'Wrong command, start with @ursabot!'
+        if pull_request is None:
+            message = 'Ursabot only listens to pull request comments!'
+
+        changes = []
+        if command == 'build':
+            try:
+                message = "I've started builds for this PR"
+                pr = yield self._get(pull_request['url'])
+                changes = [{
+                    'author': sender,
+                    'repository': repo['html_url'],  # use codebases instead
+                    'project': repo['full_name'],
+                    'revision': pr['head']['sha'],
+                    # parse it
+                    # 'when_timestamp': payload['comment']['updated_at']
+                    'revlink': pull_request['html_url'],
+                    # 'category': 'build',
+                    'category': None,
+                    'comments': body
+                }]
+            except Exception as e:
+                message = "I've failed to start builds for this PR"
+                log.err(f'{message}: {e}')
         else:
-            message = 'Good command!'
+            message = f'Unknown command "{command}"'
 
-        yield self._answer(url, message)
+        log.msg(f'Sending answer "{message}" to {url}')
+        result = yield self._post(url, {'body': message})
+        log.msg(f'Comment is sent with the following result: {result}')
 
-        return [], 'git'
+        return changes, 'git'
+
+    # TODO(kszucs):
+    # handle_commit_comment d
+    # handle_pull_request_review
+    # handle_pull_request_review_comment

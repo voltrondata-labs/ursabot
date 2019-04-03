@@ -1,9 +1,11 @@
 import copy
 from buildbot import interfaces
 from buildbot.plugins import util
+from buildbot.plugins import steps as _steps  # ugly
 
 from .steps import (checkout, ls, cmake, compile, test, env, cpp_props,
                     setup, pytest, install, mkdir, conda_props, python_props)
+from .steps import ShellCommand
 
 
 class BuildFactory(util.BuildFactory):
@@ -70,4 +72,16 @@ python_conda = BuildFactory([
     install,
     setup,
     pytest
+])
+
+ursabot_test = BuildFactory([
+    _steps.Git(name='Clone Ursabot',
+               repourl='https://github.com/ursa-labs/ursabot',
+               mode='full'),
+    ShellCommand(command=['ls', '-lah']),
+    ShellCommand(command=['pip', 'install', 'pytest', 'flake8']),
+    ShellCommand(command=['pip', 'install', '-e', '.']),
+    ShellCommand(command=['flake8']),
+    ShellCommand(command=['pytest', '-v', '-m', 'not docker', 'ursabot']),
+    ShellCommand(command=['buildbot', 'checkconfig', '.'])
 ])
