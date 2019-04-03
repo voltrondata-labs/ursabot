@@ -17,6 +17,7 @@ class GithubHook(GitHubEventHandler):
         if self._token:
             headers['Authorization'] = 'token ' + self._token
 
+        # TODO(kszucs): initialize it once?
         return HTTPClientService.getService(
             self.master, self.github_api_endpoint, headers=headers,
             debug=self.debug, verify=self.verify)
