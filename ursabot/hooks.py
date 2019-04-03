@@ -64,8 +64,9 @@ class GithubHook(GitHubEventHandler):
         if command == 'build':
             try:
                 message = "I've started builds for this PR"
-                pull_request_payload = yield self._get(pull_request['url'])
-                return self.handle_pull_request(pull_request_payload, event)
+                pr = yield self._get(pull_request['url'])
+                pr_payload = {'number': pr['number'], 'pull_request': pr}
+                return self.handle_pull_request(pr_payload, event)
                 # changes = [{
                 #     'author': sender,
                 #     'repository': repo['html_url'],  # use codebases instead
