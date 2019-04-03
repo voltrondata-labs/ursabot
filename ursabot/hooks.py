@@ -48,7 +48,6 @@ class GithubHook(GitHubEventHandler):
     @defer.inlineCallbacks
     def handle_issue_comment(self, payload, event):
         url = payload['issue']['comments_url']
-        repo = payload['repository']
         body = payload['comment']['body']
         sender = payload['sender']['login']
         pull_request = payload['issue'].get('pull_request', None)
@@ -65,19 +64,20 @@ class GithubHook(GitHubEventHandler):
         if command == 'build':
             try:
                 message = "I've started builds for this PR"
-                pr = yield self._get(pull_request['url'])
-                changes = [{
-                    'author': sender,
-                    'repository': repo['html_url'],  # use codebases instead
-                    'project': repo['full_name'],
-                    'revision': pr['head']['sha'],
-                    # parse it
-                    # 'when_timestamp': payload['comment']['updated_at']
-                    'revlink': pull_request['html_url'],
-                    # 'category': 'build',
-                    'category': None,
-                    'comments': body
-                }]
+                pull_request_payload = yield self._get(pull_request['url'])
+                return self.handle_pull_request(pull_request_payload, event)
+                # changes = [{
+                #     'author': sender,
+                #     'repository': repo['html_url'],  # use codebases instead
+                #     'project': repo['full_name'],
+                #     'revision': pr['head']['sha'],
+                #     # parse it
+                #     # 'when_timestamp': payload['comment']['updated_at']
+                #     'revlink': pull_request['html_url'],
+                #     # 'category': 'build',
+                #     'category': None,
+                #     'comments': body
+                # }]
             except Exception as e:
                 message = "I've failed to start builds for this PR"
                 log.err(f'{message}: {e}')
