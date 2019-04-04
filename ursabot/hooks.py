@@ -48,8 +48,9 @@ class GithubHook(GitHubEventHandler):
 
     @defer.inlineCallbacks
     def handle_issue_comment(self, payload, event):
+        issue = payload['issue']
+        comments_url = issue['comments_url']
         command = self._parse_command(payload['comment']['body'])
-        comments_url = payload['issue']['comments_url']
 
         if payload['sender']['login'] == BOTNAME:
             # don't respond to itself
@@ -58,7 +59,7 @@ class GithubHook(GitHubEventHandler):
             # ursabot is not mentioned, nothing to do
             return [], 'git'
         elif command == 'build':
-            if 'pull_request' not in payload['issue']:
+            if 'pull_request' not in issue:
                 message = 'Ursabot only listens to pull request comments!'
                 yield self._post(comments_url, {'body': message})
                 return [], 'git'
@@ -68,7 +69,7 @@ class GithubHook(GitHubEventHandler):
             return [], 'git'
 
         try:
-            pull_request = yield self._get(payload['pull_request']['url'])
+            pull_request = yield self._get(issue['pull_request']['url'])
             changes, _ = yield self.handle_pull_request({
                 'action': 'synchronize',
                 'sender': payload['sender'],
@@ -77,11 +78,9 @@ class GithubHook(GitHubEventHandler):
                 'number': pull_request['number']
             }, event)
         except Exception as e:
-            raise e
             message = "I've failed to start builds for this PR"
             yield self._post(comments_url, {'body': message})
-            log.err(f'{message}: {e}')
-            return [], 'git'
+            raise e
         else:
             message = "I've successfully started builds for this PR"
             yield self._post(comments_url, {'body': message})
