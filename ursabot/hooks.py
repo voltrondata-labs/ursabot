@@ -77,11 +77,13 @@ class GithubHook(GitHubEventHandler):
                 'number': pull_request['number']
             }, event)
         except Exception as e:
+            raise e
             message = "I've failed to start builds for this PR"
+            yield self._post(comments_url, {'body': message})
             log.err(f'{message}: {e}')
             return [], 'git'
         else:
-            message = "I've started builds for this PR"
+            message = "I've successfully started builds for this PR"
             yield self._post(comments_url, {'body': message})
             return changes, 'git'
 
