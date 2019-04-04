@@ -65,11 +65,12 @@ class GithubHook(GitHubEventHandler):
         if command == 'build':
             try:
                 message = "I've started builds for this PR"
-                pr = yield self._get(pull_request['url'])
+                pull_request = yield self._get(pull_request['url'])
                 pr_payload = {
-                    'number': pr['number'],
-                    'pull_request': pr,
-                    'repository': repo
+                    'action': 'synchronize',
+                    'repository': repo,
+                    'number': pull_request['number'],
+                    'pull_request': pull_request,
                 }
                 changes, _ = yield self.handle_pull_request(pr_payload, event)
             except Exception as e:
