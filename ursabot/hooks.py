@@ -36,6 +36,7 @@ class GithubHook(GitHubEventHandler):
         client = yield self._client()
         response = yield client.post(url.path, json=data)
         result = yield response.json()
+        log.msg(f'POST to {url} with the following result: {result}')
         return result
 
     def _parse_command(self, message):
@@ -47,43 +48,42 @@ class GithubHook(GitHubEventHandler):
 
     @defer.inlineCallbacks
     def handle_issue_comment(self, payload, event):
-        url = payload['issue']['comments_url']
-        body = payload['comment']['body']
-        repo = payload['repository']
-        sender = payload['sender']['login']
-        pull_request = payload['issue'].get('pull_request', None)
-        command = self._parse_command(body)
+        command = self._parse_command(payload['comment']['body'])
+        comments_url = payload['issue']['comments_url']
 
-        if sender == BOTNAME or command is None:
+        if payload['sender']['login'] == BOTNAME:
             # don't respond to itself
             return [], 'git'
+        elif command is None:
+            # ursabot is not mentioned, nothing to do
+            return [], 'git'
+        elif command == 'build':
+            if 'pull_request' not in payload['issue']:
+                message = 'Ursabot only listens to pull request comments!'
+                yield self._post(comments_url, {'body': message})
+                return [], 'git'
 
-        if pull_request is None:
-            message = 'Ursabot only listens to pull request comments!'
-
-        changes = []
-        if command == 'build':
             try:
-                message = "I've started builds for this PR"
-                pull_request = yield self._get(pull_request['url'])
+                pull_request = yield self._get(payload['pull_request']['url'])
                 pr_payload = {
                     'action': 'synchronize',
-                    'repository': repo,
-                    'number': pull_request['number'],
+                    'sender': payload['sender'],
+                    'repository': payload['repository'],
                     'pull_request': pull_request,
+                    'number': pull_request['number']
                 }
                 changes, _ = yield self.handle_pull_request(pr_payload, event)
             except Exception as e:
                 message = "I've failed to start builds for this PR"
                 log.err(f'{message}: {e}')
+            else:
+                message = "I've started builds for this PR"
+                yield self._post(comments_url, {'body': message})
+                return changes, 'git'
         else:
             message = f'Unknown command "{command}"'
-
-        log.msg(f'Sending answer "{message}" to {url}')
-        result = yield self._post(url, {'body': message})
-        log.msg(f'Comment is sent with the following result: {result}')
-
-        return changes, 'git'
+            yield self._post(comments_url, {'body': message})
+            return [], 'git'
 
     # TODO(kszucs):
     # handle_commit_comment d
