@@ -55,6 +55,9 @@ class GithubHook(GitHubEventHandler):
         if payload['sender']['login'] == BOTNAME:
             # don't respond to itself
             return [], 'git'
+        elif payload['action'] not in {'created', 'edited'}:
+            # don't respond to comment deletion
+            return [], 'git'
         elif command is None:
             # ursabot is not mentioned, nothing to do
             return [], 'git'
