@@ -17,6 +17,7 @@ class GithubHook(GitHubEventHandler):
         if self._token:
             headers['Authorization'] = 'token ' + self._token
 
+        # TODO(kszucs): initialize it once?
         return HTTPClientService.getService(
             self.master, self.github_api_endpoint, headers=headers,
             debug=self.debug, verify=self.verify)
@@ -35,6 +36,7 @@ class GithubHook(GitHubEventHandler):
         client = yield self._client()
         response = yield client.post(url.path, json=data)
         result = yield response.json()
+        log.msg(f'POST to {url} with the following result: {result}')
         return result
 
     def _parse_command(self, message):
@@ -46,48 +48,46 @@ class GithubHook(GitHubEventHandler):
 
     @defer.inlineCallbacks
     def handle_issue_comment(self, payload, event):
-        url = payload['issue']['comments_url']
-        repo = payload['repository']
-        body = payload['comment']['body']
-        sender = payload['sender']['login']
-        pull_request = payload['issue'].get('pull_request', None)
-        command = self._parse_command(body)
+        issue = payload['issue']
+        comments_url = issue['comments_url']
+        command = self._parse_command(payload['comment']['body'])
 
-        if sender == BOTNAME or command is None:
+        if payload['sender']['login'] == BOTNAME:
             # don't respond to itself
             return [], 'git'
-
-        if pull_request is None:
-            message = 'Ursabot only listens to pull request comments!'
-
-        changes = []
-        if command == 'build':
-            try:
-                message = "I've started builds for this PR"
-                pr = yield self._get(pull_request['url'])
-                changes = [{
-                    'author': sender,
-                    'repository': repo['html_url'],  # use codebases instead
-                    'project': repo['full_name'],
-                    'revision': pr['head']['sha'],
-                    # parse it
-                    # 'when_timestamp': payload['comment']['updated_at']
-                    'revlink': pull_request['html_url'],
-                    # 'category': 'build',
-                    'category': None,
-                    'comments': body
-                }]
-            except Exception as e:
-                message = "I've failed to start builds for this PR"
-                log.err(f'{message}: {e}')
+        elif payload['action'] not in {'created', 'edited'}:
+            # don't respond to comment deletion
+            return [], 'git'
+        elif command is None:
+            # ursabot is not mentioned, nothing to do
+            return [], 'git'
+        elif command == 'build':
+            if 'pull_request' not in issue:
+                message = 'Ursabot only listens to pull request comments!'
+                yield self._post(comments_url, {'body': message})
+                return [], 'git'
         else:
             message = f'Unknown command "{command}"'
+            yield self._post(comments_url, {'body': message})
+            return [], 'git'
 
-        log.msg(f'Sending answer "{message}" to {url}')
-        result = yield self._post(url, {'body': message})
-        log.msg(f'Comment is sent with the following result: {result}')
-
-        return changes, 'git'
+        try:
+            pull_request = yield self._get(issue['pull_request']['url'])
+            changes, _ = yield self.handle_pull_request({
+                'action': 'synchronize',
+                'sender': payload['sender'],
+                'repository': payload['repository'],
+                'pull_request': pull_request,
+                'number': pull_request['number']
+            }, event)
+        except Exception as e:
+            message = "I've failed to start builds for this PR"
+            yield self._post(comments_url, {'body': message})
+            raise e
+        else:
+            message = "I've successfully started builds for this PR"
+            yield self._post(comments_url, {'body': message})
+            return changes, 'git'
 
     # TODO(kszucs):
     # handle_commit_comment d
