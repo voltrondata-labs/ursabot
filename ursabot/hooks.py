@@ -62,28 +62,28 @@ class GithubHook(GitHubEventHandler):
                 message = 'Ursabot only listens to pull request comments!'
                 yield self._post(comments_url, {'body': message})
                 return [], 'git'
-
-            try:
-                pull_request = yield self._get(payload['pull_request']['url'])
-                pr_payload = {
-                    'action': 'synchronize',
-                    'sender': payload['sender'],
-                    'repository': payload['repository'],
-                    'pull_request': pull_request,
-                    'number': pull_request['number']
-                }
-                changes, _ = yield self.handle_pull_request(pr_payload, event)
-            except Exception as e:
-                message = "I've failed to start builds for this PR"
-                log.err(f'{message}: {e}')
-            else:
-                message = "I've started builds for this PR"
-                yield self._post(comments_url, {'body': message})
-                return changes, 'git'
         else:
             message = f'Unknown command "{command}"'
             yield self._post(comments_url, {'body': message})
             return [], 'git'
+
+        try:
+            pull_request = yield self._get(payload['pull_request']['url'])
+            changes, _ = yield self.handle_pull_request({
+                'action': 'synchronize',
+                'sender': payload['sender'],
+                'repository': payload['repository'],
+                'pull_request': pull_request,
+                'number': pull_request['number']
+            }, event)
+        except Exception as e:
+            message = "I've failed to start builds for this PR"
+            log.err(f'{message}: {e}')
+            return [], 'git'
+        else:
+            message = "I've started builds for this PR"
+            yield self._post(comments_url, {'body': message})
+            return changes, 'git'
 
     # TODO(kszucs):
     # handle_commit_comment d
