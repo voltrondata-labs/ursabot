@@ -1,8 +1,8 @@
-from twisted.internet import defer
-
 from buildbot.plugins import steps, util
 from buildbot.process import buildstep
 from buildbot.process.results import SUCCESS
+
+from .utils import ensure_deferred
 
 
 class ShellMixin(buildstep.ShellMixin):
@@ -49,10 +49,10 @@ class ShellCommand(ShellMixin, buildstep.BuildStep):
         kwargs = self.setupShellMixin(kwargs)
         super().__init__(**kwargs)
 
-    @defer.inlineCallbacks
-    def run(self):
-        cmd = yield self.makeRemoteShellCommand(command=self.command)
-        yield self.runCommand(cmd)
+    @ensure_deferred
+    async def run(self):
+        cmd = await self.makeRemoteShellCommand(command=self.command)
+        await self.runCommand(cmd)
         return cmd.results()
 
 
@@ -71,8 +71,8 @@ class CMake(ShellMixin, steps.CMake):
 
     name = 'CMake'
 
-    @defer.inlineCallbacks
-    def run(self):
+    @ensure_deferred
+    async def run(self):
         """Create and run CMake command
 
         Copied from the original CMake implementation to handle None values as
@@ -94,8 +94,8 @@ class CMake(ShellMixin, steps.CMake):
         if self.options is not None:
             command.extend(self.options)
 
-        cmd = yield self.makeRemoteShellCommand(command=command)
-        yield self.runCommand(cmd)
+        cmd = await self.makeRemoteShellCommand(command=command)
+        await self.runCommand(cmd)
 
         return cmd.results()
 
@@ -117,8 +117,8 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
         self.source = source
         super().__init__(**kwargs)
 
-    @defer.inlineCallbacks
-    def run(self):
+    @ensure_deferred
+    async def run(self):
         # on Windows, environment variables are case-insensitive, but we have
         # a case-sensitive dictionary in worker_environ.  Fortunately, that
         # dictionary is also folded to uppercase, so we can simply fold the
@@ -139,7 +139,7 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
                 # TODO(kszucs) try with self.setProperty similarly like in
                 # SetProperties
                 properties.setProperty(prop, value, self.source, runtime=True)
-                yield self.addCompleteLog('set-prop', f'{prop}: {value}')
+                await self.addCompleteLog('set-prop', f'{prop}: {value}')
 
         return SUCCESS
 

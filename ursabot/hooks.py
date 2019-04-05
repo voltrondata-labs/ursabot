@@ -1,11 +1,11 @@
 from urllib.parse import urlparse
 
 from twisted.python import log
-from twisted.internet import defer
 
 from buildbot.www.hooks.github import GitHubEventHandler
 from buildbot.util.httpclientservice import HTTPClientService
 
+from .utils import ensure_deferred
 
 BOTNAME = 'ursabot'
 
@@ -22,20 +22,18 @@ class GithubHook(GitHubEventHandler):
             self.master, self.github_api_endpoint, headers=headers,
             debug=self.debug, verify=self.verify)
 
-    @defer.inlineCallbacks
-    def _get(self, url):
+    async def _get(self, url):
         url = urlparse(url)
-        client = yield self._client()
-        response = yield client.get(url.path)
-        result = yield response.json()
+        client = await self._client()
+        response = await client.get(url.path)
+        result = await response.json()
         return result
 
-    @defer.inlineCallbacks
-    def _post(self, url, data):
+    async def _post(self, url, data):
         url = urlparse(url)
-        client = yield self._client()
-        response = yield client.post(url.path, json=data)
-        result = yield response.json()
+        client = await self._client()
+        response = await client.post(url.path, json=data)
+        result = await response.json()
         log.msg(f'POST to {url} with the following result: {result}')
         return result
 
@@ -46,8 +44,8 @@ class GithubHook(GitHubEventHandler):
             return message.split(mention)[-1].lower().strip()
         return None
 
-    @defer.inlineCallbacks
-    def handle_issue_comment(self, payload, event):
+    @ensure_deferred
+    async def handle_issue_comment(self, payload, event):
         issue = payload['issue']
         comments_url = issue['comments_url']
         command = self._parse_command(payload['comment']['body'])
@@ -64,16 +62,16 @@ class GithubHook(GitHubEventHandler):
         elif command == 'build':
             if 'pull_request' not in issue:
                 message = 'Ursabot only listens to pull request comments!'
-                yield self._post(comments_url, {'body': message})
+                await self._post(comments_url, {'body': message})
                 return [], 'git'
         else:
             message = f'Unknown command "{command}"'
-            yield self._post(comments_url, {'body': message})
+            await self._post(comments_url, {'body': message})
             return [], 'git'
 
         try:
-            pull_request = yield self._get(issue['pull_request']['url'])
-            changes, _ = yield self.handle_pull_request({
+            pull_request = await self._get(issue['pull_request']['url'])
+            changes, _ = await self.handle_pull_request({
                 'action': 'synchronize',
                 'sender': payload['sender'],
                 'repository': payload['repository'],
@@ -82,11 +80,11 @@ class GithubHook(GitHubEventHandler):
             }, event)
         except Exception as e:
             message = "I've failed to start builds for this PR"
-            yield self._post(comments_url, {'body': message})
+            await self._post(comments_url, {'body': message})
             raise e
         else:
             message = "I've successfully started builds for this PR"
-            yield self._post(comments_url, {'body': message})
+            await self._post(comments_url, {'body': message})
             return changes, 'git'
 
     # TODO(kszucs):
