@@ -11,11 +11,6 @@ from buildbot.test.unit.test_www_hooks_github import (
 from ursabot.utils import ensure_deferred
 from ursabot.hooks import GithubHook
 
-# use pip install --no-binary buildbot buildbot to install from source, because
-# buildbot doesn't bundle tests in wheels
-
-# requires pip install pytest-twisted
-
 
 class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
 
