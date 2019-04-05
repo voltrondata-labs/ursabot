@@ -80,7 +80,11 @@ ursabot_test = BuildFactory([
                mode='full'),
     ShellCommand(command=['ls', '-lah']),
     ShellCommand(command=['pip', 'install', 'pytest', 'flake8']),
-    ShellCommand(command=['pip', 'install', '-e', '.']),
+    # --no-binary buildbot is required because buildbot doesn't bundle its
+    # tests to binary wheels, but ursabot's test suite depends on buildbot's
+    # so install it from source
+    ShellCommand(command=['pip', 'install', '--no-binary', 'buildbot',
+                          '-e', '.']),
     ShellCommand(command=['flake8']),
     ShellCommand(command=['pytest', '-v', '-m', 'not docker', 'ursabot']),
     ShellCommand(command=['buildbot', 'checkconfig', '.'])

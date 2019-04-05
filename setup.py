@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 
+import sys
 from setuptools import setup
+
+
+if sys.version_info < (3, 6):
+    sys.exit('Python < 3.6 is not supported due to missing asyncio support')
 
 
 # TODO(kszucs): add package data, change maintainer
