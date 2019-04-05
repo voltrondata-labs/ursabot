@@ -7,7 +7,7 @@ script:
   # --no-binary buildbot is required because buildbot doesn't bundle its tests
   # to binary wheels, but ursabot's test suite depends on buildbot's so install
   # it from source
-  - pip install --no-binary buildbot "pytest>=3.9" flake8 -e .
+  - pip install --no-binary buildbot "pytest>=3.9" mock flake8 -e .
 
   # run linter
   - flake8 ursabot
