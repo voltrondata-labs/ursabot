@@ -54,7 +54,7 @@ class TestGithubHook(ChangeHookTestCase):
         await self.request('ping', {})
         assert len(self.hook.master.data.updates.changesAdded) == 0
 
-    @ensure_deferred
-    async def test_issue_comment(self):
-        payload = {}
-        await self.request('issue_comment', payload)
+    # @ensure_deferred
+    # async def test_issue_comment(self):
+    #     payload = {}
+    #     await self.request('issue_comment', payload)
