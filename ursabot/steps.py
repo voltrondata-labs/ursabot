@@ -171,11 +171,10 @@ class PythonFunction(buildstep.BuildStep):
         try:
             result = await threads.deferToThread(self.fn)
         except Exception as e:
-            await self.addCompleteLog(f'Failed with exception {e}')
+            await self.addLogWithException(e)
             return FAILURE
         else:
-            msg = f'Successfully finished with result: {result}'
-            await self.addCompleteLog(msg)
+            await self.addCompleteLog('result', result)
             return SUCCESS
 
 
