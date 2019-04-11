@@ -1,6 +1,7 @@
 from buildbot.plugins import steps, util
 from buildbot.process import buildstep
-from buildbot.process.results import SUCCESS
+from buildbot.process.results import SUCCESS, FAILURE
+from twisted.internet import threads
 
 from .utils import ensure_deferred
 
@@ -16,6 +17,7 @@ class ShellMixin(buildstep.ShellMixin):
     """
 
     shell = tuple()  # will run sh on unix and batch on windows by default
+    command = tuple()
 
     def makeRemoteShellCommand(self, **kwargs):
         import pipes  # only available on unix
@@ -26,13 +28,8 @@ class ShellMixin(buildstep.ShellMixin):
             return pipes.quote(e)
 
         # follow the semantics of the parent method, but don't flatten
-        command = kwargs.pop('command', self.command)
-
-        # command should be validated during the construction
-        if isinstance(command, (tuple, list)):
-            command = tuple(command)
-        else:
-            raise ValueError('Command must be an instance of list or tuple')
+        # command = self.command + kwargs.pop('command', tuple())
+        command = tuple(kwargs.pop('command'))
 
         if self.shell:
             # render the command and prepend with the shell
@@ -45,7 +42,18 @@ class ShellMixin(buildstep.ShellMixin):
 
 class ShellCommand(ShellMixin, buildstep.BuildStep):
 
-    def __init__(self, **kwargs):
+    def __init__(self, command=tuple(), **kwargs):
+        # command should be validated during the construction
+        if not isinstance(command, (tuple, list)):
+            raise ValueError('Command must be an instance of list or tuple')
+
+        # appends to the class' command to allow creating command's like
+        # SetupPy via subclassing ShellCommand
+        command = tuple(self.command) + tuple(command)
+        if not command:
+            raise ValueError('No command was provided')
+
+        kwargs['command'] = command
         kwargs = self.setupShellMixin(kwargs)
         super().__init__(**kwargs)
 
@@ -65,6 +73,9 @@ class ShellCommand(ShellMixin, buildstep.BuildStep):
 #
 # class BashCommand(BashMixin, ShellCommand):
 #     pass
+
+# class SetupPy(ShellCommand):
+#     command = ['python', 'setup.py']
 
 
 class CMake(ShellMixin, steps.CMake):
@@ -142,6 +153,30 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
                 await self.addCompleteLog('set-prop', f'{prop}: {value}')
 
         return SUCCESS
+
+
+class PythonFunction(buildstep.BuildStep):
+    """Executes arbitrary python function."""
+
+    name = 'PythonFunction'
+    description = ['Executing']
+    descriptionDone = ['Executed']
+
+    def __init__(self, fn, **kwargs):
+        self.fn = fn
+        super().__init__(**kwargs)
+
+    @ensure_deferred
+    async def run(self):
+        try:
+            result = await threads.deferToThread(self.fn)
+        except Exception as e:
+            await self.addCompleteLog(f'Failed with exception {e}')
+            return FAILURE
+        else:
+            msg = f'Successfully finished with result: {result}'
+            await self.addCompleteLog(msg)
+            return SUCCESS
 
 
 checkout = steps.Git(
@@ -310,38 +345,33 @@ cmake = CMake(
     definitions=definitions
 )
 
+
+class Ninja(ShellCommand):
+    # TODO(kszucs): add proper descriptions
+    name = 'Ninja'
+    command = ['ninja']
+
+
+class SetupPy(ShellCommand):
+    name = 'setup.py'
+    command = ['python', 'setup.py']
+
+
 # TODO(kszucs): use property
-compile = ShellCommand(
-    name='Compile C++',
-    command=['ninja'],
-    workdir='cpp/build'
-)
+compile = Ninja(name='Compile C++', workdir='cpp/build')
+test = Ninja(['test'], name='Test C++', workdir='cpp/build')
+install = Ninja(['install'], name='Install C++', workdir='cpp/build')
 
-test = ShellCommand(
-    name='Test C++',
-    command=['ninja', 'test'],
-    workdir='cpp/build'
-)
-
-install = ShellCommand(
-    name='Install C++',
-    command=['ninja', 'install'],
-    workdir='cpp/build',
-)
-
-pyarrow_env = {
-    'ARROW_HOME': util.Property('CMAKE_INSTALL_PREFIX', None),
-    'PYARROW_CMAKE_GENERATOR': 'Ninja',
-    'PYARROW_BUILD_TYPE': 'debug',
-    'PYARROW_WITH_PARQUET': util.Property('ARROW_PARQUET', None),
-}
-pyarrow_env = {k: util.Property(k, default=v) for k, v in pyarrow_env.items()}
-
-setup = ShellCommand(
+setup = SetupPy(
+    command=['build_ext', '--inplace'],
     name='Build Python Extension',
-    command=['python', 'setup.py', 'build_ext', '--inplace'],
     workdir='python',
-    env=pyarrow_env
+    env={
+        'ARROW_HOME': util.Property('CMAKE_INSTALL_PREFIX'),
+        'PYARROW_CMAKE_GENERATOR': util.Property('CMAKE_GENERATOR'),
+        'PYARROW_BUILD_TYPE': util.Property('CMAKE_BUILD_TYPE'),
+        'PYARROW_WITH_PARQUET': util.Property('ARROW_PARQUET')
+    }
 )
 
 pytest = ShellCommand(

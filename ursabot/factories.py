@@ -5,7 +5,7 @@ from buildbot.plugins import steps as _steps  # ugly
 
 from .steps import (checkout, ls, cmake, compile, test, env, cpp_props,
                     setup, pytest, install, mkdir, conda_props, python_props)
-from .steps import ShellCommand
+from .steps import ShellCommand, PythonFunction
 
 
 class BuildFactory(util.BuildFactory):
@@ -88,4 +88,8 @@ ursabot_test = BuildFactory([
     ShellCommand(command=['flake8']),
     ShellCommand(command=['pytest', '-v', '-m', 'not docker', 'ursabot']),
     ShellCommand(command=['buildbot', 'checkconfig', '.'])
+])
+
+ursabot_docker_build = BuildFactory([
+    PythonFunction(lambda: 'trying')
 ])

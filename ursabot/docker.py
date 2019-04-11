@@ -250,6 +250,8 @@ ubuntu_pkgs = [
     'bison',
     'flex',
     'git',
+    # zstd ep requires CMake >= 3.7 which is not available for ubuntu 16.04
+    'libzstd1-dev',
     'ninja-build'
 ]
 
