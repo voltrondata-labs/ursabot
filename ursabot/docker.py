@@ -146,6 +146,7 @@ class ImageCollection(list):
                 deps[image].add(image.base)
 
         for image_set in toposort(deps):
+            # TODO(kszucs): this can be easily parallelized with dask
             for image in image_set:
                 image.build(*args, **kwargs)
 
