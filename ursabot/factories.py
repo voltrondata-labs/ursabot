@@ -112,5 +112,5 @@ ursabot_test = BuildFactory([
 ])
 
 ursabot_docker_build = BuildFactory([
-    PythonFunction(lambda: 'trying to run a function')
+    PythonFunction(lambda: 'trying to run this function')
 ])
