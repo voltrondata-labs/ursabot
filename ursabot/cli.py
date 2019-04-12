@@ -1,5 +1,6 @@
 import click
 import logging
+import toolz
 
 from dockermap.api import DockerClientWrapper
 
@@ -18,7 +19,7 @@ def ursabot(ctx, verbose):
     ctx.obj['verbose'] = verbose
 
     if verbose:
-        logger.setLevel(logging.INFO)
+        logging.getLogger('ursabot').setLevel(logging.INFO)
 
 
 @ursabot.group()
@@ -43,26 +44,19 @@ def docker(ctx, docker_host, docker_username, docker_password):
 @docker.command()
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
-@click.option('--architecture', '-a', default=None,
-              help='Build docker images for this specifig architecture')
-@click.option('--filter', '-f', default=None,
-              help='Filter images by name')
+@click.option('--arch', '-a', default=None,
+              help='Filter images by architecture')
+@click.option('--os', '-o', default=None,
+              help='Filter images by operating system')
+@click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_context
-def build(ctx, push, architecture, filter):
-    if architecture is not None:
-        imgs = [img for img in arrow_images if img.arch == architecture]
-    else:
-        imgs = arrow_images
-
-    if filter is not None:
-        imgs = [img for img in imgs if filter in img.fqn]
+def build(ctx, push, arch, name, os):
+    filters = toolz.valfilter(lambda x: x is not None,
+                              {'fqn': name, 'arch': arch, 'os': os})
+    imgs = arrow_images.filter(**filters)
 
     client = ctx.obj['client']
-    for img in imgs:
-        click.echo(f'Building {img.fqn}')
-        img.build(client=client)
+    imgs.build(client=client)
 
     if push:
-        for img in imgs:
-            click.echo(f'Pushing {img.fqn}...')
-            img.push(client=client)
+        imgs.push(client=client)
