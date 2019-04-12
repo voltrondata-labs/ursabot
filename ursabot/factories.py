@@ -40,12 +40,15 @@ cpp = BuildFactory([
 ])
 
 python = BuildFactory([
-    checkout,
-    env,
     _steps.SetProperties({
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON'
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_PREFIX': '/usr/local',
+        'CMAKE_INSTALL_LIBDIR': 'lib',
+        'LD_LIBRARY_PATH': '/usr/local/lib'
     }),
+    checkout,
+    env,
     mkdir,
     cmake,
     compile,
