@@ -64,20 +64,6 @@ class ShellCommand(ShellMixin, buildstep.BuildStep):
         return cmd.results()
 
 
-# class BashMixin(ShellMixin):
-#     """Runs command in an interactive bash session"""
-#     # TODO(kszucs): validate that the platform is unix
-#     usePTY = True
-#     shell = ('/bin/bash', '-l', '-i', '-c')
-#
-#
-# class BashCommand(BashMixin, ShellCommand):
-#     pass
-
-# class SetupPy(ShellCommand):
-#     command = ['python', 'setup.py']
-
-
 class CMake(ShellMixin, steps.CMake):
 
     name = 'CMake'
@@ -350,7 +336,6 @@ class SetupPy(ShellCommand):
     command = ['python', 'setup.py']
 
 
-# TODO(kszucs): use property
 compile = Ninja(name='Compile C++', workdir='cpp/build')
 test = Ninja(['test'], name='Test C++', workdir='cpp/build')
 install = Ninja(['install'], name='Install C++', workdir='cpp/build')
