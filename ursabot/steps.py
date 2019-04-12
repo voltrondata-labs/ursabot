@@ -367,10 +367,15 @@ setup = SetupPy(
     }
 )
 
+ld_library_path = util.Interpolate(
+    '%(prop:CMAKE_INSTALL_PREFIX)s/%(prop:CMAKE_INSTALL_LIBDIR)s'
+)
+
 pytest = ShellCommand(
     name='Run Pytest',
     command=['pytest', '-v', 'pyarrow'],
-    workdir='python'
+    workdir='python',
+    env={'LD_LIBRARY_PATH': ld_library_path}
 )
 
 env = ShowEnv()

@@ -3,8 +3,8 @@ from buildbot import interfaces
 from buildbot.plugins import util
 from buildbot.plugins import steps as _steps  # ugly
 
-from .steps import (checkout, ls, cmake, compile, test, env,
-                    setup, pytest, install, mkdir)
+from .steps import (checkout, cmake, compile, test, setup, pytest, install,
+                    mkdir)
 from .steps import ShellCommand, PythonFunction, SetPropertiesFromEnv
 
 
@@ -29,11 +29,13 @@ class BuildFactory(util.BuildFactory):
 
 
 cpp = BuildFactory([
+    _steps.SetProperties({
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_PREFIX': '/usr/local',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }),
     checkout,
-    ls,
-    env,
     mkdir,
-    ls,
     cmake,
     compile,
     test
@@ -44,11 +46,9 @@ python = BuildFactory([
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib',
-        'LD_LIBRARY_PATH': '/usr/local/lib'
+        'CMAKE_INSTALL_LIBDIR': 'lib'
     }),
     checkout,
-    env,
     mkdir,
     cmake,
     compile,
@@ -57,17 +57,14 @@ python = BuildFactory([
     pytest
 ])
 
-conda_props = SetPropertiesFromEnv({
-    'CMAKE_AR': 'AR',
-    'CMAKE_RANLIB': 'RANLIB',
-    'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
-    'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
-})
-
 cpp_conda = BuildFactory([
+    SetPropertiesFromEnv({
+        'CMAKE_AR': 'AR',
+        'CMAKE_RANLIB': 'RANLIB',
+        'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
+        'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
+    }),
     checkout,
-    env,
-    conda_props,
     mkdir,
     cmake,
     compile,
@@ -78,13 +75,18 @@ cpp_conda = BuildFactory([
 # ARROW_PYTHON=ON
 
 python_conda = BuildFactory([
-    checkout,
-    env,
-    conda_props,
     _steps.SetProperties({
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON'
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
     }),
+    SetPropertiesFromEnv({
+        'CMAKE_AR': 'AR',
+        'CMAKE_RANLIB': 'RANLIB',
+        'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
+        'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
+    }),
+    checkout,
     mkdir,
     cmake,
     compile,
