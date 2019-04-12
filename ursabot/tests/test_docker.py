@@ -97,10 +97,10 @@ def test_image_collection(collection):
     assert len(collection) == 11
 
     imgs = [img.name for img in collection.filter(arch='amd64')]
-    assert imgs == ['a', 'c', 'd', 'e', 'j', 'k']
+    assert sorted(imgs) == ['a', 'c', 'd', 'e', 'j', 'k']
 
     imgs = [img.name for img in collection.filter(os='centos')]
-    assert imgs == ['b', 'f', 'g', 'h', 'i']
+    assert sorted(imgs) == ['b', 'f', 'g', 'h', 'i']
 
 
 @pytest.mark.slow
