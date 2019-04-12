@@ -178,7 +178,8 @@ class PythonFunction(buildstep.BuildStep):
             return SUCCESS
 
 
-checkout = steps.Git(
+# prefer GitHub over Git step
+checkout = steps.GitHub(
     name='Clone Arrow',
     repourl='https://github.com/apache/arrow',
     workdir='.',
@@ -362,8 +363,8 @@ test = Ninja(['test'], name='Test C++', workdir='cpp/build')
 install = Ninja(['install'], name='Install C++', workdir='cpp/build')
 
 setup = SetupPy(
-    command=['build_ext', '--inplace'],
-    name='Build Python Extension',
+    command=['develop'],
+    name='Build PyArrow',
     workdir='python',
     env={
         'ARROW_HOME': util.Property('CMAKE_INSTALL_PREFIX'),
