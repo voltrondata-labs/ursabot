@@ -3,9 +3,9 @@ from buildbot import interfaces
 from buildbot.plugins import util
 from buildbot.plugins import steps as _steps  # ugly
 
-from .steps import (checkout, ls, cmake, compile, test, env, cpp_props,
-                    setup, pytest, install, mkdir, conda_props, python_props)
-from .steps import ShellCommand, PythonFunction
+from .steps import (checkout, ls, cmake, compile, test, env,
+                    setup, pytest, install, mkdir)
+from .steps import ShellCommand, PythonFunction, SetPropertiesFromEnv
 
 
 class BuildFactory(util.BuildFactory):
@@ -23,13 +23,17 @@ class BuildFactory(util.BuildFactory):
         self.steps.insert(0, interfaces.IBuildStepFactory(step))
 
 
+# TODO(kszucs): create popert build factory abstractions for cpp and
+#               python builds, e.g. for passing build properties to the build
+#               itself instead of using a step for it
+
+
 cpp = BuildFactory([
     checkout,
     ls,
     env,
     mkdir,
     ls,
-    cpp_props,
     cmake,
     compile,
     test
@@ -38,8 +42,10 @@ cpp = BuildFactory([
 python = BuildFactory([
     checkout,
     env,
-    cpp_props,
-    python_props,
+    _steps.SetProperties({
+        'ARROW_PYTHON': 'ON',
+        'ARROW_PLASMA': 'ON'
+    }),
     mkdir,
     cmake,
     compile,
@@ -47,6 +53,13 @@ python = BuildFactory([
     setup,
     pytest
 ])
+
+conda_props = SetPropertiesFromEnv({
+    'CMAKE_AR': 'AR',
+    'CMAKE_RANLIB': 'RANLIB',
+    'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
+    'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
+})
 
 cpp_conda = BuildFactory([
     checkout,
@@ -65,7 +78,10 @@ python_conda = BuildFactory([
     checkout,
     env,
     conda_props,
-    python_props,
+    _steps.SetProperties({
+        'ARROW_PYTHON': 'ON',
+        'ARROW_PLASMA': 'ON'
+    }),
     mkdir,
     cmake,
     compile,

@@ -326,13 +326,6 @@ definitions = {
 definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 
 
-conda_props = SetPropertiesFromEnv({
-    'CMAKE_AR': 'AR',
-    'CMAKE_RANLIB': 'RANLIB',
-    'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
-    'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
-})
-
 mkdir = steps.MakeDirectory(
     name='Create C++ build directory',
     dir='cpp/build'
@@ -387,12 +380,3 @@ ls = ShellCommand(
     command=['ls', '-lah'],
     workdir='.'
 )
-
-cpp_props = steps.SetProperties({
-    'CMAKE_INSTALL_PREFIX': '/usr/local'
-})
-
-python_props = steps.SetProperties({
-    'ARROW_PYTHON': 'ON',
-    'ARROW_PLASMA': 'ON'
-})
