@@ -3,19 +3,38 @@ from textwrap import dedent
 import pytest
 from dockermap.api import DockerFile, DockerClientWrapper
 
-from ursabot.docker import (DockerImage, RUN, CMD, apk, apt, pip, conda,
-                            arrow_images)
+from ursabot.docker import (DockerImage, ImageCollection, RUN, CMD, apk, apt,
+                            pip, conda, arrow_images)
 
 
 @pytest.fixture
-def testimg():
+def image():
     steps = [
         RUN(apt('python', 'python-pip')),
         RUN(pip('six', 'toolz')),
         CMD(['python'])
     ]
-    return DockerImage('worker-testimg', base='ubuntu', os='ubuntu',
+    return DockerImage('worker-image', base='ubuntu', os='ubuntu',
                        arch='amd64', steps=steps)
+
+
+@pytest.fixture
+def collection():
+    a = DockerImage('a', base='ubuntu', os='ubuntu', arch='amd64', steps=[])
+    b = DockerImage('b', base='centos', os='centos', arch='arm64v8', steps=[])
+    c = DockerImage('c', base=a, steps=[])
+    d = DockerImage('d', base=c, steps=[])
+    e = DockerImage('e', base=c, steps=[])
+    f = DockerImage('f', base=b, steps=[])
+    g = DockerImage('g', base=b, steps=[])
+    h = DockerImage('h', base=g, steps=[])
+    i = DockerImage('i', base=f, steps=[])
+    j = DockerImage('j', base=e, steps=[])
+    k = DockerImage('k', base=e, steps=[])
+    return ImageCollection(
+        # not in order to test toposort
+        [k, b, e, j, i, a, c, d, f, g, h]
+    )
 
 
 def test_apk():
@@ -36,11 +55,11 @@ def test_shortcuts_smoke():
         assert 'requirements.txt' in fn('six', files=['requirements.txt'])
 
 
-def test_dockerfile_dsl(testimg):
-    assert testimg.repo == 'amd64-ubuntu-worker-testimg'
-    assert testimg.base == 'ubuntu'
+def test_dockerfile_dsl(image):
+    assert image.repo == 'amd64-ubuntu-worker-image'
+    assert image.base == 'ubuntu'
 
-    dockerfile = str(testimg.dockerfile)
+    dockerfile = str(image.dockerfile)
     expected = dedent("""
         FROM ubuntu
 
@@ -59,22 +78,35 @@ def test_dockerfile_dsl(testimg):
     assert dockerfile.strip() == expected.strip()
 
 
-def test_docker_image_save(tmp_path, testimg):
-    target = tmp_path / f'{testimg.repo}.{testimg.tag}.dockerfile'
-    testimg.save_dockerfile(tmp_path)
+def test_docker_image_save(tmp_path, image):
+    target = tmp_path / f'{image.repo}.{image.tag}.dockerfile'
+    image.save_dockerfile(tmp_path)
     assert target.read_text().startswith('FROM ubuntu')
 
 
 @pytest.mark.slow
 @pytest.mark.docker
-def test_docker_image_build(testimg):
+def test_docker_image_build(image):
     client = DockerClientWrapper()
-    testimg.build(client=client)
-    assert len(client.images(testimg.fqn))
+    image.build(client=client)
+    assert len(client.images(image.fqn))
 
 
-def test_docker_image_push():
-    pass
+def test_image_collection(collection):
+    assert isinstance(collection, ImageCollection)
+    assert len(collection) == 11
+
+    imgs = [img.name for img in collection.filter(arch='amd64')]
+    assert sorted(imgs) == ['a', 'c', 'd', 'e', 'j', 'k']
+
+    imgs = [img.name for img in collection.filter(os='centos')]
+    assert sorted(imgs) == ['b', 'f', 'g', 'h', 'i']
+
+
+@pytest.mark.slow
+@pytest.mark.docker
+def test_image_collection_build(collection):
+    collection.build()
 
 
 def test_arrow_images():

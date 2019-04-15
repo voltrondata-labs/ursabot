@@ -1,13 +1,20 @@
 import json
+import logging
 from pathlib import Path
 from functools import wraps
 from operator import methodcaller
 from textwrap import indent, dedent
+from collections import defaultdict
+
 
 # from dask import delayed
+from toposort import toposort
 from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 from dockermap.build.dockerfile import format_command
+
+
+logger = logging.getLogger(__name__)
 
 
 class DockerFile(DockerFile):
@@ -31,10 +38,7 @@ class DockerImage:
                     f"Given architecture `{arch}` is not equal with the base "
                     f"image's architecture `{base.arch}`"
                 )
-            arch = base.arch
-            os = base.os
-            variant = base.variant
-            base = base.fqn  # keep it last
+            os, arch, variant = base.os, base.arch, base.variant
         elif not isinstance(base, str):
             raise TypeError(
                 '`tag` argument must be an instance of DockerImage or str'
@@ -98,7 +102,8 @@ class DockerImage:
 
     @property
     def dockerfile(self):
-        df = DockerFile(self.base)
+        # self.base is either a string or a DockerImage instance
+        df = DockerFile(str(self.base))
         for callback in self.steps:
             callback(df)
         df.finalize()
@@ -115,7 +120,10 @@ class DockerImage:
         # wrap it in a try catch and serialize the failing dockerfile
         # also consider to use add an `org` argument to directly tag the image
         # TODO(kszucs): pass platform argument
+        logger.info(f'Start building {self.fqn}')
         client.build_from_file(self.dockerfile, self.fqn, **kwargs)
+        logger.info(f'Image is build successfully: {self.fqn}')
+
         return self
 
     def push(self, client=None, **kwargs):
@@ -124,6 +132,34 @@ class DockerImage:
 
         client.push(self.fqn, **kwargs)
         return self
+
+
+class ImageCollection(list):
+
+    def build(self, *args, **kwargs):
+        deps = defaultdict(set)
+        for image in self:
+            # image.base is either a string or a DockerImage, in the former
+            # case it is going to be pulled from the registry instead of
+            # being built by us
+            if isinstance(image.base, DockerImage):
+                deps[image].add(image.base)
+
+        for image_set in toposort(deps):
+            # TODO(kszucs): this can be easily parallelized with dask
+            for image in image_set:
+                image.build(*args, **kwargs)
+
+    def push(self, *args, **kwargs):
+        # topological sort is not required because the layers are cached
+        for image in self:
+            image.push(*args, **kwargs)
+
+    def filter(self, **kwargs):
+        imgs = self
+        for by, value in kwargs.items():
+            imgs = filter(lambda item: getattr(item, by) == value, imgs)
+        return ImageCollection(imgs)
 
 
 # functions to define dockerfiles from python
@@ -233,7 +269,7 @@ def conda(*packages, files=tuple()):
     return cmd.lstrip()
 
 
-images = []  # list of tuple(arch, image)
+images = ImageCollection()
 docker = Path(__file__).parent.parent / 'docker'
 
 
@@ -250,6 +286,8 @@ ubuntu_pkgs = [
     'bison',
     'flex',
     'git',
+    # zstd ep requires CMake >= 3.7 which is not available for ubuntu 16.04
+    'libzstd1-dev',
     'ninja-build'
 ]
 

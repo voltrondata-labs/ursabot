@@ -19,7 +19,7 @@ setup(
     packages=['ursabot'],
     setup_requires=['setuptools_scm'],
     install_requires=['click', 'dask', 'docker', 'docker-map', 'toolz',
-                      'buildbot', 'treq'],
+                      'buildbot', 'treq', 'toposort'],
     tests_require=['pytest>=3.9', 'mock'],
     entry_points='''
         [console_scripts]
