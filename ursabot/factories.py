@@ -4,7 +4,7 @@ from buildbot.plugins import util
 from buildbot.plugins import steps as _steps  # ugly
 
 from .steps import (checkout, cmake, compile, test, setup, pytest, install,
-                    mkdir)
+                    mkdir, install_archery, archery_benchmark_diff)
 from .steps import ShellCommand, PythonFunction, SetPropertiesFromEnv
 
 
@@ -38,7 +38,9 @@ cpp = BuildFactory([
     mkdir,
     cmake,
     compile,
-    test
+    test,
+    install_archery,
+    archery_benchmark_diff
 ])
 
 python = BuildFactory([

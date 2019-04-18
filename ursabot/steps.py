@@ -370,3 +370,19 @@ ls = ShellCommand(
     command=['ls', '-lah'],
     workdir='.'
 )
+
+
+install_archery = ShellCommand(
+    name='Install archery',
+    command=['pip', 'install', '-e', '.'],
+    workdir='dev/archery',
+)
+
+
+class Archery(ShellCommand):
+    name = "Archery"
+    command = "archery"
+
+
+archery_benchmark_diff = Archery(["benchmark", "diff"],
+                                 name="Run Archery benchmarks")
