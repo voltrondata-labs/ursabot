@@ -374,7 +374,7 @@ ls = ShellCommand(
 
 install_archery = ShellCommand(
     name='Install archery',
-    command=['pip3', 'install', '-e', '.'],
+    command=['pip', 'install', '-e', '.'],
     workdir='dev/archery',
 )
 
