@@ -38,9 +38,7 @@ cpp = BuildFactory([
     mkdir,
     cmake,
     compile,
-    test,
-    install_archery,
-    archery_benchmark_diff
+    test
 ])
 
 python = BuildFactory([
@@ -70,7 +68,9 @@ cpp_conda = BuildFactory([
     mkdir,
     cmake,
     compile,
-    test
+    test,
+    install_archery,
+    archery_benchmark_diff
 ])
 
 python_conda = BuildFactory([
