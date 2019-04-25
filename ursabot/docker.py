@@ -280,7 +280,7 @@ ubuntu_pkgs = [
     'libboost-filesystem-dev',
     'libboost-regex-dev',
     'libboost-system-dev',
-    'libbenchmark-dev',
+    #'libbenchmark-dev',
     'python',
     'python-pip',
     'bison',
