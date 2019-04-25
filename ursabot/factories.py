@@ -95,6 +95,18 @@ python_conda = BuildFactory([
     pytest
 ])
 
+cpp_benchmarks = BuildFactory([
+    _steps.SetProperties({
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_PREFIX': '/usr/local',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }),
+    checkout,
+    install_archery,
+    archery_benchmark_diff
+])
+
+
 ursabot_test = BuildFactory([
     _steps.Git(name='Clone Ursabot',
                repourl='https://github.com/ursa-labs/ursabot',
