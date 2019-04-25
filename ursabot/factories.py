@@ -68,10 +68,7 @@ cpp_conda = BuildFactory([
     mkdir,
     cmake,
     compile,
-    test,
-    ShellCommand(command=['conda', 'install', '-y', '-q', 'benchmark']),
-    install_archery,
-    archery_benchmark_diff
+    test
 ])
 
 python_conda = BuildFactory([

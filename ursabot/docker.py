@@ -224,11 +224,10 @@ def apt(*packages):
     """Generates apt install command"""
     template = dedent("""
         apt update -y -q && \\
-        apt install -y -q \\
-        {} && \\
+        apt install -y -q {} && \\
         rm -rf /var/lib/apt/lists/*
     """)
-    args = indent(' \\\n'.join(packages), _tab)
+    args = indent(' '.join(packages), _tab)
     cmd = indent(template.format(args), _tab)
     return cmd.lstrip()
 
