@@ -6,12 +6,13 @@ from operator import methodcaller
 from textwrap import indent, dedent
 from collections import defaultdict
 
-
 # from dask import delayed
 from toposort import toposort
 from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 from dockermap.build.dockerfile import format_command
+
+from .utils import attrfilter
 
 
 logger = logging.getLogger(__name__)
@@ -156,10 +157,7 @@ class ImageCollection(list):
             image.push(*args, **kwargs)
 
     def filter(self, **kwargs):
-        imgs = self
-        for by, value in kwargs.items():
-            imgs = filter(lambda item: getattr(item, by) == value, imgs)
-        return ImageCollection(imgs)
+        return attrfilter(self, **kwargs)
 
 
 # functions to define dockerfiles from python
@@ -392,7 +390,6 @@ for arch in ['amd64']:
     images.extend([cpp, cpp_worker])
 
     for pyversion in ['2.7', '3.6', '3.7']:
-        repo = f'{arch}-conda-python-{pyversion}'
         name = f'python-{pyversion}'
         python = DockerImage(name, base=cpp, steps=[
             ADD(docker / 'conda-python.txt'),

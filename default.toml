@@ -1,0 +1,60 @@
+# The 'title' string will appear at the top of this buildbot installation's
+# home pages (linked to the 'titleURL').
+title = 'Ursa-Labs Buildbot'
+
+# The 'buildbotURL' string should point to the location where the buildbot's
+# internal web server is visible. This typically uses the port number set in
+# the 'www' entry below, but with an externally-visible host name which the
+# buildbot cannot figure out without some help.
+# url =
+
+# Protocols contains information about protocols which master will use for
+# communicating with workers. You must define at least 'port' option that
+# workers could connect to your master with this protocol.
+# 'port' must match the value configured into the workers (with their
+# --master option)
+worker_port = 9989
+
+[webui]
+port = 4100
+
+[database]
+# url =
+
+[github]
+# have to provide repo:status scope for the token and write access to the
+# for the repositories in order to support github status_push below
+# token = ...
+
+[github.auth]
+# github organizations whos members are admins
+# additional user whom admin access should be granted
+enabled = false
+# client_id = ...
+# client_secret = ...
+# admin_orgs = [...]
+# admin_users = [...]
+
+[github.event_hook]
+# Secret must be provided during the hook definition on github.
+enabled = false
+debug = true
+# secret = ...
+
+[github.status_push]
+# to report status changes to the github ui
+enabled = false
+
+[changes.pb]
+port = 9041
+user = 'default'
+password = false
+
+[schedulers.try]
+port = 4010
+userpass = {}
+
+[workers]
+
+#
+#   [prod.schedulers.try.userpass.kszucs]

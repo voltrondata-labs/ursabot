@@ -18,8 +18,8 @@ setup(
     maintainer_email='szucs.krisztian@gmail.com',
     packages=['ursabot'],
     setup_requires=['setuptools_scm'],
-    install_requires=['click', 'dask', 'docker', 'docker-map', 'toolz',
-                      'buildbot', 'treq', 'toposort'],
+    install_requires=['click', 'docker', 'docker-map', 'toolz',
+                      'buildbot', 'treq', 'toposort', 'toml'],
     tests_require=['pytest>=3.9', 'mock'],
     entry_points='''
         [console_scripts]

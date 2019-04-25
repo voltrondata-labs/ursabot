@@ -119,3 +119,6 @@ dmypy.json
 *.log
 *.pid
 local.py
+
+# Ignore dynaconf secret files
+.secrets.*
