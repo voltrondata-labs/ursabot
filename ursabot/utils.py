@@ -1,6 +1,6 @@
-import os
-import pathlib
+import json
 import toml
+import pathlib
 import toolz
 import functools
 import operator
@@ -33,21 +33,27 @@ class Collection(list):
         return toolz.groupby(operator.attrgetter(*args), self)
 
 
+class ConfigError(Exception):
+    pass
+
+
 class Config(dict):
     __getattr__ = dict.__getitem__
 
     @classmethod
-    def _default_paths(cls):
-        env = os.environ.get('URSABOT_ENV', 'default')
-        files = ['default.toml', f'{env}.toml', '.secrets.toml']
+    def load(cls, *files):
         paths = list(map(pathlib.Path, files))
-        return [p for p in paths if p.exists()]
 
-    @classmethod
-    def load(cls, *paths, deserializer=toml.loads):
-        paths = paths or cls._default_paths()
-        configs = [deserializer(path.read_text())
-                   for path in map(pathlib.Path, paths)]
+        configs = []
+        for path in paths:
+            if path.suffix == '.json':
+                loads = json.loads
+            elif path.suffix == '.toml':
+                loads = toml.loads
+            else:
+                raise ValueError(f'Unsupported extension: `{path.suffix}`')
+            configs.append(loads(path.read_text()))
+
         return cls.merge(configs)
 
     @classmethod

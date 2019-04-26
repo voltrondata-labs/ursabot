@@ -103,7 +103,7 @@ ursabot_test = BuildFactory([
     # so install it from source
     ShellCommand(command=['pip', 'install', '--no-binary', 'buildbot',
                           '-e', '.']),
-    ShellCommand(command=['flake8']),
+    ShellCommand(command=['flake8', 'ursabot']),
     ShellCommand(command=['pytest', '-v', '-m', 'not docker', 'ursabot']),
     ShellCommand(command=['buildbot', 'checkconfig', '.'])
 ])
