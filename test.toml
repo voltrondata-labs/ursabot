@@ -3,6 +3,10 @@ url = 'http://localhost:8100/'
 webui_port = 8100
 database_url = 'sqlite:///ursabot.sqlite'
 
+[projects]
+arrow = { enabled = false }
+ursabot = { enabled = true }
+
 [[workers]]
 # docker-on-mac is able to containers for multiple architectures
 name = 'local1'

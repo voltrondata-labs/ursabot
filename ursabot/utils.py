@@ -25,7 +25,8 @@ class Collection(list):
                 fn = lambda item: value(getattr(item, by))  # noqa:E731
             else:
                 fn = lambda item: getattr(item, by) == value  # noqa:E731
-            items = filter(fn, items)
+            # XXX: without consuming the iterator only the first filter works
+            items = tuple(filter(fn, items))
         return self.__class__(items)
 
     def groupby(self, *args):
