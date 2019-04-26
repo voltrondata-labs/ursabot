@@ -4,7 +4,6 @@ from pathlib import Path
 from functools import wraps
 from operator import methodcaller
 from textwrap import indent, dedent
-from collections import defaultdict
 
 # from dask import delayed
 from toposort import toposort
@@ -138,11 +137,13 @@ class DockerImage:
 class ImageCollection(Collection):
 
     def build(self, *args, **kwargs):
-        deps = defaultdict(set)
+        deps = dict()
         for image in self:
             # image.base is either a string or a DockerImage, in the former
             # case it is going to be pulled from the registry instead of
             # being built by us
+            if image not in deps:
+                deps[image] = set()
             if isinstance(image.base, DockerImage):
                 deps[image].add(image.base)
 
@@ -264,10 +265,6 @@ def conda(*packages, files=tuple()):
     return cmd.lstrip()
 
 
-images = ImageCollection()
-docker = Path(__file__).parent.parent / 'docker'
-
-
 ubuntu_pkgs = [
     'autoconf',
     'build-essential',
@@ -305,6 +302,8 @@ alpine_pkgs = [
     'python-dev'
 ]
 
+docker = Path(__file__).parent.parent / 'docker'
+
 # TODO(kszucs): add buildbot user
 worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
@@ -319,13 +318,19 @@ conda_worker_steps = (
     worker_steps +
     [CMD([worker_command])]  # note this is list!
 )
-
 python_steps = [
     ADD(docker / 'requirements.txt'),
     ADD(docker / 'requirements-test.txt'),
     RUN(pip('pip', 'cython', files=['requirements.txt'])),
     RUN(pip(files=['requirements-test.txt']))  # pandas requires numpy
 ]
+
+ursabot_images = ImageCollection([
+    DockerImage('ursabot', base='python:3.7', arch='amd64', os='debian',
+                tag='worker', steps=worker_steps)
+])
+
+arrow_images = ImageCollection()
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
@@ -343,7 +348,7 @@ for arch in ['amd64', 'arm64v8']:
         python_worker = DockerImage('python', base=python, tag='worker',
                                     steps=worker_steps)
 
-        images.extend([cpp, python, cpp_worker, python_worker])
+        arrow_images.extend([cpp, python, cpp_worker, python_worker])
 
     # ALPINE
     for version in ['3.9']:
@@ -361,7 +366,7 @@ for arch in ['amd64', 'arm64v8']:
         python_worker = DockerImage('python', base=python, tag='worker',
                                     steps=worker_steps)
 
-        images.extend([cpp, python, cpp_worker, python_worker])
+        arrow_images.extend([cpp, python, cpp_worker, python_worker])
 
 # CONDA
 for arch in ['amd64']:
@@ -384,7 +389,7 @@ for arch in ['amd64']:
                       steps=steps)
     cpp_worker = DockerImage('cpp', base=cpp, tag='worker',
                              steps=conda_worker_steps)
-    images.extend([cpp, cpp_worker])
+    arrow_images.extend([cpp, cpp_worker])
 
     for pyversion in ['2.7', '3.6', '3.7']:
         name = f'python-{pyversion}'
@@ -394,10 +399,4 @@ for arch in ['amd64']:
         ])
         python_worker = DockerImage(name, base=python, tag='worker',
                                     steps=conda_worker_steps)
-        images.extend([python, python_worker])
-
-# TODO(kszucs): We need to bookeep a couple of flags to each image, like
-#               the architecture and required nvidia-docker runtime to
-#               pair with the docker daemons on the worker machines
-arrow_images = images
-worker_images = images.filter(tag='worker')
+        arrow_images.extend([python, python_worker])

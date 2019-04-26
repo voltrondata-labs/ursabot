@@ -123,3 +123,4 @@ local.py
 # Ignore dynaconf secret files
 .secrets.*
 prod.toml
+ursabot.sqlite

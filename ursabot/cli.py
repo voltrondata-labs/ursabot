@@ -4,7 +4,7 @@ import toolz
 
 from dockermap.api import DockerClientWrapper
 
-from .docker import arrow_images
+from .docker import arrow_images, ursabot_images
 
 
 logging.basicConfig()
@@ -42,6 +42,7 @@ def docker(ctx, docker_host, docker_username, docker_password):
 
 
 @docker.command()
+@click.argument('project')
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
 @click.option('--arch', '-a', default=None,
@@ -50,13 +51,21 @@ def docker(ctx, docker_host, docker_username, docker_password):
               help='Filter images by operating system')
 @click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_context
-def build(ctx, push, arch, name, os):
+def build(ctx, project, push, arch, name, os):
     filters = toolz.valfilter(lambda x: x is not None,
-                              {'fqn': name, 'arch': arch, 'os': os})
-    imgs = arrow_images.filter(**filters)
+                              {'name': name, 'arch': arch, 'os': os})
+
+    if project == 'arrow':
+        images = arrow_images
+    elif project == 'ursabot':
+        images = ursabot_images
+    else:
+        raise ValueError(f'Uknown project: `{project}`')
+
+    images = images.filter(**filters)
 
     client = ctx.obj['client']
-    imgs.build(client=client)
+    images.build(client=client)
 
     if push:
-        imgs.push(client=client)
+        images.push(client=client)
