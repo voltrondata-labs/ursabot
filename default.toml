@@ -32,13 +32,15 @@ port = 4100
 enabled = false
 # client_id = ...
 # client_secret = ...
-# admin_orgs = [...]
-# admin_users = [...]
+# admin = {
+#   orgs = [...]
+#   users = [...]
+# }
 
 [github.event_hook]
 # Secret must be provided during the hook definition on github.
 enabled = false
-debug = true
+# debug = true
 # secret = ...
 
 [github.status_push]
@@ -46,15 +48,15 @@ debug = true
 enabled = false
 
 [changes.pb]
-port = 9041
-user = 'default'
-password = false
+enabled = false
+# port = 9041
+# user = ...
+# password = ...
 
 [schedulers.try]
 port = 4010
 userpass = {}
 
-[workers]
-
-#
-#   [prod.schedulers.try.userpass.kszucs]
+[projects]
+ursabot = { enabled = true }
+arrow = { enabled = true }

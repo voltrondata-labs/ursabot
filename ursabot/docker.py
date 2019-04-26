@@ -12,7 +12,7 @@ from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 from dockermap.build.dockerfile import format_command
 
-from .utils import attrfilter
+from .utils import Collection
 
 
 logger = logging.getLogger(__name__)
@@ -135,7 +135,7 @@ class DockerImage:
         return self
 
 
-class ImageCollection(list):
+class ImageCollection(Collection):
 
     def build(self, *args, **kwargs):
         deps = defaultdict(set)
@@ -155,9 +155,6 @@ class ImageCollection(list):
         # topological sort is not required because the layers are cached
         for image in self:
             image.push(*args, **kwargs)
-
-    def filter(self, **kwargs):
-        return attrfilter(self, **kwargs)
 
 
 # functions to define dockerfiles from python

@@ -10,6 +10,10 @@ repos:
         entry: bash -c "buildbot checkconfig"
         always_run: true
         pass_filenames: false
+  # - repo: https://github.com/ambv/black
+  #   rev: stable
+  #   hooks:
+  #     - id: black
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.0.0
     hooks:

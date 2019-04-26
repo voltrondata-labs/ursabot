@@ -4,7 +4,13 @@ url = 'http://localhost:8100/'
 [database]
 url = 'sqlite://ursabot.sqlite'
 
-[workers]
+[[workers]]
 # docker-on-mac is able to containers for multiple architectures
-local1 = { host = '/var/run/docker.sock', archs = ['amd64']}
-local2 = { host = '/var/run/docker.sock', archs = ['amd64']}
+name = 'local1'
+arch = 'amd64'
+docker = { host = '/var/run/docker.sock' }
+
+[[workers]]
+name = 'local2'
+arch = 'amd64'
+docker = { host = '/var/run/docker.sock' }

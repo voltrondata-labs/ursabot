@@ -11,6 +11,7 @@ def ensure_deferred(f):
     def wrapper(*args, **kwargs):
         result = f(*args, **kwargs)
         return defer.ensureDeferred(result)
+
     return wrapper
 
 
@@ -25,10 +26,19 @@ def attrfilter(obj, **kwargs):
     return type(obj)(items)
 
 
+class Collection(list):
+
+    def filter(self, **kwargs):
+        return attrfilter(self, **kwargs)
+
+
 def deepmerge(args, factory=dict):
-    if all(isinstance(a, dict) for a in args):
-        fn = functools.partial(deepmerge, factory=factory)
+    fn = functools.partial(deepmerge, factory=factory)
+    if any(isinstance(a, dict) for a in args):
         return toolz.merge_with(fn, *args, factory=factory)
+    elif any(isinstance(a, list) for a in args):
+        # don't merge lists but needs to propagate factory
+        return [fn([a]) for a in toolz.last(args)]
     else:
         return toolz.last(args)
 
