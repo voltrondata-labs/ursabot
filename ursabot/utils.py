@@ -3,6 +3,7 @@ import pathlib
 import toml
 import toolz
 import functools
+import operator
 from twisted.internet import defer
 
 
@@ -15,32 +16,20 @@ def ensure_deferred(f):
     return wrapper
 
 
-def attrfilter(obj, **kwargs):
-    items = obj
-    for by, value in kwargs.items():
-        if callable(value):
-            fn = lambda item: value(getattr(item, by))  # noqa:E731
-        else:
-            fn = lambda item: getattr(item, by) == value  # noqa:E731
-        items = filter(fn, items)
-    return type(obj)(items)
-
-
 class Collection(list):
 
     def filter(self, **kwargs):
-        return attrfilter(self, **kwargs)
+        items = self
+        for by, value in kwargs.items():
+            if callable(value):
+                fn = lambda item: value(getattr(item, by))  # noqa:E731
+            else:
+                fn = lambda item: getattr(item, by) == value  # noqa:E731
+            items = filter(fn, items)
+        return self.__class__(items)
 
-
-def deepmerge(args, factory=dict):
-    fn = functools.partial(deepmerge, factory=factory)
-    if any(isinstance(a, dict) for a in args):
-        return toolz.merge_with(fn, *args, factory=factory)
-    elif any(isinstance(a, list) for a in args):
-        # don't merge lists but needs to propagate factory
-        return [fn([a]) for a in toolz.last(args)]
-    else:
-        return toolz.last(args)
+    def groupby(self, *args):
+        return toolz.groupby(operator.attrgetter(*args), self)
 
 
 class Config(dict):
@@ -58,4 +47,14 @@ class Config(dict):
         paths = paths or cls._default_paths()
         configs = [deserializer(path.read_text())
                    for path in map(pathlib.Path, paths)]
-        return deepmerge(configs, factory=cls)
+        return cls.merge(configs)
+
+    @classmethod
+    def merge(cls, args):
+        if any(isinstance(a, dict) for a in args):
+            return toolz.merge_with(cls.merge, *args, factory=cls)
+        elif any(isinstance(a, list) for a in args):
+            # don't merge lists but needs to propagate factory
+            return [cls.merge([a]) for a in toolz.last(args)]
+        else:
+            return toolz.last(args)

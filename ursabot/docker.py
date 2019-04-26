@@ -400,4 +400,4 @@ for arch in ['amd64']:
 #               the architecture and required nvidia-docker runtime to
 #               pair with the docker daemons on the worker machines
 arrow_images = images
-worker_images = [i for i in images if i.tag == 'worker']
+worker_images = images.filter(tag='worker')

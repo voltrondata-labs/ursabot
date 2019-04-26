@@ -1,16 +1,15 @@
 title = 'Ursabot Testing'
 url = 'http://localhost:8100/'
-
-[database]
-url = 'sqlite://ursabot.sqlite'
+webui_port = 8100
+database_url = 'sqlite:///ursabot.sqlite'
 
 [[workers]]
 # docker-on-mac is able to containers for multiple architectures
 name = 'local1'
 arch = 'amd64'
-docker = { host = '/var/run/docker.sock' }
+docker = { host = 'unix://var/run/docker.sock' }
 
 [[workers]]
 name = 'local2'
 arch = 'amd64'
-docker = { host = '/var/run/docker.sock' }
+docker = { host = 'unix://var/run/docker.sock' }

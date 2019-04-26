@@ -4,8 +4,8 @@ title = 'Ursa-Labs Buildbot'
 
 # The 'buildbotURL' string should point to the location where the buildbot's
 # internal web server is visible. This typically uses the port number set in
-# the 'www' entry below, but with an externally-visible host name which the
-# buildbot cannot figure out without some help.
+# the 'webui_port' entry below, but with an externally-visible host name which
+# the buildbot cannot figure out without some help.
 # url =
 
 # Protocols contains information about protocols which master will use for
@@ -14,12 +14,8 @@ title = 'Ursa-Labs Buildbot'
 # 'port' must match the value configured into the workers (with their
 # --master option)
 worker_port = 9989
-
-[webui]
-port = 4100
-
-[database]
-# url =
+webui_port = 4100
+database_url = 'sqlite:///ursabot.sqlite'
 
 [github]
 # have to provide repo:status scope for the token and write access to the
