@@ -22,37 +22,52 @@ database_url = 'sqlite:///ursabot.sqlite'
 # for the repositories in order to support github status_push below
 # token = ...
 
-[github.auth]
-# github organizations whos members are admins
-# additional user whom admin access should be granted
-enabled = false
-# client_id = ...
-# client_secret = ...
-# admin = {
-#   orgs = [...]
-#   users = [...]
-# }
+  [github.auth]
+  # github organizations whos members are admins
+  # additional user whom admin access should be granted
+  enabled = false
+  # client_id = ...
+  # client_secret = ...
+  # admin = {
+  #   orgs = [...]
+  #   users = [...]
+  # }
 
-[github.event_hook]
-# Secret must be provided during the hook definition on github.
-enabled = false
-# debug = true
-# secret = ...
+  [github.event_hook]
+  # Secret must be provided during the hook definition on github.
+  enabled = false
+  # debug = true
+  # secret = ...
 
-[github.status_push]
-# to report status changes to the github ui
-enabled = false
+[schedulers]
 
-[changes.pb]
-enabled = false
-# port = 9041
-# user = ...
-# password = ...
-
-[schedulers.try]
-port = 4010
-userpass = {}
+  [schedulers.try]
+  port = 4010
+  userpass = {}
 
 [projects]
-ursabot = { enabled = true }
-arrow = { enabled = true }
+
+  [projects.arrow]
+  enabled = true
+
+  [projects.ursabot]
+  enabled = true
+
+[reporters]
+
+  [reporters.zulip]
+  enabled = false
+  # from = ...
+  # address = ...
+
+  [reporters.github_status]
+  # to report status changes to the github ui
+  enabled = false
+
+[changes]
+
+  [changes.pb]
+  enabled = false
+  # port = 9041
+  # user = ...
+  # password = ...
