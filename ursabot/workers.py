@@ -9,4 +9,7 @@ class WorkerMixin:
 
 
 class DockerLatentWorker(WorkerMixin, worker.DockerLatentWorker):
-    pass
+
+    def renderWorkerProps(self, build):
+        # ensure that image is string in case of DockerImage instances
+        return build.render((str(self.image), self.dockerfile, self.volumes))

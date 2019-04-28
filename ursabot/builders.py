@@ -1,11 +1,11 @@
 import copy
+import toolz
 
 from buildbot import interfaces
 from buildbot.plugins import util, steps
 
 from .steps import (ShellCommand, PythonFunction, SetPropertiesFromEnv,
-                    ShowEnv, Ninja, SetupPy, CMake)
-from .docker import DockerImage
+                    Ninja, SetupPy, CMake)
 
 
 class BuildFactory(util.BuildFactory):
@@ -21,6 +21,34 @@ class BuildFactory(util.BuildFactory):
 
     def prepend_step(self, step):
         self.steps.insert(0, interfaces.IBuildStepFactory(step))
+
+
+class Builder(util.BuilderConfig):
+
+    tags = tuple()
+    steps = tuple()
+    properties = None
+    default_properties = None
+
+    def __init__(self, name=None, steps=None, factory=None, workers=None,
+                 tags=None, properties=None, default_properties=None,
+                 **kwargs):
+        # TODO(kszucs): slugify name
+        name = name or self.name
+        tags = tags or self.tags
+        steps = steps or self.steps
+        factory = factory or BuildFactory(steps)
+
+        properties = toolz.merge(properties or {}, self.properties or {})
+        default_properties = toolz.merge(default_properties or {},
+                                         self.default_properties or {})
+
+        workernames = None if workers is None else [w.name for w in workers]
+
+        return super().__init__(name=name, tags=tags, properties=properties,
+                                defaultProperties=default_properties,
+                                workernames=workernames, factory=factory,
+                                **kwargs)
 
 
 # TODO(kszucs): create popert build factory abstractions for cpp and
@@ -213,112 +241,8 @@ pytest = ShellCommand(
     env={'LD_LIBRARY_PATH': ld_library_path}
 )
 
-env = ShowEnv()
 
-ls = ShellCommand(
-    name='List files',
-    command=['ls', '-lah'],
-    workdir='.'
-)
-
-cpp = BuildFactory([
-    steps.SetProperties({
-        'ARROW_PLASMA': 'ON',
-        'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
-    }),
-    checkout,
-    mkdir,
-    cmake,
-    compile,
-    test
-])
-
-python = BuildFactory([
-    steps.SetProperties({
-        'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON',
-        'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
-    }),
-    checkout,
-    mkdir,
-    cmake,
-    compile,
-    install,
-    setup,
-    pytest
-])
-
-cpp_conda = BuildFactory([
-])
-
-python_conda = BuildFactory([
-    steps.SetProperties({
-        'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
-    }),
-    SetPropertiesFromEnv({
-        'CMAKE_AR': 'AR',
-        'CMAKE_RANLIB': 'RANLIB',
-        'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
-        'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
-    }),
-    checkout,
-    mkdir,
-    cmake,
-    compile,
-    install,
-    setup,
-    pytest
-])
-
-
-# class BuilderMeta(type):
-#
-#     def __init__(cls, name, bases, dct):
-#         # validate class attributes
-#         assert isinstance(cls.name, str)
-#         assert isinstance(cls.tags, (tuple, list))
-#         assert isinstance(cls.steps, (tuple, list))
-
-
-class Builder(util.BuilderConfig):
-
-    tags = tuple()
-    steps = tuple()
-    properties = tuple()
-    default_properties = tuple()
-
-    def __init__(self, name=None, steps=None, factory=None, workers=None,
-                 tags=None, properties=None, default_properties=None,
-                 **kwargs):
-        name = name or self.name
-        tags = tags or self.tags
-        steps = steps or self.steps
-        factory = factory or BuildFactory(steps)
-        properties = properties or self.properties
-        default_properties = default_properties or self.default_properties
-        workernames = None if workers is None else [w.name for w in workers]
-        return super().__init__(name=name, tags=tags, properties=properties,
-                                defaultProperties=default_properties,
-                                workernames=workernames, factory=factory,
-                                **kwargs)
-
-
-class DockerBuilder(Builder):
-
-    image = None
-
-    def __init__(self, *args, image=None, **kwargs):
-        image = image or self.image
-        assert isinstance(image, DockerImage)
-        super().__init__(*args, **kwargs)
-        self.properties['docker_image'] = image
-
-
-class UrsabotTest(DockerBuilder):
+class UrsabotTest(Builder):
 
     name = 'ursabot-test'
     tags = ['ursabot', 'python']
@@ -340,7 +264,44 @@ class UrsabotTest(DockerBuilder):
     ]
 
 
-class ArrowCppCondaTest(DockerBuilder):
+class ArrowCppTest(Builder):
+
+    name = 'arrow-cpp-test'
+    properties = {
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_PREFIX': '/usr/local',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    steps = [
+        checkout,
+        mkdir,
+        cmake,
+        compile,
+        test
+    ]
+
+
+class ArrowPythonTest(Builder):
+
+    name = 'arrow-python-test'
+    properties = {
+        'ARROW_PYTHON': 'ON',
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_PREFIX': '/usr/local',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    steps = [
+        checkout,
+        mkdir,
+        cmake,
+        compile,
+        install,
+        setup,
+        pytest
+    ]
+
+
+class ArrowCppCondaTest(Builder):
 
     name = 'arrow-cpp-conda-test'
     steps = [
@@ -355,6 +316,31 @@ class ArrowCppCondaTest(DockerBuilder):
         cmake,
         compile,
         test
+    ]
+
+
+class ArrowPythonCondaTest(Builder):
+
+    name = 'arrow-python-conda-test'
+    properties = {
+        'ARROW_PYTHON': 'ON',
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    steps = [
+        SetPropertiesFromEnv({
+            'CMAKE_AR': 'AR',
+            'CMAKE_RANLIB': 'RANLIB',
+            'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
+            'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
+        }),
+        checkout,
+        mkdir,
+        cmake,
+        compile,
+        install,
+        setup,
+        pytest
     ]
 
 
