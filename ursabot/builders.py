@@ -2,10 +2,10 @@ import copy
 import toolz
 
 from buildbot import interfaces
-from buildbot.plugins import util, steps
+from buildbot.plugins import util
 
-from .steps import (ShellCommand, PythonFunction, SetPropertiesFromEnv,
-                    Ninja, SetupPy, CMake)
+from .steps import (ShellCommand, SetPropertiesFromEnv,
+                    Ninja, SetupPy, CMake, PyTest, Mkdir, Pip, GitHub)
 
 
 class BuildFactory(util.BuildFactory):
@@ -51,11 +51,8 @@ class Builder(util.BuilderConfig):
                                 **kwargs)
 
 
-# TODO(kszucs): create popert build factory abstractions for cpp and
-#               python builds, e.g. for passing build properties to the build
-#               itself instead of using a step for it
 # prefer GitHub over Git step
-checkout = steps.GitHub(
+checkout_arrow = GitHub(
     name='Clone Arrow',
     repourl='https://github.com/apache/arrow',
     workdir='.',
@@ -201,25 +198,23 @@ definitions = {
 }
 definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 
-
-mkdir = steps.MakeDirectory(
-    name='Create C++ build directory',
-    dir='cpp/build'
+ld_library_path = util.Interpolate(
+    '%(prop:CMAKE_INSTALL_PREFIX)s/%(prop:CMAKE_INSTALL_LIBDIR)s'
 )
 
-cmake = CMake(
+cpp_mkdir = Mkdir(dir='cpp/build', name='Create C++ build directory')
+cpp_cmake = CMake(
     path='..',
     workdir='cpp/build',
-    generator=util.Property('CMAKE_GENERATOR', default='Ninja'),
+    generator='Ninja',
     definitions=definitions
 )
+cpp_compile = Ninja(name='Compile C++', workdir='cpp/build')
+cpp_test = Ninja(args=['test'], name='Test C++', workdir='cpp/build')
+cpp_install = Ninja(args=['install'], name='Install C++', workdir='cpp/build')
 
-compile = Ninja(name='Compile C++', workdir='cpp/build')
-test = Ninja(['test'], name='Test C++', workdir='cpp/build')
-install = Ninja(['install'], name='Install C++', workdir='cpp/build')
-
-setup = SetupPy(
-    command=['develop'],
+python_install = SetupPy(
+    args=['develop'],
     name='Build PyArrow',
     workdir='python',
     env={
@@ -229,43 +224,44 @@ setup = SetupPy(
         'PYARROW_WITH_PARQUET': util.Property('ARROW_PARQUET')
     }
 )
-
-ld_library_path = util.Interpolate(
-    '%(prop:CMAKE_INSTALL_PREFIX)s/%(prop:CMAKE_INSTALL_LIBDIR)s'
-)
-
-pytest = ShellCommand(
-    name='Run Pytest',
-    command=['pytest', '-v', 'pyarrow'],
+python_test = PyTest(
+    name='Test PyArrow',
+    args=['pyarrow'],
     workdir='python',
     env={'LD_LIBRARY_PATH': ld_library_path}
 )
 
 
 class UrsabotTest(Builder):
-
     name = 'ursabot-test'
     tags = ['ursabot', 'python']
     steps = [
-        steps.Git(name='Clone Ursabot',
-                  repourl='https://github.com/ursa-labs/ursabot',
-                  mode='full'),
-        ShellCommand(command=['ls', '-lah']),
-        ShellCommand(command=['pip', 'install', 'pytest', 'flake8', 'mock']),
+        GitHub(
+            name='Clone Ursabot',
+            repourl='https://github.com/ursa-labs/ursabot',
+            mode='full'
+        ),
         # --no-binary buildbot is required because buildbot doesn't bundle its
         # tests to binary wheels, but ursabot's test suite depends on
         # buildbot's so install it from source
-        ShellCommand(command=['pip', 'install', '--no-binary', 'buildbot',
-                              '-e', '.']),
+        Pip(['install', '--no-binary', 'buildbot',
+             'pytest', 'flake8', 'mock', '-e', '.']),
+        PyTest(args=['-m', 'not docker', 'ursabot']),
         ShellCommand(command=['flake8', 'ursabot']),
-        ShellCommand(command=['pytest', '-v', '-m', 'not docker', 'ursabot']),
         ShellCommand(command=['buildbot', 'checkconfig', '.'],
                      env={'URSABOT_ENV': 'test'})
     ]
 
 
-class ArrowCppTest(Builder):
+# TODO(kszucs): properly implement it
+# class UrsabotDockerBuild(Builder):
+#     name = 'ursabot-docker-build'
+#     steps = [
+#         PythonFunction(lambda: 'trying to run this function')
+#     ]
 
+
+class ArrowCppTest(Builder):
     name = 'arrow-cpp-test'
     properties = {
         'ARROW_PLASMA': 'ON',
@@ -273,16 +269,15 @@ class ArrowCppTest(Builder):
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     steps = [
-        checkout,
-        mkdir,
-        cmake,
-        compile,
-        test
+        checkout_arrow,
+        cpp_mkdir,
+        cpp_cmake,
+        cpp_compile,
+        cpp_test
     ]
 
 
 class ArrowPythonTest(Builder):
-
     name = 'arrow-python-test'
     properties = {
         'ARROW_PYTHON': 'ON',
@@ -291,18 +286,17 @@ class ArrowPythonTest(Builder):
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     steps = [
-        checkout,
-        mkdir,
-        cmake,
-        compile,
-        install,
-        setup,
-        pytest
+        checkout_arrow,
+        cpp_mkdir,
+        cpp_cmake,
+        cpp_compile,
+        cpp_install,
+        python_install,
+        python_test
     ]
 
 
 class ArrowCppCondaTest(Builder):
-
     name = 'arrow-cpp-conda-test'
     steps = [
         SetPropertiesFromEnv({
@@ -311,16 +305,15 @@ class ArrowCppCondaTest(Builder):
             'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
             'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
         }),
-        checkout,
-        mkdir,
-        cmake,
-        compile,
-        test
+        checkout_arrow,
+        cpp_mkdir,
+        cpp_cmake,
+        cpp_compile,
+        cpp_test
     ]
 
 
 class ArrowPythonCondaTest(Builder):
-
     name = 'arrow-python-conda-test'
     properties = {
         'ARROW_PYTHON': 'ON',
@@ -334,16 +327,11 @@ class ArrowPythonCondaTest(Builder):
             'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
             'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
         }),
-        checkout,
-        mkdir,
-        cmake,
-        compile,
-        install,
-        setup,
-        pytest
+        checkout_arrow,
+        cpp_mkdir,
+        cpp_cmake,
+        cpp_compile,
+        cpp_install,
+        python_install,
+        python_test
     ]
-
-
-ursabot_docker_build = BuildFactory([
-    PythonFunction(lambda: 'trying to run this function')
-])

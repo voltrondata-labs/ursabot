@@ -19,6 +19,7 @@ class ShellMixin(buildstep.ShellMixin):
 
     shell = tuple()  # will run sh on unix and batch on windows by default
     command = tuple()
+    args = tuple()
 
     def makeRemoteShellCommand(self, **kwargs):
         import pipes  # only available on unix
@@ -43,14 +44,16 @@ class ShellMixin(buildstep.ShellMixin):
 
 class ShellCommand(ShellMixin, buildstep.BuildStep):
 
-    def __init__(self, command=tuple(), **kwargs):
+    def __init__(self, args=tuple(), command=tuple(), **kwargs):
         # command should be validated during the construction
         if not isinstance(command, (tuple, list)):
             raise ValueError('Command must be an instance of list or tuple')
+        if not isinstance(args, (tuple, list)):
+            raise ValueError('Args must be an instance of list or tuple')
 
         # appends to the class' command to allow creating command's like
         # SetupPy via subclassing ShellCommand
-        command = tuple(self.command) + tuple(command)
+        command = tuple(command or self.command) + tuple(args or self.args)
         if not command:
             raise ValueError('No command was provided')
 
@@ -160,8 +163,8 @@ class PythonFunction(buildstep.BuildStep):
             return SUCCESS
 
 
-class ShowEnv(ShellCommand):
-    name = 'ShowEnv'
+class Env(ShellCommand):
+    name = 'env'
     command = ['env']
 
 
@@ -174,3 +177,17 @@ class Ninja(ShellCommand):
 class SetupPy(ShellCommand):
     name = 'setup.py'
     command = ['python', 'setup.py']
+
+
+class PyTest(ShellCommand):
+    name = 'pytest'
+    command = ['pytest', '-v']
+
+
+class Pip(ShellCommand):
+    name = 'Pip'
+    command = ['pip']
+
+
+Mkdir = steps.MakeDirectory
+GitHub = steps.GitHub
