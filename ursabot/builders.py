@@ -33,10 +33,21 @@ class Builder(util.BuilderConfig):
     def __init__(self, name=None, steps=None, factory=None, workers=None,
                  tags=None, properties=None, default_properties=None,
                  **kwargs):
-        tags = tags or self.tags
-        steps = steps or self.steps
-        factory = factory or BuildFactory(steps)
+        if isinstance(steps, (list, tuple)):
+            # replace the class' steps
+            steps = steps
+        elif steps is None:
+            steps = self.steps
+        else:
+            raise TypeError('Steps must be a list')
 
+        if isinstance(tags, (list, tuple)):
+            # append to the class' tag list
+            tags = list(self.tags) + list(tags)
+        elif tags is not None:
+            raise TypeError('Tags must be a list')
+
+        factory = factory or BuildFactory(steps)
         properties = toolz.merge(properties or {}, self.properties or {})
         default_properties = toolz.merge(default_properties or {},
                                          self.default_properties or {})
@@ -231,8 +242,7 @@ python_test = PyTest(
 
 
 class UrsabotTest(Builder):
-    name = 'ursabot-test'
-    tags = ['ursabot', 'python']
+    tags = ['ursabot']
     steps = [
         GitHub(
             name='Clone Ursabot',
@@ -260,6 +270,7 @@ class UrsabotTest(Builder):
 
 
 class ArrowCppTest(Builder):
+    tags = ['arrow', 'cpp']
     properties = {
         'ARROW_PLASMA': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
@@ -275,6 +286,7 @@ class ArrowCppTest(Builder):
 
 
 class ArrowPythonTest(Builder):
+    tags = ['arrow', 'python']
     properties = {
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',
@@ -293,6 +305,7 @@ class ArrowPythonTest(Builder):
 
 
 class ArrowCppCondaTest(Builder):
+    tags = ['arrow', 'cpp']
     steps = [
         SetPropertiesFromEnv({
             'CMAKE_AR': 'AR',
@@ -309,6 +322,7 @@ class ArrowCppCondaTest(Builder):
 
 
 class ArrowPythonCondaTest(Builder):
+    tags = ['arrow', 'python']
     properties = {
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',

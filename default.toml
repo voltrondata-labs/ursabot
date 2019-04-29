@@ -42,6 +42,7 @@ database_url = 'sqlite:///ursabot.sqlite'
 [schedulers]
 
   [schedulers.try]
+  enabled = false
   port = 4010
   userpass = {}
 
@@ -71,5 +72,11 @@ database_url = 'sqlite:///ursabot.sqlite'
   # port = 9041
   # user = ...
   # password = ...
+
+  [changes.git_poller]
+  enabled = false
+
+  [changes.pull_request_poller]
+  enabled = false
 
 # [[workers]]
