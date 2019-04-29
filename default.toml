@@ -1,0 +1,82 @@
+# The 'title' string will appear at the top of this buildbot installation's
+# home pages (linked to the 'titleURL').
+title = 'Ursa-Labs Buildbot'
+
+# The 'buildbotURL' string should point to the location where the buildbot's
+# internal web server is visible. This typically uses the port number set in
+# the 'webui_port' entry below, but with an externally-visible host name which
+# the buildbot cannot figure out without some help.
+# url =
+
+# Protocols contains information about protocols which master will use for
+# communicating with workers. You must define at least 'port' option that
+# workers could connect to your master with this protocol.
+# 'port' must match the value configured into the workers (with their
+# --master option)
+worker_port = 9989
+webui_port = 4100
+database_url = 'sqlite:///ursabot.sqlite'
+
+[github]
+# have to provide repo:status scope for the token and write access to the
+# for the repositories in order to support github status_push below
+# token = ...
+
+  [github.auth]
+  # github organizations whos members are admins
+  # additional user whom admin access should be granted
+  enabled = false
+  # client_id = ...
+  # client_secret = ...
+  # admin = {
+  #   orgs = [...]
+  #   users = [...]
+  # }
+
+  [github.event_hook]
+  # Secret must be provided during the hook definition on github.
+  enabled = false
+  # debug = true
+  # secret = ...
+
+[schedulers]
+
+  [schedulers.try]
+  enabled = false
+  port = 4010
+  userpass = {}
+
+[projects]
+
+  [projects.arrow]
+  enabled = true
+
+  [projects.ursabot]
+  enabled = true
+
+[reporters]
+
+  [reporters.zulip]
+  enabled = false
+  # from = ...
+  # address = ...
+
+  [reporters.github_status]
+  # to report status changes to the github ui
+  enabled = false
+
+[changes]
+
+  [changes.pb]
+  enabled = false
+  # port = 9041
+  # user = ...
+  # password = ...
+
+  [changes.git_poller]
+  enabled = false
+
+  [changes.pull_request_poller]
+  enabled = false
+
+# [[workers]]

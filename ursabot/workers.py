@@ -1,3 +1,19 @@
-# create an abstraction, e.g. DockerWorkers with an input arguments HOSTS to
-# automatically generate DockerLatentWorker's and query them by arch, host,
-# and image
+from buildbot.plugins import worker
+
+
+# TODO: support specifying parameters to improve isolation, like:
+#   cpu_shares, isolation(cgroups), mem_limit and runtime (which will be
+#   required for nvidia builds)
+# https://docker-py.readthedocs.io/en/stable/api.html
+# docker.api.container.ContainerApiMixin.create_host_config
+
+
+class WorkerMixin:
+
+    def __init__(self, *args, arch, **kwargs):
+        self.arch = arch
+        super().__init__(*args, **kwargs)
+
+
+class DockerLatentWorker(WorkerMixin, worker.DockerLatentWorker):
+    pass

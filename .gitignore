@@ -119,3 +119,10 @@ dmypy.json
 *.log
 *.pid
 local.py
+
+# Ursabot configuration files
+.secrets.*
+prod.toml
+
+# Ursabot testing database
+ursabot.sqlite

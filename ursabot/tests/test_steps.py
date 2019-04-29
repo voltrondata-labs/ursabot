@@ -36,7 +36,7 @@ class TestShellCommand(BuildStepTestCase):
         with pytest.raises(ValueError, match=msg):
             ShellCommand()
 
-        msg = 'Command must be an instance of list or tuple'
+        msg = 'Args must be an instance of list or tuple'
         with pytest.raises(ValueError, match=msg):
             ShellCommand('something')
 
