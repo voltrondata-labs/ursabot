@@ -43,7 +43,7 @@ class Builder(util.BuilderConfig):
 
         if isinstance(tags, (list, tuple)):
             # append to the class' tag list
-            tags = list(self.tags) + list(tags)
+            tags = list(filter(None, toolz.concat([self.tags, tags])))
         elif tags is not None:
             raise TypeError('Tags must be a list')
 
