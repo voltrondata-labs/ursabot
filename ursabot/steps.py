@@ -44,6 +44,8 @@ class ShellMixin(buildstep.ShellMixin):
 
 class ShellCommand(ShellMixin, buildstep.BuildStep):
 
+    name = 'Shell'
+
     def __init__(self, args=tuple(), command=tuple(), **kwargs):
         # command should be validated during the construction
         if not isinstance(command, (tuple, list)):
@@ -164,7 +166,7 @@ class PythonFunction(buildstep.BuildStep):
 
 
 class Env(ShellCommand):
-    name = 'env'
+    name = 'Environment'
     command = ['env']
 
 
@@ -175,12 +177,12 @@ class Ninja(ShellCommand):
 
 
 class SetupPy(ShellCommand):
-    name = 'setup.py'
+    name = 'Setup.py'
     command = ['python', 'setup.py']
 
 
 class PyTest(ShellCommand):
-    name = 'pytest'
+    name = 'PyTest'
     command = ['pytest', '-v']
 
 

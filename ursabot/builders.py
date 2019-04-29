@@ -33,8 +33,6 @@ class Builder(util.BuilderConfig):
     def __init__(self, name=None, steps=None, factory=None, workers=None,
                  tags=None, properties=None, default_properties=None,
                  **kwargs):
-        # TODO(kszucs): slugify name
-        name = name or self.name
         tags = tags or self.tags
         steps = steps or self.steps
         factory = factory or BuildFactory(steps)
@@ -262,7 +260,6 @@ class UrsabotTest(Builder):
 
 
 class ArrowCppTest(Builder):
-    name = 'arrow-cpp-test'
     properties = {
         'ARROW_PLASMA': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
@@ -278,7 +275,6 @@ class ArrowCppTest(Builder):
 
 
 class ArrowPythonTest(Builder):
-    name = 'arrow-python-test'
     properties = {
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',
@@ -297,7 +293,6 @@ class ArrowPythonTest(Builder):
 
 
 class ArrowCppCondaTest(Builder):
-    name = 'arrow-cpp-conda-test'
     steps = [
         SetPropertiesFromEnv({
             'CMAKE_AR': 'AR',
@@ -314,7 +309,6 @@ class ArrowCppCondaTest(Builder):
 
 
 class ArrowPythonCondaTest(Builder):
-    name = 'arrow-python-conda-test'
     properties = {
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',
