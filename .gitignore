@@ -120,7 +120,9 @@ dmypy.json
 *.pid
 local.py
 
-# Ignore dynaconf secret files
+# Ursabot configuration files
 .secrets.*
 prod.toml
+
+# Ursabot testing database
 ursabot.sqlite
