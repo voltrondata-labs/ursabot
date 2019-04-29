@@ -16,6 +16,30 @@ def ensure_deferred(f):
     return wrapper
 
 
+class Filter:
+
+    __slot__ = ('fn',)
+
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __call__(self, *args, **kwargs):
+        return self.fn(*args, **kwargs)
+
+    def __or__(self, other):
+        def _or(*args, **kwargs):
+            return self(*args, **kwargs) or other(*args, **kwargs)
+
+        if isinstance(other, self.__class__):
+            return Filter(_or)
+        else:
+            return NotImplemented
+
+
+def startswith(prefix):
+    return Filter(lambda s: s.startswith(prefix))
+
+
 class Collection(list):
 
     def filter(self, **kwargs):
