@@ -59,7 +59,7 @@ class GithubHook(GitHubEventHandler):
         elif command is None:
             # ursabot is not mentioned, nothing to do
             return [], 'git'
-        elif command == 'build':
+        elif command in ('build', 'benchmark'):
             if 'pull_request' not in issue:
                 message = 'Ursabot only listens to pull request comments!'
                 await self._post(comments_url, {'body': message})
@@ -76,7 +76,8 @@ class GithubHook(GitHubEventHandler):
                 'sender': payload['sender'],
                 'repository': payload['repository'],
                 'pull_request': pull_request,
-                'number': pull_request['number']
+                'number': pull_request['number'],
+                'is_benchmark': command == 'benchmark'
             }, event)
         except Exception as e:
             message = "I've failed to start builds for this PR"
