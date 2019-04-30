@@ -240,15 +240,16 @@ def apk(*packages):
     return cmd.lstrip()
 
 
-def pip(*packages, files=tuple()):
+def pip(*packages, files=tuple(), version=3):
     """Generates pip install command"""
+    executable = 'pip3' if version == 3 else 'pip'
     template = dedent("""
-        pip install \\
+        {} install \\
         {}
     """)
     args = tuple(f'-r {f}' for f in files) + packages
     args = indent(' \\\n'.join(args), _tab)
-    cmd = indent(template.format(args), _tab)
+    cmd = indent(template.format(executable, args), _tab)
     return cmd.lstrip()
 
 
@@ -273,8 +274,6 @@ ubuntu_pkgs = [
     'libboost-filesystem-dev',
     'libboost-regex-dev',
     'libboost-system-dev',
-    'python',
-    'python-pip',
     'python3',
     'python3-pip',
     'bison',
@@ -301,7 +300,7 @@ alpine_pkgs = [
     'ninja',
     'wget',
     'zlib-dev',
-    'python-dev'
+    'python3-dev'
 ]
 
 docker = Path(__file__).parent.parent / 'docker'
