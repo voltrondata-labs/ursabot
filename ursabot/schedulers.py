@@ -1,4 +1,4 @@
-from buildbot.plugins import schedulers
+from buildbot.plugins import schedulers, util
 
 
 class SchedulerMixin:
@@ -8,7 +8,25 @@ class SchedulerMixin:
         super().__init__(*args, builderNames=builder_names, **kwargs)
 
 
-class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
+class GithubSchedulerMixin:
+    """ Improves the default form of ForceScheduler. """
+
+    def __init__(self, *args, project, **kwargs):
+        codebase = util.CodebaseParameter(
+            codebase='',
+            label='',
+            branch=util.StringParameter(name='branch',
+                                        default='master',
+                                        required=True),
+            commit=util.StringParameter(name='commit', required=True),
+            project=util.FixedParameter(name='project', default=project),
+            repository=util.FixedParameter(name='repository', default=project),
+        )
+        super().__init__(*args, codebases=[codebase], **kwargs)
+
+
+class ForceScheduler(SchedulerMixin, GithubSchedulerMixin,
+                     schedulers.ForceScheduler):
     pass
 
 
