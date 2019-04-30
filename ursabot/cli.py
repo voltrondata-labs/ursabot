@@ -55,7 +55,7 @@ def docker(ctx, docker_host, docker_username, docker_password):
               help='Filter images by variant')
 @click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_context
-def build(ctx, project, push, arch, name, os, tag, fqn, variant):
+def build(ctx, project, push, arch, name, os, tag, variant):
     filters = toolz.valfilter(lambda x: x is not None, {
         'name': name, 'arch': arch, 'os': os, 'tag': tag, 'variant': variant})
 
