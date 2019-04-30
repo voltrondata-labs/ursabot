@@ -5,7 +5,8 @@ from buildbot import interfaces
 from buildbot.plugins import util
 
 from .steps import (ShellCommand, SetPropertiesFromEnv,
-                    Ninja, SetupPy, CMake, PyTest, Mkdir, Pip, GitHub)
+                    Ninja, SetupPy, CMake, PyTest, Mkdir, Pip, Pip3, GitHub,
+                    Archery)
 
 
 class BuildFactory(util.BuildFactory):
@@ -240,6 +241,13 @@ python_test = PyTest(
     env={'LD_LIBRARY_PATH': ld_library_path}
 )
 
+archery_install = Pip3(['install', '-e', '.'], workdir="dev/archery")
+archery_benchmark_diff = Archery(
+    ['benchmark', 'diff'],
+    # Click requires this
+    env={'LC_ALL': 'C.UTF-8', 'LANG': 'C.UTF-8'}
+)
+
 
 class UrsabotTest(Builder):
     tags = ['ursabot']
@@ -282,6 +290,20 @@ class ArrowCppTest(Builder):
         cpp_cmake,
         cpp_compile,
         cpp_test
+    ]
+
+
+class ArrowCppBenchmark(Builder):
+    tags = ['arrow', 'cpp']
+    properties = {
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_PREFIX': '/usr/local',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    steps = [
+        checkout_arrow,
+        archery_install,
+        archery_benchmark_diff
     ]
 
 

@@ -63,8 +63,8 @@ def test_dockerfile_dsl(image):
     expected = dedent("""
         FROM ubuntu
 
-        RUN apt update -y -q && \\
-            apt install -y -q \\
+        RUN apt-get update -y -q && \\
+            apt-get install -y -q \\
                 python \\
                 python-pip && \\
             rm -rf /var/lib/apt/lists/*

@@ -49,11 +49,15 @@ def docker(ctx, docker_host, docker_username, docker_password):
               help='Filter images by architecture')
 @click.option('--os', '-o', default=None,
               help='Filter images by operating system')
+@click.option('--tag', '-o', default=None,
+              help='Filter images by operating system')
+@click.option('--variant', '-v', default=None,
+              help='Filter images by variant')
 @click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_context
-def build(ctx, project, push, arch, name, os):
-    filters = toolz.valfilter(lambda x: x is not None,
-                              {'name': name, 'arch': arch, 'os': os})
+def build(ctx, project, push, arch, name, os, tag, fqn, variant):
+    filters = toolz.valfilter(lambda x: x is not None, {
+        'name': name, 'arch': arch, 'os': os, 'tag': tag, 'variant': variant})
 
     if project == 'arrow':
         images = arrow_images

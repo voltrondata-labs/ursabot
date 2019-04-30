@@ -219,8 +219,8 @@ def SHELL(shell):
 def apt(*packages):
     """Generates apt install command"""
     template = dedent("""
-        apt update -y -q && \\
-        apt install -y -q \\
+        apt-get update -y -q && \\
+        apt-get install -y -q \\
         {} && \\
         rm -rf /var/lib/apt/lists/*
     """)
@@ -275,6 +275,8 @@ ubuntu_pkgs = [
     'libboost-system-dev',
     'python',
     'python-pip',
+    'python3',
+    'python3-pip',
     'bison',
     'flex',
     'git',
@@ -367,6 +369,18 @@ for arch in ['amd64', 'arm64v8']:
                                     steps=worker_steps)
 
         arrow_images.extend([cpp, python, cpp_worker, python_worker])
+
+# Benchmarks
+for arch in ['amd64']:
+    os = 'ubuntu-18.04'
+    base = f'{arch}/ubuntu:18.04'
+    steps = [RUN(apt(*ubuntu_pkgs + ['libbenchmark-dev']))]
+
+    cpp = DockerImage('cpp', base=base, arch=arch, os=os, variant='benchmark',
+                      steps=steps)
+    cpp_worker = DockerImage('cpp', base=cpp, tag='worker', steps=worker_steps)
+
+    arrow_images.extend([cpp, cpp_worker])
 
 # CONDA
 for arch in ['amd64']:
