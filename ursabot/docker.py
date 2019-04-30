@@ -240,9 +240,8 @@ def apk(*packages):
     return cmd.lstrip()
 
 
-def pip(*packages, files=tuple(), version=3):
+def pip(*packages, files=tuple(), executable='pip'):
     """Generates pip install command"""
-    executable = 'pip3' if version == 3 else 'pip'
     template = dedent("""
         {} install \\
         {}
@@ -308,22 +307,23 @@ docker = Path(__file__).parent.parent / 'docker'
 # TODO(kszucs): add buildbot user
 worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
-    RUN(pip('buildbot-worker')),
+    RUN(pip('buildbot-worker', executable='pip3')),
     RUN(mkdir('/buildbot')),
     ADD(docker / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot'),
     CMD(worker_command)  # not this is string!
 ]
 conda_worker_steps = (
-    [RUN(conda('twisted'))] +
-    worker_steps +
+    [RUN(conda('twisted')),
+     RUN(pip('buildbot-worker', executable='pip'))] +
+    worker_steps[1:] +
     [CMD([worker_command])]  # note this is list!
 )
 python_steps = [
     ADD(docker / 'requirements.txt'),
     ADD(docker / 'requirements-test.txt'),
-    RUN(pip('pip', 'cython', files=['requirements.txt'])),
-    RUN(pip(files=['requirements-test.txt']))  # pandas requires numpy
+    RUN(pip('pip', 'cython', files=['requirements.txt'], executable='pip3')),
+    RUN(pip(files=['requirements-test.txt'], executable='pip3'))
 ]
 
 ursabot_images = ImageCollection([
