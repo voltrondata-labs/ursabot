@@ -69,7 +69,7 @@ def test_dockerfile_dsl(image):
                 python-pip && \\
             rm -rf /var/lib/apt/lists/*
 
-        RUN pip install \\
+        RUN pip3 install \\
                 six \\
                 toolz
 
