@@ -365,8 +365,6 @@ for arch in ['amd64']:
 
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
-
-# TODO(kszucs): add buildbot user
 worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
     RUN(pip('buildbot-worker')),
