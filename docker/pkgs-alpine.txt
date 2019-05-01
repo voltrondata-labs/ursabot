@@ -1,0 +1,16 @@
+autoconf
+bash
+bison
+boost-dev
+cmake
+flex
+g++
+gcc
+git
+gzip
+make
+musl-dev
+ninja
+python3-dev
+wget
+zlib-dev

@@ -240,15 +240,15 @@ def apk(*packages):
     return cmd.lstrip()
 
 
-def pip(*packages, files=tuple()):
+def pip(*packages, files=tuple(), executable='pip'):
     """Generates pip install command"""
     template = dedent("""
-        pip install \\
+        {} install \\
         {}
     """)
     args = tuple(f'-r {f}' for f in files) + packages
     args = indent(' \\\n'.join(args), _tab)
-    cmd = indent(template.format(args), _tab)
+    cmd = indent(template.format(executable, args), _tab)
     return cmd.lstrip()
 
 
@@ -265,66 +265,28 @@ def conda(*packages, files=tuple()):
     return cmd.lstrip()
 
 
-ubuntu_pkgs = [
-    'autoconf',
-    'build-essential',
-    'cmake',
-    'libboost-dev',
-    'libboost-filesystem-dev',
-    'libboost-regex-dev',
-    'libboost-system-dev',
-    'python',
-    'python-pip',
-    'python3',
-    'python3-pip',
-    'bison',
-    'flex',
-    'git',
-    # zstd ep requires CMake >= 3.7 which is not available for ubuntu 16.04
-    'libzstd1-dev',
-    'ninja-build'
-]
-
-alpine_pkgs = [
-    'autoconf',
-    'bash',
-    'bison',
-    'boost-dev',
-    'cmake',
-    'flex',
-    'g++',
-    'gcc',
-    'git',
-    'gzip',
-    'make',
-    'musl-dev',
-    'ninja',
-    'wget',
-    'zlib-dev',
-    'python-dev'
-]
-
 docker = Path(__file__).parent.parent / 'docker'
 
 # TODO(kszucs): add buildbot user
 worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
-    RUN(pip('buildbot-worker')),
+    RUN(pip('buildbot-worker', executable='pip3')),
     RUN(mkdir('/buildbot')),
     ADD(docker / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot'),
     CMD(worker_command)  # not this is string!
 ]
 conda_worker_steps = (
-    [RUN(conda('twisted'))] +
-    worker_steps +
+    [RUN(conda('twisted')),
+     RUN(pip('buildbot-worker', executable='pip'))] +
+    worker_steps[1:] +
     [CMD([worker_command])]  # note this is list!
 )
 python_steps = [
     ADD(docker / 'requirements.txt'),
     ADD(docker / 'requirements-test.txt'),
-    RUN(pip('pip', 'cython', files=['requirements.txt'])),
-    RUN(pip(files=['requirements-test.txt']))  # pandas requires numpy
+    RUN(pip('cython', files=['requirements.txt'], executable='pip3')),
+    RUN(pip(files=['requirements-test.txt'], executable='pip3'))
 ]
 
 ursabot_images = ImageCollection([
@@ -333,6 +295,9 @@ ursabot_images = ImageCollection([
 ])
 
 arrow_images = ImageCollection()
+
+ubuntu_pkgs = (docker / 'pkgs-ubuntu.txt').read_text().splitlines()
+alpine_pkgs = (docker / 'pkgs-alpine.txt').read_text().splitlines()
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
