@@ -125,3 +125,6 @@ local.py
 
 # Ursabot testing database
 ursabot.sqlite
+
+# Dockerfiles written by ursabot's cli
+images/
