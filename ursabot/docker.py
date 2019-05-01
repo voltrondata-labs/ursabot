@@ -343,9 +343,9 @@ for arch in ['amd64']:
         ADD(docker_assets / 'conda-linux.txt'),
         ADD(docker_assets / 'conda-cpp.txt'),
         RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
-        # run conda init...
-        SHELL(['/bin/bash', '-i', '-c']),
-        ENTRYPOINT(['/bin/bash', '-i', '-c']),
+        # conda activate requires bash
+        SHELL(['/bin/bash', '-l', '-c']),
+        ENTRYPOINT(['/bin/bash', '-l', '-c']),
     ]
     cpp = DockerImage('cpp', base=base, arch=arch, os=os, variant='conda',
                       steps=steps)
