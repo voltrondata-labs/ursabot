@@ -10,6 +10,7 @@ _template = u'''\
 <p><b> -- The Buildbot</b></p>
 '''
 
+
 class BuilderReporterMixin:
 
     def __init__(self, *args, builders, **kwargs):
@@ -53,9 +54,9 @@ class GitHubReviewPush(GitHubCommentPush):
                       or 'failure'.
         :param description: Short description of the status.
         :return: A deferred with the result from GitHub.
-        This code comes from txgithub by @tomprince.
-        txgithub is based on twisted's webclient agent, which is much less reliable and featureful
-        as txrequest (support for proxy, connection pool, keep alive, retry, etc)
+        This code comes from txgithub by @tomprince. txgithub is based on
+        twisted's webclient agent, which is much less reliable and featureful
+        as txrequest (support for proxy, connection pool, keep alive, etc)
         """
 
         # Convert state into the expected review status.
@@ -73,5 +74,6 @@ class GitHubReviewPush(GitHubCommentPush):
         }
 
         return self._http.post(
-            '/'.join(['/repos', repo_user, repo_name, 'pulls', issue, 'reviews']),
+            '/'.join(['/repos', repo_user,
+                      repo_name, 'pulls', issue, 'reviews']),
             json=payload)
