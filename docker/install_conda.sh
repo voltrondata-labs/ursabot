@@ -28,7 +28,8 @@ bash /tmp/miniconda.sh -b -p ${CONDA_PREFIX}
 rm /tmp/miniconda.sh
 
 ln -s ${CONDA_PREFIX}/etc/profile.d/conda.sh /etc/profile.d/conda.sh
-echo "conda activate base" >> /etc/profile
+# echo ". ${CONDA_PREFIX}/etc/profile.d/conda.sh" >> ~/.profile
+echo "conda activate base" >> ~/.profile
 
 # Configure conda
 source /etc/profile.d/conda.sh

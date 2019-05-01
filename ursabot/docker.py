@@ -224,7 +224,7 @@ def SHELL(shell):
 def alias(mapping):
     # mapping of target => original
     lines = ["alias {}='{}'".format(k, v) for k, v in mapping.items()]
-    return 'echo "{}" >> /etc/profile'.format('; '.join(lines))
+    return 'echo "{}" >> ~/.profile'.format('; '.join(lines))
 
 
 def apt(*packages):
@@ -371,7 +371,7 @@ worker_steps = [
     RUN(mkdir('/buildbot')),
     ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot'),
-    CMD([worker_command])  # not this is list!
+    CMD(worker_command)  # not this is string!
 ]
 # create worker images and add them to the list of arrow images
 arrow_images += [DockerImage(image.name, base=image, tag='worker',

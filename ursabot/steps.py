@@ -37,7 +37,7 @@ class ShellMixin(buildstep.ShellMixin):
             # render the command and prepend with the shell
             # TODO(kszucs) validate self.shell
             command = ' '.join(map(quote, command))
-            command = self.shell + (command,)
+            command = tuple(self.shell) + (command,)
 
         return super().makeRemoteShellCommand(command=command, **kwargs)
 
