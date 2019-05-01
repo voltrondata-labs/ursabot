@@ -265,43 +265,6 @@ def conda(*packages, files=tuple()):
     return cmd.lstrip()
 
 
-ubuntu_pkgs = [
-    'autoconf',
-    'build-essential',
-    'cmake',
-    'libboost-dev',
-    'libboost-filesystem-dev',
-    'libboost-regex-dev',
-    'libboost-system-dev',
-    'python3',
-    'python3-pip',
-    'bison',
-    'flex',
-    'git',
-    # zstd ep requires CMake >= 3.7 which is not available for ubuntu 16.04
-    'libzstd1-dev',
-    'ninja-build'
-]
-
-alpine_pkgs = [
-    'autoconf',
-    'bash',
-    'bison',
-    'boost-dev',
-    'cmake',
-    'flex',
-    'g++',
-    'gcc',
-    'git',
-    'gzip',
-    'make',
-    'musl-dev',
-    'ninja',
-    'wget',
-    'zlib-dev',
-    'python3-dev'
-]
-
 docker = Path(__file__).parent.parent / 'docker'
 
 # TODO(kszucs): add buildbot user
@@ -332,6 +295,9 @@ ursabot_images = ImageCollection([
 ])
 
 arrow_images = ImageCollection()
+
+ubuntu_pkgs = (docker / 'pkgs-ubuntu.txt').read_text().splitlines()
+alpine_pkgs = (docker / 'pkgs-alpine.txt').read_text().splitlines()
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
