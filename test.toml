@@ -16,8 +16,10 @@ database_url = 'sqlite:///ursabot.sqlite'
 name = 'local1'
 arch = 'amd64'
 docker = { host = 'unix://var/run/docker.sock' }
+hostconfig = { network_mode = 'host', cpuset_cpus = '0,1' }
 
 [[workers]]
 name = 'local2'
 arch = 'amd64'
 docker = { host = 'unix://var/run/docker.sock' }
+hostconfig = { network_mode = 'host', cpuset_cpus = '2,3' }
