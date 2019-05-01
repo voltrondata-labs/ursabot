@@ -91,15 +91,15 @@ definitions = {
     # Build the Arrow examples
     'ARROW_BUILD_EXAMPLES': 'OFF',
     # Build shared libraries
-    # 'ARROW_BUILD_SHARED': 'ON',
+    'ARROW_BUILD_SHARED': 'ON',
     # Build static libraries
-    # 'ARROW_BUILD_STATIC': 'ON',
+    'ARROW_BUILD_STATIC': 'ON',
     # Build the Arrow googletest unit tests
     'ARROW_BUILD_TESTS': 'ON',
     # Build Arrow commandline utilities
     # 'ARROW_BUILD_UTILITIES': 'ON',
     # Build the Arrow Compute Modules
-    # 'ARROW_COMPUTE': 'ON',
+    'ARROW_COMPUTE': 'ON',
     # Build the Arrow CUDA extensions (requires CUDA toolkit)
     # 'ARROW_CUDA': 'OFF',
     # Compiler flags to append when compiling Arrow
@@ -111,7 +111,7 @@ definitions = {
     # Build Arrow Fuzzing executables
     # 'ARROW_FUZZING': 'OFF',
     # Build the Gandiva libraries
-    # 'ARROW_GANDIVA': 'OFF',
+    'ARROW_GANDIVA': 'OFF',
     # Build the Gandiva JNI wrappers
     # 'ARROW_GANDIVA_JAVA': 'OFF',
     # Compiler flags to append when pre-compiling Gandiva operations
@@ -134,7 +134,7 @@ definitions = {
     # Build the Arrow IPC extensions
     # 'ARROW_IPC': 'ON',
     # Build the Arrow jemalloc-based allocator
-    # 'ARROW_JEMALLOC': 'ON',
+    'ARROW_JEMALLOC': 'ON',
     # Exclude deprecated APIs from build
     # 'ARROW_NO_DEPRECATED_API': 'OFF',
     # Only define the lint and check-format targets
@@ -144,11 +144,11 @@ definitions = {
     # on components that have not been built.
     # 'ARROW_OPTIONAL_INSTALL': 'OFF',
     # Build the Arrow ORC adapter
-    # 'ARROW_ORC': 'OFF',
+    'ARROW_ORC': 'OFF',
     # Build the Parquet libraries
     'ARROW_PARQUET': 'OFF',
     # Build the plasma object store along with Arrow
-    # 'ARROW_PLASMA': 'OFF',
+    'ARROW_PLASMA': 'OFF',
     # Build the plasma object store java client
     # 'ARROW_PLASMA_JAVA_CLIENT': 'OFF',
     # Rely on Protocol Buffers shared libraries where relevant
@@ -185,9 +185,9 @@ definitions = {
     # Build with backtrace support
     'ARROW_WITH_BACKTRACE': 'ON',
     # Build with Brotli compression
-    # 'ARROW_WITH_BROTLI': 'ON',
+    'ARROW_WITH_BROTLI': 'ON',
     # Build with BZ2 compression
-    # 'ARROW_WITH_BZ2': 'OFF',
+    'ARROW_WITH_BZ2': 'OFF',
     # Build with lz4 compression
     'ARROW_WITH_LZ4': 'ON',
     # Build with Snappy compression
@@ -241,7 +241,7 @@ python_test = PyTest(
     env={'LD_LIBRARY_PATH': ld_library_path}
 )
 
-archery_install = Pip3(['install', '-e', '.'], workdir="dev/archery")
+archery_install = Pip3(['install', '-e', '.'], workdir='dev/archery')
 archery_benchmark_diff = Archery(
     ['benchmark', 'diff'],
     # Click requires this

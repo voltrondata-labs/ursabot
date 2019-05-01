@@ -285,7 +285,7 @@ conda_worker_steps = (
 python_steps = [
     ADD(docker / 'requirements.txt'),
     ADD(docker / 'requirements-test.txt'),
-    RUN(pip('pip', 'cython', files=['requirements.txt'], executable='pip3')),
+    RUN(pip('cython', files=['requirements.txt'], executable='pip3')),
     RUN(pip(files=['requirements-test.txt'], executable='pip3'))
 ]
 
