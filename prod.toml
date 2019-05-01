@@ -1,0 +1,58 @@
+url = 'http://nashville.ursalabs.org:4100/'
+webui_port = 4100
+
+[github]
+
+  [github.hook]
+  enabled = true
+  debug = true
+
+  [github.auth]
+  enabled = true
+
+  [github.auth.admin]
+  orgs = ['ursa-labs']
+  users = ['xhochy']
+
+[changes]
+
+  [changes.pb]
+  enabled = true
+  port = 9041
+
+  [changes.git_poller]
+  enabled = true
+
+  [changes.pull_request_poller]
+  enabled = true
+
+[schedulers]
+
+  [schedulers.try]
+  enabled = true
+
+[reporters]
+
+  [reporters.zulip]
+  enabled = true
+  from = 'ursabot@ursalabs.org'
+
+  [reporters.github_status]
+  # to report status changes to the github ui
+  enabled = true
+  debug = true
+
+[[workers]]
+name = 'dgx1'
+arch = 'amd64'
+docker = { host = 'tcp://ursa-dgx1:2375' }
+
+[[workers]]
+name = 'dgx2'
+arch = 'amd64'
+docker = { host = 'tcp://ursa-dgx2:2375' }
+
+[[workers]]
+name = 'jetson1'
+arch = 'arm64v8'
+docker = { host = 'tcp://ursa-jetson1:2375' }

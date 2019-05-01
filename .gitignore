@@ -122,7 +122,6 @@ local.py
 
 # Ursabot configuration files
 .secrets.*
-prod.toml
 
 # Ursabot testing database
 ursabot.sqlite

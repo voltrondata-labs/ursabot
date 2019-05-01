@@ -76,6 +76,10 @@ class Config(dict):
                 loads = toml.loads
             else:
                 raise ValueError(f'Unsupported extension: `{path.suffix}`')
+
+            # loading .secrets.ext files is optional
+            if not path.exists() and 'secret' in path.name:
+                continue
             configs.append(loads(path.read_text()))
 
         return cls.merge(configs)
