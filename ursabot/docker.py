@@ -122,7 +122,7 @@ class DockerImage:
         # TODO(kszucs): pass platform argument
         logger.info(f'Start building {self.fqn}')
         client.build_from_file(self.dockerfile, self.fqn, **kwargs)
-        logger.info(f'Image is build successfully: {self.fqn}')
+        logger.info(f'Image has been built successfully: {self.fqn}')
 
         return self
 
