@@ -304,7 +304,6 @@ for arch in ['amd64', 'arm64v8']:
             RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
             RUN(symlink({'/usr/bin/python': '/usr/bin/python3',
                          '/usr/bin/pip': '/usr/bin/pip3'})),
-            ENTRYPOINT(['/bin/sh', '-c']),
         ])
         python = DockerImage('python-3', base=cpp, steps=python_steps)
         arrow_images.extend([cpp, python])
@@ -364,17 +363,23 @@ for arch in ['amd64']:
 
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
+worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
     ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
-    WORKDIR('/buildbot'),
-    CMD(['twistd --pidfile= -ny buildbot.tac'])  # note this is list!
+    WORKDIR('/buildbot')
 ]
 # create worker images and add them to the list of arrow images
-arrow_images += [DockerImage(image.name, base=image, tag='worker',
-                             steps=worker_steps)
-                 for image in arrow_images]
+worker_images = []
+for image in arrow_images:
+    # exec form is required for conda images becase of the bash entrypoint
+    cmd = [worker_command] if image.variant == 'conda' else worker_command
+    steps = worker_steps + [CMD(cmd)]
+    worker = DockerImage(image.name, base=image, tag='worker', steps=steps)
+    worker_images.append(worker)
+
+arrow_images.extend(worker_images)
 
 # docker images for testing ursabot itself
 ursabot_images = ImageCollection([
