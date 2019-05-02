@@ -43,16 +43,68 @@ webui_port = 4100
   debug = true
 
 [[workers]]
-name = 'dgx1'
+name = 'dgx1-1'
 arch = 'amd64'
-docker = { host = 'tcp://ursa-dgx1:2375' }
+docker.host = 'tcp://ursa-dgx1:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '0-3,20-23' }
 
 [[workers]]
-name = 'dgx2'
+name = 'dgx1-2'
 arch = 'amd64'
-docker = { host = 'tcp://ursa-dgx2:2375' }
+docker.host = 'tcp://ursa-dgx1:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '4-7,24-27' }
+
+[[workers]]
+name = 'dgx1-3'
+arch = 'amd64'
+docker.host = 'tcp://ursa-dgx1:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '8-11,28-31' }
+
+[[workers]]
+name = 'dgx1-4'
+arch = 'amd64'
+docker.host = 'tcp://ursa-dgx1:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '12-15,32-35' }
+
+[[workers]]
+name = 'dgx1-5'
+arch = 'amd64'
+docker.host = 'tcp://ursa-dgx1:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '16-19,36-39' }
+
+[[workers]]
+name = 'dgx2-1'
+arch = 'amd64'
+docker.host = 'tcp://ursa-dgx2:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '0-3,20-23' }
+
+[[workers]]
+name = 'dgx2-2'
+arch = 'amd64'
+docker.host = 'tcp://ursa-dgx2:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '4-7,24-27' }
+
+[[workers]]
+name = 'dgx2-3'
+arch = 'amd64'
+docker.host = 'tcp://ursa-dgx2:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '8-11,28-31' }
+
+[[workers]]
+name = 'dgx2-4'
+arch = 'amd64'
+docker.host = 'tcp://ursa-dgx2:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '12-15,32-35' }
+
+[[workers]]
+name = 'dgx2-5'
+arch = 'amd64'
+docker.host = 'tcp://ursa-dgx2:2375'
+docker.hostconfig = { network_mode = 'host', cpuset_cpus = '16-19,36-39' }
 
 [[workers]]
 name = 'jetson1'
 arch = 'arm64v8'
-docker = { host = 'tcp://ursa-jetson1:2375' }
+docker.host = 'tcp://ursa-jetson1:2375'
+docker.hostconfig = { network_mode = 'host' }
+max_builds = 4
