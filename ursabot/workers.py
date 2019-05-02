@@ -10,8 +10,9 @@ from buildbot.plugins import worker
 
 class WorkerMixin:
 
-    def __init__(self, *args, arch, **kwargs):
+    def __init__(self, *args, arch, is_benchmark=None, **kwargs):
         self.arch = arch
+        self.is_benchmark = is_benchmark
         super().__init__(*args, **kwargs)
 
 

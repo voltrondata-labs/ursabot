@@ -33,5 +33,6 @@ docker.hostconfig = { network_mode = 'host', cpuset_cpus = '0,1' }
 [[workers]]
 name = 'local2'
 arch = 'amd64'
+is_benchmark = true
 docker.host = 'unix://var/run/docker.sock'
 docker.hostconfig = { network_mode = 'host', cpuset_cpus = '2,3' }
