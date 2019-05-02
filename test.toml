@@ -3,6 +3,9 @@ url = 'http://localhost:8100/'
 webui_port = 8100
 database_url = 'sqlite:///ursabot.sqlite'
 
+[github]
+  token = "invalid_token"
+
 [projects]
 
   [projects.ursabot]
@@ -11,14 +14,14 @@ database_url = 'sqlite:///ursabot.sqlite'
   [projects.arrow]
   enabled = true
 
-#[reporters]
-#  [reporters.github_status]
-#    enabled = true
-#    debug = true
-#
-#  [reporters.github_review]
-#    enabled = true
-#    debug = true
+[reporters]
+  [reporters.github_status]
+    enabled = false
+    debug = true
+
+  [reporters.github_review]
+    enabled = false
+    debug = true
 
 [[workers]]
 # docker-on-mac is able to containers for multiple architectures
