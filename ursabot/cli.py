@@ -1,6 +1,7 @@
 import click
 import logging
 import toolz
+from pathlib import Path
 
 from dockermap.api import DockerClientWrapper
 
@@ -29,8 +30,17 @@ def ursabot(ctx, verbose):
               help='Username to authenticate dockerhub with')
 @click.option('--docker-password', '-dp', default=None,
               help='Password to authenticate dockerhub with')
+@click.option('--arch', '-a', default=None,
+              help='Filter images by architecture')
+@click.option('--os', '-o', default=None,
+              help='Filter images by operating system')
+@click.option('--tag', '-t', default=None,
+              help='Filter images by operating system')
+@click.option('--variant', '-v', default=None,
+              help='Filter images by variant')
+@click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_context
-def docker(ctx, docker_host, docker_username, docker_password):
+def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
     if ctx.obj['verbose']:
         logging.getLogger('dockermap').setLevel(logging.INFO)
 
@@ -39,26 +49,15 @@ def docker(ctx, docker_host, docker_username, docker_password):
         client.login(username=docker_username, password=docker_password)
 
     ctx.obj['client'] = client
+    ctx.obj['filters'] = toolz.valfilter(lambda x: x is not None, kwargs)
 
 
 @docker.command()
 @click.argument('project')
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
-@click.option('--arch', '-a', default=None,
-              help='Filter images by architecture')
-@click.option('--os', '-o', default=None,
-              help='Filter images by operating system')
-@click.option('--tag', '-o', default=None,
-              help='Filter images by operating system')
-@click.option('--variant', '-v', default=None,
-              help='Filter images by variant')
-@click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_context
-def build(ctx, project, push, arch, name, os, tag, variant):
-    filters = toolz.valfilter(lambda x: x is not None, {
-        'name': name, 'arch': arch, 'os': os, 'tag': tag, 'variant': variant})
-
+def build(ctx, project, push):
     if project == 'arrow':
         images = arrow_images
     elif project == 'ursabot':
@@ -66,6 +65,7 @@ def build(ctx, project, push, arch, name, os, tag, variant):
     else:
         raise ValueError(f'Uknown project: `{project}`')
 
+    filters = ctx.obj['filters']
     images = images.filter(**filters)
 
     client = ctx.obj['client']
@@ -73,3 +73,23 @@ def build(ctx, project, push, arch, name, os, tag, variant):
 
     if push:
         images.push(client=client)
+
+
+@docker.command()
+@click.argument('project')
+@click.option('--directory', '-d', default='images',
+              help='Path to the directory where the images should be written')
+@click.pass_context
+def write_dockerfiles(ctx, project, directory):
+    if project == 'arrow':
+        images = arrow_images
+    elif project == 'ursabot':
+        images = ursabot_images
+    else:
+        raise ValueError(f'Uknown project: `{project}`')
+
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+
+    for image in images:
+        image.save_dockerfile(directory)

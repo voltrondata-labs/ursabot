@@ -11,6 +11,5 @@ gzip
 make
 musl-dev
 ninja
-python3-dev
 wget
 zlib-dev
