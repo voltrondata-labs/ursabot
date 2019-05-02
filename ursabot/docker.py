@@ -223,7 +223,7 @@ def SHELL(shell):
 
 def symlink(mapping):
     # mapping of target => original
-    cmds = ['ln -s {} {}'.format(v, k) for k, v in mapping.items()]
+    cmds = ['ln -sf {} {}'.format(v, k) for k, v in mapping.items()]
     delim = ' && \\\n{}'.format(_tab)
     return delim.join(cmds)
 
@@ -324,7 +324,6 @@ for arch in ['amd64', 'arm64v8']:
             RUN(apk(*alpine_pkgs, 'python3-dev', 'py3-pip')),
             RUN(symlink({'/usr/bin/python': '/usr/bin/python3',
                          '/usr/bin/pip': '/usr/bin/pip3'})),
-            ENTRYPOINT(['/bin/sh', '-c']),
         ])
         python = DockerImage('python-3', base=cpp, steps=python_steps)
         arrow_images.extend([cpp, python])
