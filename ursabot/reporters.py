@@ -1,4 +1,5 @@
 from buildbot.plugins import reporters
+from twisted.python import log
 
 
 _template = u'''\
@@ -43,9 +44,12 @@ class GitHubCommentPush(BuilderReporterMixin, reporters.GitHubCommentPush):
 class GitHubReviewPush(GitHubCommentPush):
     name = "GitHubReviewPush"
 
+    def path(self, org, repository, issue):
+        return '/'.join(['/repos', org, repository, 'pulls', issue, 'reviews'])
+
     def createStatus(self,
-                     repo_user, repo_name, sha, state, target_url=None,
-                     context=None, issue=None, description=None):
+                     repo_user, repo_name, sha, state, issue=None,
+                     description=None):
         """
         :param repo_user: GitHub user or organization
         :param repo_name: Name of the repository
@@ -59,13 +63,17 @@ class GitHubReviewPush(GitHubCommentPush):
         as txrequest (support for proxy, connection pool, keep alive, etc)
         """
 
+        # Do not create a pending review as it induce more problem.
+        if state == 'pending':
+            return None
+
         # Convert state into the expected review status.
         review_status = {
             'success': 'APPROVE',
-            'pending': 'PENDING',
-            'error': 'REQUEST_CHANGES',
+            # Unsure how to deal with buildbot errors
+            'error': 'COMMENT',
             'failure': 'REQUEST_CHANGES',
-        }[state]
+        }.get(state)
 
         payload = {
             'commit_id': sha,
@@ -73,7 +81,8 @@ class GitHubReviewPush(GitHubCommentPush):
             'body': description
         }
 
-        return self._http.post(
-            '/'.join(['/repos', repo_user,
-                      repo_name, 'pulls', issue, 'reviews']),
-            json=payload)
+        path = self.path(repo_user, repo_name, issue)
+        if self.verbose:
+            log.msg(f"Invoking {path} with payload: {payload}")
+
+        return self._http.post(path, json=payload)
