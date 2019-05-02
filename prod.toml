@@ -3,7 +3,7 @@ webui_port = 4100
 
 [github]
 
-  [github.hook]
+  [github.event_hook]
   enabled = true
   debug = true
 
