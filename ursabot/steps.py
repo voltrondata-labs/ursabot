@@ -191,11 +191,6 @@ class Pip(ShellCommand):
     command = ['pip']
 
 
-# Used for installing archery
-class Pip3(Pip):
-    command = ['pip3']
-
-
 Mkdir = steps.MakeDirectory
 GitHub = steps.GitHub
 
