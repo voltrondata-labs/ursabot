@@ -279,6 +279,8 @@ def conda(*packages, files=tuple()):
 
 # configure shell and entrypoint to load .bashrc
 docker_assets = Path(__file__).parent.parent / 'docker'
+python_symlinks = {'/usr/local/bin/python': '/usr/bin/python3',
+                   '/usr/local/bin/pip': '/usr/bin/pip3'}
 
 ubuntu_pkgs = (docker_assets / 'pkgs-ubuntu.txt').read_text().splitlines()
 alpine_pkgs = (docker_assets / 'pkgs-alpine.txt').read_text().splitlines()
@@ -302,8 +304,7 @@ for arch in ['amd64', 'arm64v8']:
 
         cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
-            RUN(symlink({'/usr/bin/python': '/usr/bin/python3',
-                         '/usr/bin/pip': '/usr/bin/pip3'})),
+            RUN(symlink(python_symlinks))
         ])
         python = DockerImage('python-3', base=cpp, steps=python_steps)
         arrow_images.extend([cpp, python])
@@ -321,8 +322,7 @@ for arch in ['amd64', 'arm64v8']:
 
         cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apk(*alpine_pkgs, 'python3-dev', 'py3-pip')),
-            RUN(symlink({'/usr/bin/python': '/usr/bin/python3',
-                         '/usr/bin/pip': '/usr/bin/pip3'})),
+            RUN(symlink(python_symlinks))
         ])
         python = DockerImage('python-3', base=cpp, steps=python_steps)
         arrow_images.extend([cpp, python])
