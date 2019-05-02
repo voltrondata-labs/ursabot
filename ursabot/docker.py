@@ -221,10 +221,11 @@ def SHELL(shell):
 # command shortcuts
 
 
-def alias(mapping):
+def symlink(mapping):
     # mapping of target => original
-    lines = ["alias {}='{}'".format(k, v) for k, v in mapping.items()]
-    return 'echo "{}" >> ~/.profile'.format('; '.join(lines))
+    cmds = ['ln -s {} {}'.format(v, k) for k, v in mapping.items()]
+    delim = ' && \\\n{}'.format(_tab)
+    return delim.join(cmds)
 
 
 def apt(*packages):
@@ -277,7 +278,6 @@ def conda(*packages, files=tuple()):
 
 
 # configure shell and entrypoint to load .bashrc
-login_shell = ['/bin/sh', '-l', '-c']
 docker_assets = Path(__file__).parent.parent / 'docker'
 
 ubuntu_pkgs = (docker_assets / 'pkgs-ubuntu.txt').read_text().splitlines()
@@ -302,9 +302,9 @@ for arch in ['amd64', 'arm64v8']:
 
         cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
-            RUN(alias(dict(python='python3', pip='pip3'))),
-            SHELL(login_shell),
-            ENTRYPOINT(login_shell)
+            RUN(symlink({'/usr/bin/python': '/usr/bin/python3',
+                         '/usr/bin/pip': '/usr/bin/pip3'})),
+            ENTRYPOINT(['/bin/sh', '-c']),
         ])
         python = DockerImage('python-3', base=cpp, steps=python_steps)
         arrow_images.extend([cpp, python])
@@ -322,9 +322,9 @@ for arch in ['amd64', 'arm64v8']:
 
         cpp = DockerImage('cpp', base=base, arch=arch, os=os, steps=[
             RUN(apk(*alpine_pkgs, 'python3-dev', 'py3-pip')),
-            RUN(alias(dict(python='python3', pip='pip3'))),
-            SHELL(login_shell),
-            ENTRYPOINT(login_shell)
+            RUN(symlink({'/usr/bin/python': '/usr/bin/python3',
+                         '/usr/bin/pip': '/usr/bin/pip3'})),
+            ENTRYPOINT(['/bin/sh', '-c']),
         ])
         python = DockerImage('python-3', base=cpp, steps=python_steps)
         arrow_images.extend([cpp, python])
@@ -343,7 +343,7 @@ for arch in ['amd64']:
         ADD(docker_assets / 'conda-linux.txt'),
         ADD(docker_assets / 'conda-cpp.txt'),
         RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
-        # conda activate requires bash
+        # run conda activate
         SHELL(['/bin/bash', '-l', '-c']),
         ENTRYPOINT(['/bin/bash', '-l', '-c']),
     ]
@@ -365,13 +365,12 @@ for arch in ['amd64']:
 
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
-worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
     ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot'),
-    CMD(worker_command)  # not this is string!
+    CMD(['twistd --pidfile= -ny buildbot.tac'])  # note this is list!
 ]
 # create worker images and add them to the list of arrow images
 arrow_images += [DockerImage(image.name, base=image, tag='worker',
