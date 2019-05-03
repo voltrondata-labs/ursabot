@@ -50,9 +50,11 @@ database_url = 'sqlite:///ursabot.sqlite'
 
   [projects.arrow]
   enabled = true
+  repository = 'https://github.com/apache/arrow'
 
   [projects.ursabot]
   enabled = true
+  repository = 'https://github.com/ursa-labs/ursabot'
 
 [reporters]
 
@@ -80,3 +82,6 @@ database_url = 'sqlite:///ursabot.sqlite'
   enabled = false
 
 # [[workers]]
+# name = ...
+# arch = 'arm64v8' or 'amd64'
+# docker = { host = 'tcp://host:port', hostconfig = {} }

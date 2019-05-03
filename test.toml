@@ -15,13 +15,14 @@ database_url = 'sqlite:///ursabot.sqlite'
   enabled = true
 
 [reporters]
+
   [reporters.github_status]
-    enabled = false
-    debug = true
+  enabled = false
+  debug = true
 
   [reporters.github_review]
-    enabled = false
-    debug = true
+  enabled = false
+  debug = true
 
 [[workers]]
 # docker-on-mac is able to containers for multiple architectures

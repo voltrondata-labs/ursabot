@@ -63,7 +63,7 @@ class Builder(util.BuilderConfig):
 # prefer GitHub over Git step
 checkout_arrow = GitHub(
     name='Clone Arrow',
-    repourl='https://github.com/apache/arrow',
+    repourl=util.Property('repository'),
     workdir='.',
     submodules=True,
     mode='full'
@@ -246,7 +246,7 @@ class UrsabotTest(Builder):
     steps = [
         GitHub(
             name='Clone Ursabot',
-            repourl='https://github.com/ursa-labs/ursabot',
+            repourl=util.Property('repository'),
             mode='full'
         ),
         # --no-binary buildbot is required because buildbot doesn't bundle its

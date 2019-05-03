@@ -41,6 +41,7 @@ class GitHubCommentPush(BuilderReporterMixin, reporters.GitHubCommentPush):
     pass
 
 
+# TODO(kszucs): subclass GithubStatusPush
 class GitHubReviewPush(GitHubCommentPush):
     name = "GitHubReviewPush"
 

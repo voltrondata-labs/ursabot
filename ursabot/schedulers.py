@@ -8,10 +8,10 @@ class SchedulerMixin:
         super().__init__(*args, builderNames=builder_names, **kwargs)
 
 
-class GithubSchedulerMixin:
-    """ Improves the default form of ForceScheduler. """
+class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
 
-    def __init__(self, *args, project, **kwargs):
+    def __init__(self, *args, project, repository, **kwargs):
+        """Improves the default form of ForceScheduler."""
         codebase = util.CodebaseParameter(
             codebase='',
             label='',
@@ -20,14 +20,10 @@ class GithubSchedulerMixin:
                                         required=True),
             commit=util.StringParameter(name='commit', required=True),
             project=util.FixedParameter(name='project', default=project),
-            repository=util.FixedParameter(name='repository', default=project),
+            repository=util.FixedParameter(name='repository',
+                                           default=repository),
         )
         super().__init__(*args, codebases=[codebase], **kwargs)
-
-
-class ForceScheduler(SchedulerMixin, GithubSchedulerMixin,
-                     schedulers.ForceScheduler):
-    pass
 
 
 class TryScheduler(SchedulerMixin, schedulers.Try_Userpass):
