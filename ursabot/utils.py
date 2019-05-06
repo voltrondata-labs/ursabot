@@ -1,3 +1,4 @@
+import re
 import json
 import toml
 import pathlib
@@ -14,6 +15,14 @@ def ensure_deferred(f):
         return defer.ensureDeferred(result)
 
     return wrapper
+
+
+def slugify(s):
+    """Slugify CamelCase name"""
+    s = re.sub(r'[\W\-]+', '-', s)
+    s = re.sub(r'([A-Z])', lambda m: '-' + m.group(1).lower(), s)
+    s = s.strip('-')
+    return s
 
 
 class Filter:

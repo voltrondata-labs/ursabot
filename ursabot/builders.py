@@ -1,11 +1,15 @@
 import copy
 import toolz
+import itertools
+import warnings
 
 from buildbot import interfaces
 from buildbot.plugins import util
 
+from .docker import DockerImage, arrow_images, ursabot_images
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CMake, PyTest, Mkdir, Pip, GitHub, Archery)
+from .utils import startswith, slugify
 
 
 class BuildFactory(util.BuildFactory):
@@ -25,6 +29,7 @@ class BuildFactory(util.BuildFactory):
 
 class Builder(util.BuilderConfig):
 
+    _id = itertools.count(0)
     tags = tuple()
     steps = tuple()
     properties = None
@@ -47,17 +52,61 @@ class Builder(util.BuilderConfig):
         elif tags is not None:
             raise TypeError('Tags must be a list')
 
+        name = name or self._generate_name()
         factory = factory or BuildFactory(steps)
         properties = toolz.merge(properties or {}, self.properties or {})
         default_properties = toolz.merge(default_properties or {},
                                          self.default_properties or {})
-
         workernames = None if workers is None else [w.name for w in workers]
 
         return super().__init__(name=name, tags=tags, properties=properties,
                                 defaultProperties=default_properties,
                                 workernames=workernames, factory=factory,
                                 **kwargs)
+
+    @classmethod
+    def _generate_name(cls, prefix=None):
+        prefix = slugify(prefix or cls.__name__)
+        object_id = next(cls._id)
+        return f'{prefix}#{object_id}'
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} '{self.name}'>"
+
+
+class DockerBuilder(Builder):
+
+    images = tuple()
+
+    def __init__(self, name=None, image=None, properties=None, tags=None,
+                 **kwargs):
+        if not isinstance(image, DockerImage):
+            raise ValueError('Image must be an instance of DockerImage')
+        prefix = self.__class__.__name__ + '-' + image.repo
+        name = name or self._generate_name(prefix)
+        tags = tags or list(image.platform)
+        properties = properties or {}
+        properties['docker_image'] = str(image)
+        super().__init__(name=name, properties=properties, tags=tags, **kwargs)
+
+    @classmethod
+    def builders_for(cls, workers, images=None):
+        images = images or cls.images
+        workers_by_arch = workers.groupby('arch')
+
+        builders = []
+        for image in images:
+            if image.arch in workers_by_arch:
+                workers = workers_by_arch[image.arch]
+                builder = cls(image=image, workers=workers)
+                builders.append(builder)
+            else:
+                warnings.warn(
+                    f'There are no docker workers available for architecture '
+                    f'`{image.arch}`, omitting image `{image}`'
+                )
+
+        return builders
 
 
 # prefer GitHub over Git step
@@ -241,7 +290,7 @@ python_test = PyTest(
 )
 
 
-class UrsabotTest(Builder):
+class UrsabotTest(DockerBuilder):
     tags = ['ursabot']
     steps = [
         GitHub(
@@ -259,6 +308,7 @@ class UrsabotTest(Builder):
         ShellCommand(command=['buildbot', 'checkconfig', '.'],
                      env={'URSABOT_ENV': 'test'})
     ]
+    images = ursabot_images.filter(tag='worker')
 
 
 # TODO(kszucs): properly implement it
@@ -269,7 +319,7 @@ class UrsabotTest(Builder):
 #     ]
 
 
-class ArrowCppTest(Builder):
+class ArrowCppTest(DockerBuilder):
     tags = ['arrow', 'cpp']
     properties = {
         'ARROW_PLASMA': 'ON',
@@ -283,9 +333,15 @@ class ArrowCppTest(Builder):
         cpp_compile,
         cpp_test
     ]
+    images = arrow_images.filter(
+        name='cpp',
+        os=startswith('ubuntu') | startswith('alpine'),
+        variant=None,  # plain linux images, no conda
+        tag='worker'
+    )
 
 
-class ArrowCppBenchmark(Builder):
+class ArrowCppBenchmark(DockerBuilder):
     tags = ['arrow', 'cpp']
     properties = {
         'ARROW_PLASMA': 'ON',
@@ -301,9 +357,15 @@ class ArrowCppBenchmark(Builder):
             env={'LC_ALL': 'C.UTF-8', 'LANG': 'C.UTF-8'},
         )
     ]
+    images = arrow_images.filter(
+        name='cpp-benchmark',
+        os=startswith('ubuntu'),
+        variant=None,  # plain linux images, no conda
+        tag='worker'
+    )
 
 
-class ArrowPythonTest(Builder):
+class ArrowPythonTest(DockerBuilder):
     tags = ['arrow', 'python']
     properties = {
         'ARROW_PYTHON': 'ON',
@@ -320,9 +382,15 @@ class ArrowPythonTest(Builder):
         python_install,
         python_test
     ]
+    images = arrow_images.filter(
+        name=startswith('python'),
+        os=startswith('ubuntu') | startswith('alpine'),
+        variant=None,
+        tag='worker'
+    )
 
 
-class ArrowCppCondaTest(Builder):
+class ArrowCppCondaTest(DockerBuilder):
     tags = ['arrow', 'cpp']
     steps = [
         SetPropertiesFromEnv({
@@ -337,9 +405,14 @@ class ArrowCppCondaTest(Builder):
         cpp_compile,
         cpp_test
     ]
+    images = arrow_images.filter(
+        name='cpp',
+        variant='conda',
+        tag='worker'
+    )
 
 
-class ArrowPythonCondaTest(Builder):
+class ArrowPythonCondaTest(DockerBuilder):
     tags = ['arrow', 'python']
     properties = {
         'ARROW_PYTHON': 'ON',
@@ -361,3 +434,8 @@ class ArrowPythonCondaTest(Builder):
         python_install,
         python_test
     ]
+    images = arrow_images.filter(
+        name=startswith('python'),
+        variant='conda',
+        tag='worker'
+    )

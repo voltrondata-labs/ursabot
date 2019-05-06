@@ -22,7 +22,7 @@ webui_port = 4100
 
   [github.auth.admin]
   orgs = ['ursa-labs']
-  users = ['xhochy']
+  users = ['xhochy', 'kou']
 
 [changes]
 
