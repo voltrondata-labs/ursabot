@@ -15,13 +15,15 @@ class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
         codebase = util.CodebaseParameter(
             codebase='',
             label='',
-            branch=util.StringParameter(name='branch',
-                                        default='master',
-                                        required=True),
-            commit=util.StringParameter(name='commit', required=True),
             project=util.FixedParameter(name='project', default=project),
             repository=util.FixedParameter(name='repository',
                                            default=repository),
+            branch=util.StringParameter(name='branch',
+                                        default='master',
+                                        required=True),
+            # required, otherwise status push reporter fails with a
+            # non-descriptive exception
+            revision=util.StringParameter(name='revision', required=True)
         )
         super().__init__(*args, codebases=[codebase], **kwargs)
 

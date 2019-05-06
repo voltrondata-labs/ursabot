@@ -126,6 +126,7 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
         properties = self.build.getProperties()
         environ = self.worker.worker_environ
 
+        log = []
         for prop, var in self.variables.items():
             if fold_to_uppercase:
                 var = var.upper()
@@ -133,11 +134,10 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
             value = environ.get(var, None)
             if value:
                 # note that the property is not uppercased
-
-                # TODO(kszucs) try with self.setProperty similarly like in
-                # SetProperties
                 properties.setProperty(prop, value, self.source, runtime=True)
-                await self.addCompleteLog('set-prop', f'{prop}: {value}')
+                log.append(f'{prop} = {value}')
+
+        await self.addCompleteLog('properties', '\n'.join(log))
 
         return SUCCESS
 

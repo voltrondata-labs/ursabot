@@ -51,21 +51,19 @@ database_url = 'sqlite:///ursabot.sqlite'
   [projects.arrow]
   enabled = true
   repository = 'https://github.com/apache/arrow'
+  reporters = []
 
   [projects.ursabot]
   enabled = true
   repository = 'https://github.com/ursa-labs/ursabot'
+  reporters = []
 
 [reporters]
-
-  [reporters.zulip]
-  enabled = false
-  # from = ...
-  # address = ...
-
-  [reporters.github_status]
-  # to report status changes to the github ui
-  enabled = false
+# global flags for reporters, to enable/disable per project add/remove to/from
+# the projects' reporters list
+github_status = { debug = true }
+github_review = { debug = true }
+# zulip = { from = ..., address = ... }
 
 [changes]
 

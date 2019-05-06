@@ -1,6 +1,14 @@
 url = 'http://nashville.ursalabs.org:4100/'
 webui_port = 4100
 
+[projects]
+
+  [projects.ursabot]
+  reporters = ['github_status']
+
+  [projects.arrow]
+  reporters = []
+
 [github]
 
   [github.event_hook]
@@ -34,13 +42,7 @@ webui_port = 4100
 [reporters]
 
   [reporters.zulip]
-  enabled = true
   from = 'ursabot@ursalabs.org'
-
-  [reporters.github_status]
-  # to report status changes to the github ui
-  enabled = true
-  debug = true
 
 [[workers]]
 name = 'dgx1-1'
