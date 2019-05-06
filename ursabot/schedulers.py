@@ -10,7 +10,8 @@ class SchedulerMixin:
 
 class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
 
-    def __init__(self, *args, project, repository, **kwargs):
+    def __init__(self, *args, project, repository, button_name=None,
+                 label=None, **kwargs):
         """Improves the default form of ForceScheduler."""
         codebase = util.CodebaseParameter(
             codebase='',
@@ -25,6 +26,8 @@ class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
             # non-descriptive exception
             revision=util.StringParameter(name='revision', required=True)
         )
+        kwargs['buttonName'] = button_name or f'Build {project}'
+        kwargs['label'] = label or f'Manual {project} build'
         super().__init__(*args, codebases=[codebase], **kwargs)
 
 

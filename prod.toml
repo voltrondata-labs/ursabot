@@ -5,9 +5,11 @@ webui_port = 4100
 
   [projects.ursabot]
   reporters = ['github_status']
+  change_sources = ['git_poller', 'pull_request_poller']
 
   [projects.arrow]
   reporters = []
+  change_sources = ['git_poller', 'pull_request_poller']
 
 [github]
 
@@ -27,12 +29,6 @@ webui_port = 4100
   [changes.pb]
   enabled = true
   port = 9041
-
-  [changes.git_poller]
-  enabled = true
-
-  [changes.pull_request_poller]
-  enabled = true
 
 [schedulers]
 

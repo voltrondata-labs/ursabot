@@ -50,13 +50,19 @@ database_url = 'sqlite:///ursabot.sqlite'
 
   [projects.arrow]
   enabled = true
+  # must be in `owner/repo` format
+  name = 'apache/arrow'
   repository = 'https://github.com/apache/arrow'
   reporters = []
+  change_sources = []
 
   [projects.ursabot]
   enabled = true
+  # must be in `owner/repo` format
+  name = 'ursa-labs/ursabot'
   repository = 'https://github.com/ursa-labs/ursabot'
   reporters = []
+  change_sources = []
 
 [reporters]
 # global flags for reporters, to enable/disable per project add/remove to/from
@@ -72,12 +78,6 @@ github_review = { debug = true }
   # port = 9041
   # user = ...
   # password = ...
-
-  [changes.git_poller]
-  enabled = false
-
-  [changes.pull_request_poller]
-  enabled = false
 
 # [[workers]]
 # name = ...
