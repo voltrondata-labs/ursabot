@@ -2,6 +2,7 @@ import copy
 import toolz
 import itertools
 import warnings
+from collections import defaultdict
 
 from buildbot import interfaces
 from buildbot.plugins import util
@@ -29,7 +30,7 @@ class BuildFactory(util.BuildFactory):
 
 class Builder(util.BuilderConfig):
 
-    _id = itertools.count(0)
+    _ids = defaultdict(itertools.count)
     tags = tuple()
     steps = tuple()
     properties = None
@@ -48,7 +49,8 @@ class Builder(util.BuilderConfig):
 
         if isinstance(tags, (list, tuple)):
             # append to the class' tag list
-            tags = list(filter(None, toolz.concat([self.tags, tags])))
+            tags = filter(None, toolz.concat([self.tags, tags]))
+            tags = list(toolz.unique(tags))
         elif tags is not None:
             raise TypeError('Tags must be a list')
 
@@ -65,10 +67,11 @@ class Builder(util.BuilderConfig):
                                 **kwargs)
 
     @classmethod
-    def _generate_name(cls, prefix=None):
-        prefix = slugify(prefix or cls.__name__)
-        object_id = next(cls._id)
-        return f'{prefix}#{object_id}'
+    def _generate_name(cls, prefix=None, ids=False):
+        name = slugify(prefix or cls.__name__)
+        if ids:
+            name += '#' + next(cls._ids[prefix])
+        return name
 
     def __repr__(self):
         return f"<{self.__class__.__name__} '{self.name}'>"
@@ -84,7 +87,7 @@ class DockerBuilder(Builder):
             raise ValueError('Image must be an instance of DockerImage')
         prefix = self.__class__.__name__ + '-' + image.repo
         name = name or self._generate_name(prefix)
-        tags = tags or list(image.platform)
+        tags = tags or [image.name] + list(image.platform)
         properties = properties or {}
         properties['docker_image'] = str(image)
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
