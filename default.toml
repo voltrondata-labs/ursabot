@@ -33,12 +33,6 @@ database_url = 'sqlite:///ursabot.sqlite'
   #   users = [...]
   # }
 
-  [github.event_hook]
-  # Secret must be provided during the hook definition on github.
-  enabled = false
-  # debug = true
-  # secret = ...
-
 [schedulers]
 
   [schedulers.try]
@@ -51,8 +45,20 @@ database_url = 'sqlite:///ursabot.sqlite'
   [projects.arrow]
   enabled = true
 
+  [projects.arrow.github_hook]
+  # Secret must be provided during the hook definition on github.
+  enabled = false
+  debug = true
+  # secret = ...
+
   [projects.ursabot]
   enabled = true
+
+  [projects.ursabot.github_hook]
+  # Secret must be provided during the hook definition on github.
+  enabled = false
+  debug = true
+  # secret = ...
 
 [reporters]
 
