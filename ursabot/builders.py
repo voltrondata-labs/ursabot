@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from buildbot import interfaces
 from buildbot.plugins import util
+from codenamize import codenamize
 
 from .docker import DockerImage, arrow_images, ursabot_images
 from .steps import (ShellCommand, SetPropertiesFromEnv,
@@ -67,10 +68,12 @@ class Builder(util.BuilderConfig):
                                 **kwargs)
 
     @classmethod
-    def _generate_name(cls, prefix=None, ids=False):
-        name = slugify(prefix or cls.__name__)
+    def _generate_name(cls, prefix=None, slug=True, ids=True):
+        name = prefix or cls.__name__
+        if slug:
+            name = slugify(name)
         if ids:
-            name += '#' + next(cls._ids[prefix])
+            name += '#{}'.format(next(cls._ids[name]))
         return name
 
     def __repr__(self):
@@ -85,8 +88,12 @@ class DockerBuilder(Builder):
                  **kwargs):
         if not isinstance(image, DockerImage):
             raise ValueError('Image must be an instance of DockerImage')
-        prefix = self.__class__.__name__ + '-' + image.repo
-        name = name or self._generate_name(prefix)
+
+        clsname = slugify(self.__class__.__name__)
+        codename = codenamize(image.repo, max_item_chars=5)
+        name = name or self._generate_name(f'{clsname} ({codename})',
+                                           slug=False, ids=False)
+
         tags = tags or [image.name] + list(image.platform)
         properties = properties or {}
         properties['docker_image'] = str(image)
