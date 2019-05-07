@@ -50,20 +50,26 @@ database_url = 'sqlite:///ursabot.sqlite'
 
   [projects.arrow]
   enabled = true
+  # must be in `owner/repo` format
+  name = 'apache/arrow'
+  repository = 'https://github.com/apache/arrow'
+  reporters = []
+  change_sources = []
 
   [projects.ursabot]
   enabled = true
+  # must be in `owner/repo` format
+  name = 'ursa-labs/ursabot'
+  repository = 'https://github.com/ursa-labs/ursabot'
+  reporters = []
+  change_sources = []
 
 [reporters]
-
-  [reporters.zulip]
-  enabled = false
-  # from = ...
-  # address = ...
-
-  [reporters.github_status]
-  # to report status changes to the github ui
-  enabled = false
+# global flags for reporters, to enable/disable per project add/remove to/from
+# the projects' reporters list
+github_status = { debug = true }
+github_review = { debug = true }
+# zulip = { from = ..., address = ... }
 
 [changes]
 
@@ -73,10 +79,7 @@ database_url = 'sqlite:///ursabot.sqlite'
   # user = ...
   # password = ...
 
-  [changes.git_poller]
-  enabled = false
-
-  [changes.pull_request_poller]
-  enabled = false
-
 # [[workers]]
+# name = ...
+# arch = 'arm64v8' or 'amd64'
+# docker = { host = 'tcp://host:port', hostconfig = {} }

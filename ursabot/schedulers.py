@@ -8,26 +8,27 @@ class SchedulerMixin:
         super().__init__(*args, builderNames=builder_names, **kwargs)
 
 
-class GithubSchedulerMixin:
-    """ Improves the default form of ForceScheduler. """
+class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
 
-    def __init__(self, *args, project, **kwargs):
+    def __init__(self, *args, project, repository, button_name=None,
+                 label=None, **kwargs):
+        """Improves the default form of ForceScheduler."""
         codebase = util.CodebaseParameter(
             codebase='',
             label='',
+            project=util.FixedParameter(name='project', default=project),
+            repository=util.FixedParameter(name='repository',
+                                           default=repository),
             branch=util.StringParameter(name='branch',
                                         default='master',
                                         required=True),
-            commit=util.StringParameter(name='commit', required=True),
-            project=util.FixedParameter(name='project', default=project),
-            repository=util.FixedParameter(name='repository', default=project),
+            # required, otherwise status push reporter fails with a
+            # non-descriptive exception
+            revision=util.StringParameter(name='revision', required=True)
         )
+        kwargs['buttonName'] = button_name or f'Build {project}'
+        kwargs['label'] = label or f'Manual {project} build'
         super().__init__(*args, codebases=[codebase], **kwargs)
-
-
-class ForceScheduler(SchedulerMixin, GithubSchedulerMixin,
-                     schedulers.ForceScheduler):
-    pass
 
 
 class TryScheduler(SchedulerMixin, schedulers.Try_Userpass):

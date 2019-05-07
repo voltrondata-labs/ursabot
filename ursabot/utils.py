@@ -1,3 +1,4 @@
+import re
 import json
 import toml
 import pathlib
@@ -14,6 +15,14 @@ def ensure_deferred(f):
         return defer.ensureDeferred(result)
 
     return wrapper
+
+
+def slugify(s):
+    """Slugify CamelCase name"""
+    s = re.sub(r'[\W\-]+', '-', s)
+    s = re.sub(r'([A-Z])', lambda m: '-' + m.group(1).lower(), s)
+    s = s.strip('-')
+    return s
 
 
 class Filter:
@@ -89,6 +98,8 @@ class Config(dict):
         if any(isinstance(a, dict) for a in args):
             return toolz.merge_with(cls.merge, *args, factory=cls)
         elif any(isinstance(a, list) for a in args):
+            # TODO(kszucs): introduce a strategy argument to concatenate lists
+            #               instead of replacing
             # don't merge lists but needs to propagate factory
             return [cls.merge([a]) for a in toolz.last(args)]
         else:

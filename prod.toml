@@ -1,6 +1,16 @@
 url = 'http://nashville.ursalabs.org:4100/'
 webui_port = 4100
 
+[projects]
+
+  [projects.ursabot]
+  reporters = ['github_status']
+  change_sources = ['git_poller', 'pull_request_poller']
+
+  [projects.arrow]
+  reporters = []
+  change_sources = ['git_poller', 'pull_request_poller']
+
 [github]
 
   [github.event_hook]
@@ -12,19 +22,13 @@ webui_port = 4100
 
   [github.auth.admin]
   orgs = ['ursa-labs']
-  users = ['xhochy']
+  users = ['xhochy', 'kou']
 
 [changes]
 
   [changes.pb]
   enabled = true
   port = 9041
-
-  [changes.git_poller]
-  enabled = true
-
-  [changes.pull_request_poller]
-  enabled = true
 
 [schedulers]
 
@@ -34,13 +38,7 @@ webui_port = 4100
 [reporters]
 
   [reporters.zulip]
-  enabled = true
   from = 'ursabot@ursalabs.org'
-
-  [reporters.github_status]
-  # to report status changes to the github ui
-  enabled = true
-  debug = true
 
 [[workers]]
 name = 'dgx1-1'
