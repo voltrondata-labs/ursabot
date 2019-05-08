@@ -1,5 +1,5 @@
-url = 'http://nashville.ursalabs.org:4100/'
-webui_port = 4100
+url = 'https://ci.ursalabs.org/'
+webui_port = 8010
 
 [projects]
 
@@ -14,7 +14,7 @@ webui_port = 4100
 [github]
 
   [github.event_hook]
-  enabled = true
+  enabled = false
   debug = true
 
   [github.auth]
