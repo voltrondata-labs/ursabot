@@ -31,10 +31,17 @@ class BuildFactory(util.BuildFactory):
 
 class Builder(util.BuilderConfig):
 
+    # used for generating unique default names
     _ids = defaultdict(itertools.count)
+    # concatenated to tags constructor argument
     tags = tuple()
+    # default for steps argument so it gets overwritten if steps is passed
     steps = tuple()
+    # prefix for name argument
+    name_prefix = ''
+    # merged with properties argument
     properties = None
+    # merged with default_properties argument
     default_properties = None
 
     def __init__(self, name=None, steps=None, factory=None, workers=None,
@@ -56,6 +63,7 @@ class Builder(util.BuilderConfig):
             raise TypeError('Tags must be a list')
 
         name = name or self._generate_name()
+        name = f'{self.name_prefix} {name}'
         factory = factory or BuildFactory(steps)
         properties = toolz.merge(properties or {}, self.properties or {})
         default_properties = toolz.merge(default_properties or {},
@@ -68,12 +76,15 @@ class Builder(util.BuilderConfig):
                                 **kwargs)
 
     @classmethod
-    def _generate_name(cls, prefix=None, slug=True, ids=True):
+    def _generate_name(cls, prefix=None, slug=True, ids=True, codename=None):
         name = prefix or cls.__name__
         if slug:
             name = slugify(name)
         if ids:
             name += '#{}'.format(next(cls._ids[name]))
+        if codename is not None:
+            # generates codename like: pushy-idea
+            name += ' ({})'.format(codenamize(codename, max_item_chars=5))
         return name
 
     def __repr__(self):
@@ -89,12 +100,9 @@ class DockerBuilder(Builder):
         if not isinstance(image, DockerImage):
             raise ValueError('Image must be an instance of DockerImage')
 
-        clsname = slugify(self.__class__.__name__)
-        codename = codenamize(image.repo, max_item_chars=5)
-        name = name or self._generate_name(f'{clsname} ({codename})',
-                                           slug=False, ids=False)
-
-        tags = tags or [image.name] + list(image.platform)
+        name = image.title
+        tags = tags or [image.name]
+        tags += list(image.platform)
         properties = properties or {}
         properties['docker_image'] = str(image)
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
