@@ -10,7 +10,7 @@ token = "invalid_token"
 
   [projects.ursabot]
   enabled = true
-  reporters = ['github_status', 'github_review']
+  reporters = ['github_status', 'github_review', 'github_comment']
 
   [projects.arrow]
   enabled = true

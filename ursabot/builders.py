@@ -63,7 +63,8 @@ class Builder(util.BuilderConfig):
             raise TypeError('Tags must be a list')
 
         name = name or self._generate_name()
-        name = f'{self.name_prefix} {name}'
+        if self.name_prefix:
+            name = f'{self.name_prefix} {name}'
         factory = factory or BuildFactory(steps)
         properties = toolz.merge(properties or {}, self.properties or {})
         default_properties = toolz.merge(default_properties or {},
@@ -308,23 +309,39 @@ python_test = PyTest(
 )
 
 
+link = 'https://gist.githubusercontent.com/kszucs/ac986d0d3439aebfcc4cd695ca39ce39/raw/e476d5e6b1f916a83187d03dc6c731f4078c6979/gistfile1.txt'  # noqa
+
+
 class UrsabotTest(DockerBuilder):
     tags = ['ursabot']
+    # steps = [
+    #     GitHub(
+    #         name='Clone Ursabot',
+    #         repourl=util.Property('repository'),
+    #         mode='full'
+    #     ),
+    #     # --no-binary buildbot is required because buildbot doesn't bundle its  # noqa
+    #     # tests to binary wheels, but ursabot's test suite depends on
+    #     # buildbot's so install it from source
+    #     Pip(['install', '--no-binary', 'buildbot',
+    #          'pytest', 'flake8', 'mock', '-e', '.']),
+    #     PyTest(args=['-m', 'not docker', 'ursabot']),
+    #     ShellCommand(command=['flake8', 'ursabot']),
+    #     ShellCommand(command=['buildbot', 'checkconfig', '.'],
+    #                  env={'URSABOT_ENV': 'test'})
+    # ]
     steps = [
-        GitHub(
-            name='Clone Ursabot',
-            repourl=util.Property('repository'),
-            mode='full'
-        ),
-        # --no-binary buildbot is required because buildbot doesn't bundle its
-        # tests to binary wheels, but ursabot's test suite depends on
-        # buildbot's so install it from source
-        Pip(['install', '--no-binary', 'buildbot',
-             'pytest', 'flake8', 'mock', '-e', '.']),
-        PyTest(args=['-m', 'not docker', 'ursabot']),
-        ShellCommand(command=['flake8', 'ursabot']),
-        ShellCommand(command=['buildbot', 'checkconfig', '.'],
-                     env={'URSABOT_ENV': 'test'})
+        ShellCommand(command=['apt-get', 'update'], args=['-y']),
+        ShellCommand(command=['apt-get', 'install'], args=['-y', 'curl']),
+        Archery(
+            command=['curl'],
+            args=[link, '--output', 'diff.json'],
+            # args=['benchmark', 'diff', '--output=diff.json',
+            #       'WORKSPACE', 'master'],
+            result_file='diff.json',
+            # Click requires this
+            env={'LC_ALL': 'C.UTF-8', 'LANG': 'C.UTF-8'},
+        )
     ]
     images = ursabot_images.filter(tag='worker')
 
@@ -360,7 +377,7 @@ class ArrowCppTest(DockerBuilder):
 
 
 class ArrowCppBenchmark(DockerBuilder):
-    tags = ['arrow', 'cpp']
+    tags = ['arrow', 'cpp', 'benchmark']
     properties = {
         'ARROW_PLASMA': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
@@ -370,7 +387,9 @@ class ArrowCppBenchmark(DockerBuilder):
         checkout_arrow,
         Pip(['install', '-e', '.'], workdir='dev/archery'),
         Archery(
-            ['benchmark', 'diff'],
+            args=['benchmark', 'diff', '--output=diff.json',
+                  'WORKSPACE', 'master'],
+            result_file='diff.json',
             # Click requires this
             env={'LC_ALL': 'C.UTF-8', 'LANG': 'C.UTF-8'},
         )

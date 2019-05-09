@@ -400,6 +400,5 @@ arrow_images.extend(worker_images)
 # docker images for testing ursabot itself
 ursabot_images = ImageCollection([
     DockerImage('ursabot', base='python:3.7', arch='amd64', os='debian',
-                tag='worker', title='Amd64 Python 3.7 Ursabot',
-                steps=worker_steps)
+                tag='worker', title='Ursabot Python 3.7', steps=worker_steps)
 ])

@@ -3,8 +3,34 @@ from twisted.internet import threads
 from buildbot.plugins import steps
 from buildbot.process import buildstep
 from buildbot.process.results import SUCCESS, FAILURE
+from buildbot.steps.worker import CompositeStepMixin
 
 from .utils import ensure_deferred
+
+
+class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
+    """Saves the content of a json file as JSONLog
+
+    Only suitable for saving small amount of data, main purpose to save the
+    machine formatted results to be used from reporters. Only jsonlines are
+    supported.
+    """
+
+    def __init__(self, result_file=None, **kwargs):
+        self.result_file = result_file
+        super().__init__(**kwargs)
+
+    @ensure_deferred
+    async def run(self):
+        result = await super().run()
+
+        if self.result_file is not None:
+            # retrieve the file's content from the worker and ensure its format
+            content = await self.getFileContentFromWorker(self.result_file)
+            # save name under `result` log
+            await self.addCompleteLog('result', text=content)
+
+        return result
 
 
 class ShellMixin(buildstep.ShellMixin):
@@ -195,6 +221,6 @@ Mkdir = steps.MakeDirectory
 GitHub = steps.GitHub
 
 
-class Archery(ShellCommand):
+class Archery(ResultLogMixin, ShellCommand):
     name = 'Archery'
     command = ['archery']
