@@ -1,20 +1,12 @@
 import re
 
-from twisted.internet import defer
 from twisted.python import log
 
-from buildbot.process.properties import Interpolate
-from buildbot.process.properties import Properties
-from buildbot.process.results import CANCELLED
-from buildbot.process.results import EXCEPTION
-from buildbot.process.results import FAILURE
-from buildbot.process.results import RETRY
-from buildbot.process.results import SKIPPED
-from buildbot.process.results import SUCCESS
-from buildbot.process.results import WARNINGS
+from buildbot.plugins import reporters
 from buildbot.util.giturlparse import giturlparse
-
-from buildbot.plugins import reporters, util
+from buildbot.process.properties import Properties
+from buildbot.process.results import (CANCELLED, EXCEPTION, FAILURE, RETRY,
+                                      SKIPPED, SUCCESS, WARNINGS)
 
 from .utils import ensure_deferred
 
@@ -31,35 +23,32 @@ _template = u'''\
 
 class ZulipMailNotifier(reporters.MailNotifier):
 
-    def __init__(self, zulipaddr, fromaddr, template=None):
+    def __init__(self, zulipaddr, fromaddr, template=None, builders=None):
         formatter = reporters.MessageFormatter(
             template=template or _template,
             template_type='html',
             wantProperties=True,
             wantSteps=True
         )
+        if builders is not None:
+            builders = [b.name for b in builders]
         super().__init__(fromaddr=fromaddr, extraRecipients=[zulipaddr],
-                         messageFormatter=formatter,
+                         messageFormatter=formatter, builders=builders,
                          sendToInterestedUsers=False)
 
 
 class GitHubStatusPush(reporters.GitHubStatusPush):
 
-    def __init__(self, *args, builders, start_description=None,
+    def __init__(self, *args, builders=None, start_description=None,
                  end_description=None, **kwargs):
-        kwargs['builders'] = [b.name for b in builders]
         kwargs['endDescription'] = end_description
         kwargs['startDescription'] = start_description
+        if builders is not None:
+            kwargs['builders'] = [b.name for b in builders]
         return super().__init__(*args, **kwargs)
 
-    def setDefaults(self, context, startDescription, endDescription):
-        # XXX: removed buildbot prefix from the the default context
-        self.context = context or Interpolate('%(prop:buildername)s')
-        self.startDescription = startDescription or 'Build started.'
-        self.endDescription = endDescription or 'Build done.'
-
-    @defer.inlineCallbacks
-    def send(self, build):
+    @ensure_deferred
+    async def send(self, build):
         # XXX: the whole method is copy & pasted from the parent
         # GitHubStatusPush implementation, because We must propagate the build
         # down to the renderer callbacks (endDescription, startDescription),
@@ -73,12 +62,8 @@ class GitHubStatusPush(reporters.GitHubStatusPush):
         #    http://docs.buildbot.net/2.3.0/full.html#githubcommentpush
 
         props = Properties.fromDict(build['properties'])
-        # XXX: only change - pass `build` to the callbacks
-        log.msg(self.__class__.__name__)
-        log.msg(props.build)
+        # XXX: pass `build` to the callbacks
         props.build = build
-        log.msg(props.build)
-        log.msg(build)
         props.master = self.master
 
         if build['complete']:
@@ -91,22 +76,19 @@ class GitHubStatusPush(reporters.GitHubStatusPush):
                 RETRY: 'pending',
                 CANCELLED: 'error'
             }.get(build['results'], 'error')
-            description = yield props.render(self.endDescription)
+            description = await props.render(self.endDescription)
         elif self.startDescription:
             state = 'pending'
-            description = yield props.render(self.startDescription)
+            description = await props.render(self.startDescription)
         else:
             return
 
-        context = yield props.render(self.context)
-
+        context = await props.render(self.context)
         sourcestamps = build['buildset'].get('sourcestamps')
-
         if not sourcestamps or not sourcestamps[0]:
             return
 
         project = sourcestamps[0]['project']
-
         branch = props['branch']
         m = re.search(r"refs/pull/([0-9]*)/merge", branch)
         if m:
@@ -123,16 +105,18 @@ class GitHubStatusPush(reporters.GitHubStatusPush):
 
         if self.verbose:
             # XXX: extra log context class
-            log.msg("[{}] Updating github status: repoOwner={}, repoName={}"
+            log.msg('[{}] Updating github status: repoOwner={}, repoName={}'
                     .format(self.__class__.__name__, repoOwner, repoName))
 
         for sourcestamp in sourcestamps:
             sha = sourcestamp['revision']
+            repo_user = repoOwner
+            repo_name = repoName
+            target_url = build['url']
+
+            # XXX: refactored error handling
             try:
-                repo_user = repoOwner
-                repo_name = repoName
-                target_url = build['url']
-                response = yield self.createStatus(
+                response = await self.create_status(
                     repo_user=repo_user,
                     repo_name=repo_name,
                     sha=sha,
@@ -142,38 +126,39 @@ class GitHubStatusPush(reporters.GitHubStatusPush):
                     issue=issue,
                     description=description
                 )
+            except Exception as exc:
+                log.err(exc)
+                raise
 
-                if not self.isStatus2XX(response.code):
-                    raise Exception()
+            if response is None:
+                continue
 
-                if self.verbose:
-                    log.msg(
-                        'Updated status with "{state}" for {repoOwner}/'
-                        '{repoName} at {sha}, context "{context}", issue '
-                        '{issue}.'.format(state=state, repoOwner=repoOwner,
-                                          repoName=repoName, sha=sha,
-                                          issue=issue, context=context))
-            except Exception as e:
-                content = yield response.content()
-                log.err(
-                    e,
-                    'Failed to update "{state}" for {repoOwner}/{repoName} '
-                    'at {sha}, context "{context}", issue {issue}. '
-                    'http {code}, {content}'.format(
-                        state=state, repoOwner=repoOwner, repoName=repoName,
-                        sha=sha, issue=issue, context=context,
-                        code=response.code, content=content))
+            if not self.isStatus2XX(response.code):
+                content = await response.content()
+                exc = Exception(
+                    f'Failed to update "{state}" for {repoOwner}/{repoName} '
+                    f'at {sha}, context "{context}", issue {issue}. '
+                    f'http {response.code}, {content}'
+                )
+                log.err(exc)
+                raise exc
+
+            if self.verbose:
+                log.msg(f'Updated status with "{state}" for {repoOwner}/'
+                        f'{repoName} at {sha}, context "{context}", issue '
+                        f'{issue}.')
+
+    async def create_status(self, *args, **kwargs):
+        return await self.createStatus(*args, **kwargs)
 
 
 class GitHubReviewPush(GitHubStatusPush):
 
     name = 'GitHubReviewPush'
 
-    def path(self, org, repository, issue):
-        return '/'.join(['/repos', org, repository, 'pulls', issue, 'reviews'])
-
-    def createStatus(self, repo_user, repo_name, sha, state, target_url=None,
-                     context=None, issue=None, description=None):
+    async def create_status(self, repo_user, repo_name, sha, state,
+                            target_url=None, context=None, issue=None,
+                            description=None):
         # Do not create a pending review as it induce more problem.
         if state == 'pending':
             return None
@@ -194,33 +179,32 @@ class GitHubReviewPush(GitHubStatusPush):
             # defaults to the most recent commit in the pull request when unset
             payload['commit_id'] = sha
 
-        path = self.path(repo_user, repo_name, issue)
+        path = '/'.join(['/repos', repo_user, repo_name, 'pulls', issue,
+                         'reviews'])
         if self.verbose:
             log.msg(f'Invoking {path} with payload: {payload}')
 
-        return self._http.post(path, json=payload)
+        return await self._http.post(path, json=payload)
 
 
-@util.renderer
-@ensure_deferred
-async def end_description(props):
-    log.msg(props)
-    log.msg(props.build)
-    # build = props.build
-    #
-    # code = build['results']
-    # if code in (SUCCESS, WARNINGS):
-    #     # render `result` logs
-    #     pass
-    # elif code in (FAILURE, EXCEPTION, CANCELLED):
-    #     pass
-    # else:
-    #     pass
-    #
-    # from pprint import pprint
-    # pprint(build)
-    # log.msg(build)
-    return 'Build done.'
+# @util.renderer
+# @ensure_deferred
+# async def end_description(props):
+#     log.msg(props)
+#     log.msg(props.build)
+#     build = props.build
+#
+#     code = build['results']
+#
+#     if code in (SUCCESS, WARNINGS):
+#         # render `result` logs
+#         pass
+#     elif code in (FAILURE, EXCEPTION, CANCELLED):
+#         pass
+#     else:
+#         pass
+#
+#     return 'Build done.'
 
 
 class GitHubCommentPush(GitHubStatusPush):
@@ -232,17 +216,13 @@ class GitHubCommentPush(GitHubStatusPush):
         wantLogs=True
     )
 
-    def setDefaults(self, context, startDescription, endDescription):
-        self.context = ''
-        self.startDescription = startDescription
-        self.endDescription = endDescription or end_description
-
-    def createStatus(self, repo_user, repo_name, sha, state, target_url=None,
-                     context=None, issue=None, description=None):
+    async def create_status(self, repo_user, repo_name, sha, state,
+                            target_url=None, context=None, issue=None,
+                            description=None):
         payload = {'body': description}
-        urlpath = '/'.join(['/repos', repo_user, repo_name, 'issues', issue,
-                            'comments'])
-        return self._http.post(urlpath, json=payload)
+        path = '/'.join(['/repos', repo_user, repo_name, 'issues', issue,
+                         'comments'])
+        return await self._http.post(path, json=payload)
 
 
 # async def get_step_results(data, buildername, buildnumber):
