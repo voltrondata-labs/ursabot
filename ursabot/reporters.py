@@ -29,13 +29,6 @@ _template = u'''\
 '''
 
 
-class BuilderReporterMixin:
-
-    def __init__(self, *args, builders, **kwargs):
-        builder_names = [b.name for b in builders]
-        super().__init__(*args, builders=builder_names, **kwargs)
-
-
 class ZulipMailNotifier(reporters.MailNotifier):
 
     def __init__(self, zulipaddr, fromaddr, template=None):
@@ -50,7 +43,14 @@ class ZulipMailNotifier(reporters.MailNotifier):
                          sendToInterestedUsers=False)
 
 
-class GitHubStatusPush(BuilderReporterMixin, reporters.GitHubStatusPush):
+class GitHubStatusPush(reporters.GitHubStatusPush):
+
+    def __init__(self, *args, builders, start_description=None,
+                 end_description=None, **kwargs):
+        kwargs['builders'] = [b.name for b in builders]
+        kwargs['endDescription'] = end_description
+        kwargs['startDescription'] = start_description
+        return super().__init__(*args, **kwargs)
 
     def setDefaults(self, context, startDescription, endDescription):
         # XXX: removed buildbot prefix from the the default context
@@ -223,22 +223,26 @@ async def end_description(props):
     return 'Build done.'
 
 
-class GitHubCommentPush(BuilderReporterMixin, reporters.GitHubCommentPush):
+class GitHubCommentPush(GitHubStatusPush):
 
+    name = 'GitHubCommentPush'
     neededDetails = dict(
         wantProperties=True,
         wantSteps=True,
         wantLogs=True
     )
 
-    def __init__(self, *args, end_description=None, **kwargs):
-        kwargs['endDescription'] = end_description
-        return super().__init__(*args, **kwargs)
-
     def setDefaults(self, context, startDescription, endDescription):
         self.context = ''
         self.startDescription = startDescription
         self.endDescription = endDescription or end_description
+
+    def createStatus(self, repo_user, repo_name, sha, state, target_url=None,
+                     context=None, issue=None, description=None):
+        payload = {'body': description}
+        urlpath = '/'.join(['/repos', repo_user, repo_name, 'issues', issue,
+                            'comments'])
+        return self._http.post(urlpath, json=payload)
 
 
 # async def get_step_results(data, buildername, buildnumber):
