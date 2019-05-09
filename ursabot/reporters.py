@@ -76,6 +76,8 @@ class GitHubStatusPush(reporters.GitHubStatusPush):
                 RETRY: 'pending',
                 CANCELLED: 'error'
             }.get(build['results'], 'error')
+            # TODO(kszucs): use formatters instead of interpolate, but keep
+            # compatibility with createStatus
             description = await props.render(self.endDescription)
         elif self.startDescription:
             state = 'pending'
@@ -109,6 +111,7 @@ class GitHubStatusPush(reporters.GitHubStatusPush):
                     .format(self.__class__.__name__, repoOwner, repoName))
 
         for sourcestamp in sourcestamps:
+            # XXX: pick the first sourcestamp only?
             sha = sourcestamp['revision']
             repo_user = repoOwner
             repo_name = repoName
@@ -116,7 +119,8 @@ class GitHubStatusPush(reporters.GitHubStatusPush):
 
             # XXX: refactored error handling
             try:
-                response = await self.create_status(
+                response = await self.createStatus(
+                    # TODO: pass master
                     repo_user=repo_user,
                     repo_name=repo_name,
                     sha=sha,
@@ -148,17 +152,15 @@ class GitHubStatusPush(reporters.GitHubStatusPush):
                         f'{repoName} at {sha}, context "{context}", issue '
                         f'{issue}.')
 
-    async def create_status(self, *args, **kwargs):
-        return await self.createStatus(*args, **kwargs)
-
 
 class GitHubReviewPush(GitHubStatusPush):
 
     name = 'GitHubReviewPush'
 
-    async def create_status(self, repo_user, repo_name, sha, state,
-                            target_url=None, context=None, issue=None,
-                            description=None):
+    @ensure_deferred
+    async def createStatus(self, repo_user, repo_name, sha, state,
+                           target_url=None, context=None, issue=None,
+                           description=None):
         # Do not create a pending review as it induce more problem.
         if state == 'pending':
             return None
@@ -187,26 +189,6 @@ class GitHubReviewPush(GitHubStatusPush):
         return await self._http.post(path, json=payload)
 
 
-# @util.renderer
-# @ensure_deferred
-# async def end_description(props):
-#     log.msg(props)
-#     log.msg(props.build)
-#     build = props.build
-#
-#     code = build['results']
-#
-#     if code in (SUCCESS, WARNINGS):
-#         # render `result` logs
-#         pass
-#     elif code in (FAILURE, EXCEPTION, CANCELLED):
-#         pass
-#     else:
-#         pass
-#
-#     return 'Build done.'
-
-
 class GitHubCommentPush(GitHubStatusPush):
 
     name = 'GitHubCommentPush'
@@ -216,42 +198,21 @@ class GitHubCommentPush(GitHubStatusPush):
         wantLogs=True
     )
 
-    async def create_status(self, repo_user, repo_name, sha, state,
-                            target_url=None, context=None, issue=None,
-                            description=None):
+    @ensure_deferred
+    async def reconfigService(self, comment_formatter=None, **kwargs):
+        await super().reconfigService(**kwargs)
+        self.comment_formatter = comment_formatter
+
+    @ensure_deferred
+    async def createStatus(self, repo_user, repo_name, sha, state,
+                           target_url=None, context=None, issue=None,
+                           description=None):
+        # if self.comment_formatter is not None:
+        #     comment = self.comment_formatter.renderMessage(ctx)
+        # else:
+        #     comment = description
+
         payload = {'body': description}
         path = '/'.join(['/repos', repo_user, repo_name, 'issues', issue,
                          'comments'])
         return await self._http.post(path, json=payload)
-
-
-# async def get_step_results(data, buildername, buildnumber):
-#     # query the logs belonging to the last step of the build, so keep the
-#     # result in the final step!
-#     path = ('builders', buildername, 'builds', buildnumber, 'steps')
-#     steps = await data.get(path)
-#
-#     results = []
-#     for step in steps:
-#         id = step['stepid']
-#         name = step['name']
-#         code = step['results']
-#         result = util.Results[code]
-#
-#         if code == util.results.SUCCESS:
-#             # if the step has succeeded then try to retrieve the result log
-#             result_content = await data.get(('steps', id, 'logs', 'result'))
-#         else:
-#             # otherwise collect all of the logs
-#             logs = await data.get(('steps', stepid, 'logs'))
-#             content = [f'Step: {name} Result: {result}' for log in logs]
-#
-#         results.append({
-#             'id': id,
-#             'name': name,
-#             'code': code,
-#             'result': result,
-#             'rcontent': contentx
-#         })
-#
-#     return results
