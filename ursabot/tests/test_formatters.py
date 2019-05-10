@@ -5,7 +5,7 @@ from buildbot.reporters import utils
 from buildbot.test.fake import fakedb, fakemaster
 from buildbot.test.util.misc import TestReactorMixin
 
-from ursabot.formatters import CommentFormatter
+from ursabot.formatters import GitHubCommentFormatter
 from ursabot.utils import ensure_deferred
 
 
@@ -17,7 +17,7 @@ class TestFormatter(TestReactorMixin, unittest.TestCase):
                                              wantMq=True)
 
     def setupFormatter(self):
-        return CommentFormatter()
+        raise NotImplementedError()
 
     def setupDb(self, results1, results2):
         self.db = self.master.db
@@ -59,7 +59,10 @@ class TestFormatter(TestReactorMixin, unittest.TestCase):
         return await formatter.render(build, master=self.master)
 
 
-class TestCommentFormatter(TestFormatter):
+class TestGitHubCommentFormatter(TestFormatter):
+
+    def setupFormatter(self):
+        return GitHubCommentFormatter()
 
     @ensure_deferred
     async def test_message_success(self):

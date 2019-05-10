@@ -66,9 +66,7 @@ class Formatter:
 
 class GitHubCommentFormatter(Formatter):
 
-    layout = """
-        {{ message }}
-    """
+    layout = "{{ message }}"
 
     def render_success(self, build, master):
         return dict(message='success')
