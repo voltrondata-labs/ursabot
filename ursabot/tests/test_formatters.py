@@ -5,18 +5,19 @@ from buildbot.reporters import utils
 from buildbot.test.fake import fakedb, fakemaster
 from buildbot.test.util.misc import TestReactorMixin
 
-
 from ursabot.formatters import CommentFormatter
 from ursabot.utils import ensure_deferred
 
 
-class TestCommentFormatter(TestReactorMixin, unittest.TestCase):
+class TestFormatter(TestReactorMixin, unittest.TestCase):
 
     def setUp(self):
         self.setUpTestReactor()
         self.master = fakemaster.make_master(self, wantData=True, wantDb=True,
                                              wantMq=True)
-        self.formatter = CommentFormatter()
+
+    def setupFormatter(self):
+        return CommentFormatter()
 
     def setupDb(self, results1, results2):
         self.db = self.master.db
@@ -41,60 +42,31 @@ class TestCommentFormatter(TestReactorMixin, unittest.TestCase):
                     buildid=_id, name='reason', value='because'),
             ])
 
-    @ensure_deferred
-    async def doOneTest(self, lastresults, results, mode='all'):
-        self.setupDb(results, lastresults)
-        details = await utils.getDetailsForBuildset(
-            self.master, 99, wantProperties=True)
+    async def render(self, previous, current):
+        self.setupDb(current, previous)
 
-        build = details['builds'][0]
-        buildset = details['buildset']
-        result = await self.formatter.formatMessageForBuildResults(
-            mode, 'Builder1', buildset, build, self.master, lastresults,
-            ['him@bar', 'me@foo'])
+        buildset = await utils.getDetailsForBuildset(
+            self.master,
+            99,
+            wantProperties=True,
+            wantSteps=True,
+            wantLogs=True
+        )
+        build = buildset['builds'][0]
 
-        return result
+        formatter = self.setupFormatter()
+
+        return await formatter.render(build, master=self.master)
+
+
+class TestCommentFormatter(TestFormatter):
 
     @ensure_deferred
     async def test_message_success(self):
-        res = await self.doOneTest(SUCCESS, SUCCESS)
-        self.assertEqual(res['type'], 'plain')
-        self.assertTrue('subject' not in res)
+        content = await self.render(previous=SUCCESS, current=SUCCESS)
+        assert content == 'success'
 
     @ensure_deferred
     async def test_message_failure(self):
-        res = await self.doOneTest(SUCCESS, FAILURE)
-        self.assertIn(
-            'The Buildbot has detected a failed build on builder', res['body']
-        )
-
-    @ensure_deferred
-    async def test_message_failure_change(self):
-        res = await self.doOneTest(SUCCESS, FAILURE, 'change')
-        self.assertIn(
-            'The Buildbot has detected a new failure on builder', res['body']
-        )
-
-    @ensure_deferred
-    async def test_message_success_change(self):
-        res = await self.doOneTest(FAILURE, SUCCESS, 'change')
-        self.assertIn(
-            'The Buildbot has detected a restored build on builder',
-            res['body']
-        )
-
-    @ensure_deferred
-    async def test_message_success_nochange(self):
-        res = await self.doOneTest(SUCCESS, SUCCESS, 'change')
-        self.assertIn(
-            'The Buildbot has detected a passing build on builder',
-            res['body']
-        )
-
-    @ensure_deferred
-    async def test_message_failure_nochange(self):
-        res = await self.doOneTest(FAILURE, FAILURE, 'change')
-        self.assertIn(
-            'The Buildbot has detected a failed build on builder',
-            res['body']
-        )
+        content = await self.render(previous=SUCCESS, current=FAILURE)
+        assert content == 'failure'

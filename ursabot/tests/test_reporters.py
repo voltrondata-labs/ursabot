@@ -26,6 +26,59 @@ class TestGitHubStatusPushURL(original.TestGitHubStatusPushURL):
         return self.sp
 
 
+class TestGitHubReviewPush(TestGitHubStatusPush):
+
+    def setService(self):
+        self.sp = GitHubReviewPush(token='XXYYZZ')
+        return self.sp
+
+    @ensure_deferred
+    async def test_basic(self):
+        build = await self.setupBuildResults(SUCCESS)
+
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/pulls/34/reviews',
+            json={
+                'event': '',
+                'commit_id': 'd34db33fd43db33f'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/pulls/34/reviews',
+            json={
+                'event': 'APPROVE',
+                'commit_id': 'd34db33fd43db33f'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/pulls/34/reviews',
+            json={
+                'event': 'REQUEST_CHANGES',
+                'commit_id': 'd34db33fd43db33f'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/pulls/34/reviews',
+            json={
+                'event': 'REQUEST_CHANGES',
+                'commit_id': 'd34db33fd43db33f'
+            }
+        )
+
+        build['complete'] = False
+        self.sp.buildStarted(('build', 20, 'started'), build)
+        build['complete'] = True
+        self.sp.buildFinished(('build', 20, 'finished'), build)
+        build['results'] = FAILURE
+        self.sp.buildFinished(('build', 20, 'finished'), build)
+        build['results'] = EXCEPTION
+        self.sp.buildFinished(('build', 20, 'finished'), build)
+
+
 class TestGitHubCommentPush(original.TestGitHubCommentPush):
 
     def setService(self):
@@ -40,80 +93,18 @@ class TestGitHubCommentPush(original.TestGitHubCommentPush):
         self._http.expect(
             'post',
             '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'Build started.'})
+            json={'body': 'success'})
         self._http.expect(
             'post',
             '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'Build done.'})
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'Build done.'})
+            json={'body': 'failure'})
 
         build['complete'] = False
-        self.sp.buildStarted(("build", 20, "started"), build)
+        self.sp.buildStarted(('build', 20, 'started'), build)
         build['complete'] = True
-        self.sp.buildFinished(("build", 20, "finished"), build)
+        self.sp.buildFinished(('build', 20, 'finished'), build)
         build['results'] = FAILURE
-        self.sp.buildFinished(("build", 20, "finished"), build)
-
-
-class TestGitHubReviewPush(TestGitHubStatusPush):
-
-    def setService(self):
-        self.sp = GitHubReviewPush(token='XXYYZZ')
-        return self.sp
-
-    @ensure_deferred
-    async def test_basic(self):
-        build = await self.setupBuildResults(SUCCESS)
-
-        # We don't respond for pending build, at least not yet
-        # self._http.expect(
-        #     'post',
-        #     '/repos/buildbot/buildbot/pulls/34/reviews',
-        #     json={
-        #         'event': None,
-        #         'body': 'Build started.',
-        #         'commit_id': 'd34db33fd43db33f'
-        #     }
-        # )
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/pulls/34/reviews',
-            json={
-                'event': 'APPROVE',
-                'body': 'Build done.',
-                'commit_id': 'd34db33fd43db33f'
-            }
-        )
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/pulls/34/reviews',
-            json={
-                'event': 'REQUEST_CHANGES',
-                'body': 'Build done.',
-                'commit_id': 'd34db33fd43db33f'
-            }
-        )
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/pulls/34/reviews',
-            json={
-                'event': 'COMMENT',
-                'body': 'Build done.',
-                'commit_id': 'd34db33fd43db33f'
-            }
-        )
-
-        build['complete'] = False
-        self.sp.buildStarted(("build", 20, "started"), build)
-        build['complete'] = True
-        self.sp.buildFinished(("build", 20, "finished"), build)
-        build['results'] = FAILURE
-        self.sp.buildFinished(("build", 20, "finished"), build)
-        build['results'] = EXCEPTION
-        self.sp.buildFinished(("build", 20, "finished"), build)
+        self.sp.buildFinished(('build', 20, 'finished'), build)
 
 
 # {
@@ -213,7 +204,7 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
 #             'started_at': datetime.datetime(2019, 5, 9, 15, 15, 34, tzinfo=tzutc()),
 #             'complete': True,
 #             'complete_at': datetime.datetime(2019, 5, 9, 15, 15, 37, 737799, tzinfo=tzutc()),
-#             'state_string': "'apt-get update ...'",
+#             'state_string': ''apt-get update ...'',
 #             'results': 0,
 #             'urls': [],
 #             'hidden': False,
@@ -229,12 +220,12 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
 #                     'content': {
 #                         'logid': 298,
 #                         'firstline': 0,
-#                         'content': "hapt-get update -y\nh in dir /buildbot/Ursabot_Python_3_7/build (timeout 1200 secs)\nh watching logfiles {}\nh argv: [b'apt-ge
+#                         'content': 'hapt-get update -y\nh in dir /buildbot/Ursabot_Python_3_7/build (timeout 1200 secs)\nh watching logfiles {}\nh argv: [b'apt-ge
 # t', b'update', b'-y']\nh environment:\nh  BUILDMASTER=kszucs-mbp.local\nh  BUILDMASTER_PORT=9989\nh  GPG_KEY=0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D\nh  HOME=/root\nh  HOSTNAME=linuxkit-025000000001\nh  LANG=C.UTF-8\nh  PATH=/usr/local/b
 # in:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nh  PWD=/buildbot/Ursabot_Python_3_7/build\nh  PYTHON_PIP_VERSION=19.1\nh  PYTHON_VERSION=3.7.3\nh  WORKERNAME=local1-docker\nh using PTY: False\noGet:1 http://security.debia
 # n.org/debian-security stretch/updates InRelease [94.3 kB]\noIgn:2 http://deb.debian.org/debian stretch InRelease\noGet:3 http://deb.debian.org/debian stretch-updates InRelease [91.0 kB]\noGet:4 http://deb.debian.org/debian stretch Release
 #  [118 kB]\noGet:5 http://deb.debian.org/debian stretch Release.gpg [2434 B]\noGet:6 http://security.debian.org/debian-security stretch/updates/main amd64 Packages [488 kB]\noGet:7 http://deb.debian.org/debian stretch-updates/main amd64 Pa
-# ckages [31.7 kB]\noGet:8 http://deb.debian.org/debian stretch/main amd64 Packages [7082 kB]\noFetched 7907 kB in 2s (3924 kB/s)\noReading package lists...\nhprogram finished with exit code 0\nhelapsedTime=2.619199\n"
+# ckages [31.7 kB]\noGet:8 http://deb.debian.org/debian stretch/main amd64 Packages [7082 kB]\noFetched 7907 kB in 2s (3924 kB/s)\noReading package lists...\nhprogram finished with exit code 0\nhelapsedTime=2.619199\n'
 #                     }
 #                 }
 #             ]
@@ -247,7 +238,7 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
 #             'started_at': datetime.datetime(2019, 5, 9, 15, 15, 37, tzinfo=tzutc()),
 #             'complete': True,
 #             'complete_at': datetime.datetime(2019, 5, 9, 15, 15, 39, 4396, tzinfo=tzutc()),
-#             'state_string': "'apt-get install ...'",
+#             'state_string': ''apt-get install ...'',
 #             'results': 0,
 #             'urls': [],
 #             'hidden': False,
@@ -263,10 +254,10 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
 #                     'content': {
 #                         'logid': 299,
 #                         'firstline': 0,
-#                         'content': "hapt-get install -y curl\nh in dir /buildbot/Ursabot_Python_3_7/build (timeout 1200 secs)\nh watching logfiles {}\nh argv: [b'apt-get', b'install', b'-y', b'curl']\nh environment:\nh  BUILDMASTER=kszucs-mbp.local\nh  BUILDMASTER_PORT=99
+#                         'content': 'hapt-get install -y curl\nh in dir /buildbot/Ursabot_Python_3_7/build (timeout 1200 secs)\nh watching logfiles {}\nh argv: [b'apt-get', b'install', b'-y', b'curl']\nh environment:\nh  BUILDMASTER=kszucs-mbp.local\nh  BUILDMASTER_PORT=99
 # 89\nh  GPG_KEY=0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D\nh  HOME=/root\nh  HOSTNAME=linuxkit-025000000001\nh  LANG=C.UTF-8\nh  PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nh  PWD=/buildbot/Ursabot_Pyth
 # on_3_7/build\nh  PYTHON_PIP_VERSION=19.1\nh  PYTHON_VERSION=3.7.3\nh  WORKERNAME=local1-docker\nh using PTY: False\noReading package lists...\noBuilding dependency tree...\noReading state information...\nocurl is already the newest versio
-# n (7.52.1-5+deb9u9).\no0 upgraded, 0 newly installed, 0 to remove and 29 not upgraded.\nhprogram finished with exit code 0\nhelapsedTime=1.107848\n"
+# n (7.52.1-5+deb9u9).\no0 upgraded, 0 newly installed, 0 to remove and 29 not upgraded.\nhprogram finished with exit code 0\nhelapsedTime=1.107848\n'
 #                     }
 #                 }
 #             ]
@@ -279,7 +270,7 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
 #             'started_at': datetime.datetime(2019, 5, 9, 15, 15, 39, tzinfo=tzutc()),
 #             'complete': True,
 #             'complete_at': datetime.datetime(2019, 5, 9, 15, 15, 39, 494241, tzinfo=tzutc()),
-#             'state_string': "'curl https://gist.githubusercontent.com/kszucs/ac986d0d3439aebfcc4cd695ca39ce39/raw/e476d5e6b1f916a83187d03dc6c731f4078c6979/gistfile1.txt ...'",
+#             'state_string': ''curl https://gist.githubusercontent.com/kszucs/ac986d0d3439aebfcc4cd695ca39ce39/raw/e476d5e6b1f916a83187d03dc6c731f4078c6979/gistfile1.txt ...'',
 #             'results': 0,
 #             'urls': [],
 #             'hidden': False,
@@ -295,12 +286,12 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
 #                     'content': {
 #                         'logid': 300,
 #                         'firstline': 0,
-#                         'content': "hcurl https://gist.githubusercontent.com/kszucs/ac986d0d3439aebfcc4cd695ca39ce39/raw/e476d5e6b1f916a83187d03dc6c731f4078c6979/gistfile1.txt --output diff.json\nh in dir /buildbot/
+#                         'content': 'hcurl https://gist.githubusercontent.com/kszucs/ac986d0d3439aebfcc4cd695ca39ce39/raw/e476d5e6b1f916a83187d03dc6c731f4078c6979/gistfile1.txt --output diff.json\nh in dir /buildbot/
 # Ursabot_Python_3_7/build (timeout 1200 secs)\nh watching logfiles {}\nh argv: [b'curl', b'https://gist.githubusercontent.com/kszucs/ac986d0d3439aebfcc4cd695ca39ce39/raw/e476d5e6b1f916a83187d03dc6c731f4078c6979/gistfile1.txt', b'--output',
 #  b'diff.json']\nh environment:\nh  BUILDMASTER=kszucs-mbp.local\nh  BUILDMASTER_PORT=9989\nh  GPG_KEY=0D96DF4D4110E5C43FBFB17F2D347EA6AA65421D\nh  HOME=/root\nh  HOSTNAME=linuxkit-025000000001\nh  LANG=C.UTF-8\nh  LC_ALL=C.UTF-8\nh  PATH=
 # /usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nh  PWD=/buildbot/Ursabot_Python_3_7/build\nh  PYTHON_PIP_VERSION=19.1\nh  PYTHON_VERSION=3.7.3\nh  WORKERNAME=local1-docker\nh using PTY: False\ne  % Total    %
 # Received % Xferd  Average Speed   Time    Time     Time  Current\ne                                 Dload  Upload   Total   Spent    Left  Speed\ne\ne  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0\ne100   9
-# 91  100   991    0     0   4499      0 --:--:-- --:--:-- --:--:--  4525\nhprogram finished with exit code 0\nhelapsedTime=0.258428\n"
+# 91  100   991    0     0   4499      0 --:--:-- --:--:-- --:--:--  4525\nhprogram finished with exit code 0\nhelapsedTime=0.258428\n'
 #                     }
 #                 },
 #                 {
@@ -314,11 +305,11 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
 #                     'content': {
 #                         'logid': 301,
 #                         'firstline': 0,
-#                         'content': '{"benchmark":"RegressionSumKernel/32768/50","change":-0.001550846227215492,"regression":false,"baseline":19241207435.428757,"contender":19211367281.47045,"unit":"bytes_per_
-# second","less_is_better":false,"suite":"arrow-compute-aggregate-benchmark"}\n{"benchmark":"RegressionSumKernel/32768/1","change":-0.0020681767923465765,"regression":false,"baseline":24823170673.777943,"contender":24771831968.277977,"unit"
-# :"bytes_per_second","less_is_better":false,"suite":"arrow-compute-aggregate-benchmark"}\n{"benchmark":"RegressionSumKernel/32768/10","change":0.0033323376378746905,"regression":false,"baseline":21902707565.968014,"contender":21975694782.7
-# 6145,"unit":"bytes_per_second","less_is_better":false,"suite":"arrow-compute-aggregate-benchmark"}\n{"benchmark":"RegressionSumKernel/32768/0","change":0.004918126090954414,"regression":false,"baseline":27685006611.446762,"contender":2782
-# 1164964.790764,"unit":"bytes_per_second","less_is_better":false,"suite":"arrow-compute-aggregate-benchmark"}\n'
+#                         'content': '{'benchmark':'RegressionSumKernel/32768/50','change':-0.001550846227215492,'regression':false,'baseline':19241207435.428757,'contender':19211367281.47045,'unit':'bytes_per_
+# second','less_is_better':false,'suite':'arrow-compute-aggregate-benchmark'}\n{'benchmark':'RegressionSumKernel/32768/1','change':-0.0020681767923465765,'regression':false,'baseline':24823170673.777943,'contender':24771831968.277977,'unit'
+# :'bytes_per_second','less_is_better':false,'suite':'arrow-compute-aggregate-benchmark'}\n{'benchmark':'RegressionSumKernel/32768/10','change':0.0033323376378746905,'regression':false,'baseline':21902707565.968014,'contender':21975694782.7
+# 6145,'unit':'bytes_per_second','less_is_better':false,'suite':'arrow-compute-aggregate-benchmark'}\n{'benchmark':'RegressionSumKernel/32768/0','change':0.004918126090954414,'regression':false,'baseline':27685006611.446762,'contender':2782
+# 1164964.790764,'unit':'bytes_per_second','less_is_better':false,'suite':'arrow-compute-aggregate-benchmark'}\n'
 #                     }
 #                 }
 #             ]
