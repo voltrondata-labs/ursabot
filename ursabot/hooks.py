@@ -1,7 +1,6 @@
 from urllib.parse import urlparse
 
 from twisted.python import log
-
 from buildbot.www.hooks.github import GitHubEventHandler
 from buildbot.util.httpclientservice import HTTPClientService
 

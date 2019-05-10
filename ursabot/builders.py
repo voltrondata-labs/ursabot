@@ -309,7 +309,7 @@ python_test = PyTest(
 )
 
 
-link = 'https://gist.githubusercontent.com/kszucs/ac986d0d3439aebfcc4cd695ca39ce39/raw/e476d5e6b1f916a83187d03dc6c731f4078c6979/gistfile1.txt'  # noqa
+link = 'https://gist.githubusercontent.com/kszucs/b8ac4835e36832800b104948dfbb062e/raw/9417e1048fb8f8c91ab4db2e3131e3c908105c99/e.json'  # noqa
 
 
 class UrsabotTest(DockerBuilder):

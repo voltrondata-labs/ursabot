@@ -10,7 +10,7 @@ from buildbot.process.results import (CANCELLED, EXCEPTION, FAILURE, RETRY,
                                       SKIPPED, SUCCESS, WARNINGS)
 
 from .utils import ensure_deferred
-from .formatters import CommentFormatter
+from .formatters import GitHubCommentFormatter
 
 
 _template = u'''\
@@ -222,7 +222,7 @@ class GitHubStatusPush(GitHubReporterBase):
         return await self._http.post(urlpath, json=payload)
 
 
-class GitHubReviewPush(GitHubStatusPush):
+class GitHubReviewPush(GitHubReporterBase):
 
     name = 'GitHubReviewPush'
 
@@ -269,7 +269,7 @@ class GitHubReviewPush(GitHubStatusPush):
         return await self._http.post(urlpath, json=payload)
 
 
-class GitHubCommentPush(GitHubStatusPush):
+class GitHubCommentPush(GitHubReporterBase):
 
     name = 'GitHubCommentPush'
     neededDetails = dict(
@@ -280,16 +280,16 @@ class GitHubCommentPush(GitHubStatusPush):
     )
 
     @ensure_deferred
-    async def reconfigService(self, comment_formatter=None, **kwargs):
+    async def reconfigService(self, formatter=None, **kwargs):
         await super().reconfigService(**kwargs)
-        self.comment_formatter = comment_formatter or CommentFormatter()
+        self.formatter = formatter or GitHubCommentFormatter()
 
     @ensure_deferred
     async def report(self, build, properties, github_params):
         if not build['complete']:
             return
 
-        comment = await self.comment_formatter.render(
+        comment = await self.formatter.render(
             build,
             master=self.master
         )
