@@ -25,10 +25,6 @@ class Formatter:
         self.context = toolz.merge(context or {}, self.context)
 
     async def render(self, build, master=None):
-        # title = f"{build['builder']['name']} #{build['number']}"
-        # if not build['complete']:
-        #     raise ValueError(f'Build {title} has not completed yet')
-
         result = Results[build['results']]
         method = getattr(self, f'render_{result}')
 
@@ -43,7 +39,6 @@ class Formatter:
 
         return self.layout.render(**context)
 
-    # TODO(kszucs): implement reasonable default methods
     def render_success(self, build, master):
         raise NotImplementedError()
 

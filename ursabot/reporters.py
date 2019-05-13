@@ -273,7 +273,6 @@ class GitHubCommentPush(GitHubReporterBase):
 
     name = 'GitHubCommentPush'
     neededDetails = dict(
-        wantPreviousBuild=True,
         wantProperties=True,
         wantSteps=True,
         wantLogs=True
@@ -289,12 +288,8 @@ class GitHubCommentPush(GitHubReporterBase):
         if not build['complete']:
             return
 
-        comment = await self.formatter.render(
-            build,
-            master=self.master
-        )
         payload = {
-            'body': comment
+            'body': await self.formatter.render(build, master=self.master)
         }
         urlpath = '/'.join([
             '/repos',

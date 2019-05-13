@@ -1,11 +1,14 @@
-from twisted.trial import unittest
+import textwrap
+from pathlib import Path
 
+from twisted.trial import unittest
 from buildbot.process.results import FAILURE, SUCCESS
 from buildbot.reporters import utils
 from buildbot.test.fake import fakedb, fakemaster
 from buildbot.test.util.misc import TestReactorMixin
 
-from ursabot.formatters import GitHubCommentFormatter
+from ursabot.formatters import (GitHubCommentFormatter,
+                                BenchmarkCommentFormatter)
 from ursabot.utils import ensure_deferred
 
 
@@ -73,3 +76,44 @@ class TestGitHubCommentFormatter(TestFormatter):
     async def test_message_failure(self):
         content = await self.render(previous=SUCCESS, current=FAILURE)
         assert content == 'failure'
+
+
+class TestBenchmarkCommentFormatter(TestFormatter):
+
+    def load_fixture(self, name):
+        path = Path(__file__).parent / 'fixtures' / f'{name}'
+        return path.read_text()
+
+    def setupFormatter(self):
+        return BenchmarkCommentFormatter()
+
+    def setupDb(self, *args, **kwargs):
+        super().setupDb(*args, **kwargs)
+
+        result_log_content = self.load_fixture('archery-benchmark-diff.jsonl')
+
+        self.db.insertTestData([
+            fakedb.Step(id=50, buildid=21, number=0, name='compile'),
+            fakedb.Step(id=51, buildid=21, number=1, name='benchmark'),
+            fakedb.Log(id=60, stepid=51, name='result', slug='result',
+                       type='s', num_lines=4),
+            fakedb.LogChunk(logid=60, first_line=0, last_line=4, compressed=0,
+                            content=result_log_content)
+        ])
+
+    @ensure_deferred
+    async def test_message_success(self):
+        expected = '''
+        ```diff
+          ============================  ===========  ===========  ===========
+          benchmark                        baseline    contender       change
+          ============================  ===========  ===========  ===========
+          RegressionSumKernel/32768/50  1.92412e+10  1.92114e+10  -0.00155085
+        - RegressionSumKernel/32768/1   2.48232e+10  2.47718e+10   0.00206818
+          RegressionSumKernel/32768/10  2.19027e+10  2.19757e+10   0.00333234
+        - RegressionSumKernel/32768/0   2.7685e+10   2.78212e+10  -0.00491813
+          ============================  ===========  ===========  ===========
+        ```
+        '''
+        content = await self.render(previous=SUCCESS, current=SUCCESS)
+        assert content == textwrap.dedent(expected).strip()
