@@ -2,7 +2,9 @@ import textwrap
 
 import jinja2
 import toolz
-
+import numpy as np
+import pandas as pd
+from tabulate import tabulate
 from twisted.python import log
 from buildbot.process.results import Results
 
@@ -100,36 +102,30 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
                     results[s['stepid']] = l['content']['content']
         return results
 
-    def _render_table_pandas(self, content):
-        import pandas as pd
-        from pynliner import Pynliner
+    def _render_table(self, content):
+        """Renders the json content
 
-        def red_regression(row):
-            color = 'red' if row['regression'] else 'black'
-            return [f'color: {color}' for v in row]
-
+        As a plaintext table embedded in a diff markdown snippet.
+        """
         df = pd.read_json(content, lines=True)
-        s = df.style.apply(red_regression, axis=1)
+        columns = ['benchmark', 'baseline', 'contender', 'change']
+        formatted = tabulate(df[columns], headers='keys', tablefmt='rst',
+                             showindex=False)
 
-        # convert to style to inline css
-        html = s.render()
-        inlined = Pynliner().from_string(html).run()
+        diff = np.where(df['regression'], '-', ' ')
+        # prepend and append because of header and footer
+        diff = np.concatenate(([' '] * 3, diff, [' ']))
 
-        return inlined
+        rows = map(' '.join, zip(diff, formatted.splitlines()))
+        table = '\n'.join(rows)
 
-    def _render_table_tabulate(self, content):
-        import json
-        from tabulate import tabulate
-
-        rows = list(map(json.loads, content.splitlines()))
-        return tabulate(rows, headers='keys', tablefmt='github',
-                        floatfmt='.4f')
+        return f'```diff\n{table}\n```'
 
     def render_success(self, build, master):
         results = self._extract_result_logs(build)
         try:
             # decode jsonlines objects and render the results as markdown table
-            tables = toolz.valmap(self._render_table_pandas, results)
+            tables = toolz.valmap(self._render_table, results)
         except Exception as e:
             # TODO(kszucs): nicer message
             log.err(e)
