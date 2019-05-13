@@ -287,7 +287,6 @@ python_symlinks = {'/usr/local/bin/python': '/usr/bin/python3',
 ubuntu_pkgs = (docker_assets / 'pkgs-ubuntu.txt').read_text().splitlines()
 alpine_pkgs = (docker_assets / 'pkgs-alpine.txt').read_text().splitlines()
 python_steps = [
-    ENV(LC_ALL='C.UTF-8', LANG='C.UTF-8'),
     ADD(docker_assets / 'requirements.txt'),
     ADD(docker_assets / 'requirements-test.txt'),
     RUN(pip('cython', files=['requirements.txt'])),
@@ -372,7 +371,6 @@ for arch in ['amd64']:
         name = f'python-{pyversion}'
         title = f'{basetitle} Python {pyversion}'
         python = DockerImage(name, base=cpp, title=title, steps=[
-            ENV(LC_ALL='C.UTF-8', LANG='C.UTF-8'),
             ADD(docker_assets / 'conda-python.txt'),
             RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
         ])
@@ -383,6 +381,7 @@ for arch in ['amd64']:
 # configure and set it as the command of the docker image
 worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
+    ENV(LC_ALL='C.UTF-8', LANG='C.UTF-8'),
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
     ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
@@ -402,5 +401,6 @@ arrow_images.extend(worker_images)
 # docker images for testing ursabot itself
 ursabot_images = ImageCollection([
     DockerImage('ursabot', base='python:3.7', arch='amd64', os='debian',
-                tag='worker', title='Ursabot Python 3.7', steps=worker_steps)
+                tag='worker', title='Ursabot Python 3.7',
+                steps=worker_steps + [CMD(worker_command)])
 ])
