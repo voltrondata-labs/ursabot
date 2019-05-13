@@ -309,39 +309,23 @@ python_test = PyTest(
 )
 
 
-link = 'https://gist.githubusercontent.com/kszucs/b8ac4835e36832800b104948dfbb062e/raw/9417e1048fb8f8c91ab4db2e3131e3c908105c99/e.json'  # noqa
-
-
 class UrsabotTest(DockerBuilder):
     tags = ['ursabot']
-    # steps = [
-    #     GitHub(
-    #         name='Clone Ursabot',
-    #         repourl=util.Property('repository'),
-    #         mode='full'
-    #     ),
-    #     # --no-binary buildbot is required because buildbot doesn't bundle its  # noqa
-    #     # tests to binary wheels, but ursabot's test suite depends on
-    #     # buildbot's so install it from source
-    #     Pip(['install', '--no-binary', 'buildbot',
-    #          'pytest', 'flake8', 'mock', '-e', '.']),
-    #     PyTest(args=['-m', 'not docker', 'ursabot']),
-    #     ShellCommand(command=['flake8', 'ursabot']),
-    #     ShellCommand(command=['buildbot', 'checkconfig', '.'],
-    #                  env={'URSABOT_ENV': 'test'})
-    # ]
     steps = [
-        ShellCommand(command=['apt-get', 'update'], args=['-y']),
-        ShellCommand(command=['apt-get', 'install'], args=['-y', 'curl']),
-        Archery(
-            command=['curl'],
-            args=[link, '--output', 'diff.json'],
-            # args=['benchmark', 'diff', '--output=diff.json',
-            #       'WORKSPACE', 'master'],
-            result_file='diff.json',
-            # Click requires this
-            env={'LC_ALL': 'C.UTF-8', 'LANG': 'C.UTF-8'},
-        )
+        GitHub(
+            name='Clone Ursabot',
+            repourl=util.Property('repository'),
+            mode='full'
+        ),
+        # --no-binary buildbot is required because buildbot doesn't bundle its
+        # tests to binary wheels, but ursabot's test suite depends on
+        # buildbot's so install it from source
+        Pip(['install', '--no-binary', 'buildbot',
+             'pytest', 'flake8', 'mock', '-e', '.']),
+        PyTest(args=['-m', 'not docker', 'ursabot']),
+        ShellCommand(command=['flake8', 'ursabot']),
+        ShellCommand(command=['buildbot', 'checkconfig', '.'],
+                     env={'URSABOT_ENV': 'test'})
     ]
     images = ursabot_images.filter(tag='worker')
 
@@ -390,8 +374,6 @@ class ArrowCppBenchmark(DockerBuilder):
             args=['benchmark', 'diff', '--output=diff.json',
                   'WORKSPACE', 'master'],
             result_file='diff.json',
-            # Click requires this
-            env={'LC_ALL': 'C.UTF-8', 'LANG': 'C.UTF-8'},
         )
     ]
     images = arrow_images.filter(

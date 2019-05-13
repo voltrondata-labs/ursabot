@@ -28,7 +28,6 @@ setup(
         'codenamize',
         'docker',
         'docker-map',
-        'pandas',
         'tabulate',
         'toml',
         'toolz',

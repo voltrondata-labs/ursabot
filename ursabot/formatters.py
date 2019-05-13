@@ -1,9 +1,8 @@
+import json
 import textwrap
 
 import jinja2
 import toolz
-import numpy as np
-import pandas as pd
 from tabulate import tabulate
 from twisted.python import log
 from buildbot.process.results import Results
@@ -102,14 +101,14 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
 
         As a plaintext table embedded in a diff markdown snippet.
         """
-        df = pd.read_json(content, lines=True)
-        columns = ['benchmark', 'baseline', 'contender', 'change']
-        formatted = tabulate(df[columns], headers='keys', tablefmt='rst',
-                             showindex=False)
+        rows = list(map(json.loads, content.strip().splitlines()))
 
-        diff = np.where(df['regression'], '-', ' ')
-        # prepend and append because of header and footer
-        diff = np.concatenate(([' '] * 3, diff, [' ']))
+        columns = ['benchmark', 'baseline', 'contender', 'change']
+        formatted = tabulate(toolz.pluck(columns, rows),
+                             headers=columns, tablefmt='rst')
+
+        diff = ['-' if row['regression'] else ' ' for row in rows]
+        diff = [' '] * 3 + diff + [' ']
 
         rows = map(' '.join, zip(diff, formatted.splitlines()))
         table = '\n'.join(rows)

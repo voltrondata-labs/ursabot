@@ -287,6 +287,7 @@ python_symlinks = {'/usr/local/bin/python': '/usr/bin/python3',
 ubuntu_pkgs = (docker_assets / 'pkgs-ubuntu.txt').read_text().splitlines()
 alpine_pkgs = (docker_assets / 'pkgs-alpine.txt').read_text().splitlines()
 python_steps = [
+    ENV(LC_ALL='C.UTF-8', LANG='C.UTF-8'),
     ADD(docker_assets / 'requirements.txt'),
     ADD(docker_assets / 'requirements-test.txt'),
     RUN(pip('cython', files=['requirements.txt'])),
@@ -371,6 +372,7 @@ for arch in ['amd64']:
         name = f'python-{pyversion}'
         title = f'{basetitle} Python {pyversion}'
         python = DockerImage(name, base=cpp, title=title, steps=[
+            ENV(LC_ALL='C.UTF-8', LANG='C.UTF-8'),
             ADD(docker_assets / 'conda-python.txt'),
             RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
         ])
