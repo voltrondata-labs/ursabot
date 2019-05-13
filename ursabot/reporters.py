@@ -43,13 +43,13 @@ class ZulipMailNotifier(reporters.MailNotifier):
 # so We can only handle single builds. We need to fetch and group builds to
 # buildsets manually on long term.
 class GitHubReporterBase(http.HttpStatusPushBase):
+    """Base class for reporters interacting with GitHub's API"""
 
     neededDetails = dict(
         wantProperties=True
     )
 
-    def __init__(self, *args, builders=None, start_description=None,
-                 end_description=None, **kwargs):
+    def __init__(self, *args, builders=None, **kwargs):
         if builders is not None:
             kwargs['builders'] = [b.name for b in builders]
         return super().__init__(*args, **kwargs)
@@ -81,6 +81,8 @@ class GitHubReporterBase(http.HttpStatusPushBase):
         self.verbose = verbose
 
     def _github_params(self, sourcestamp, branch=None):
+        """Parses parameters required to by github"""
+
         # branch is updated by the checkoutstep, required for PRs
         branch = branch or sourcestamp['branch']
         project = sourcestamp['project']
@@ -168,6 +170,10 @@ class GitHubReporterBase(http.HttpStatusPushBase):
 
 
 class GitHubStatusPush(GitHubReporterBase):
+    """Interacts with GitHub's status APIs
+
+    See https://developer.github.com/v3/repos/statuses
+    """
 
     name = 'GitHubStatusPush'
 
@@ -223,6 +229,12 @@ class GitHubStatusPush(GitHubReporterBase):
 
 
 class GitHubReviewPush(GitHubReporterBase):
+    """Mimics the status API functionality with pull-request reviews
+
+    Prefer GitHubStatusPush over GitHubReviewPush, but the former requires
+    a token with `repo:status` scope checked and write access to the
+    repository, whereas the review push doesn't require any special permission.
+    """
 
     name = 'GitHubReviewPush'
 
@@ -270,8 +282,15 @@ class GitHubReviewPush(GitHubReporterBase):
 
 
 class GitHubCommentPush(GitHubReporterBase):
+    """Report as a GitHub comment to the pull-request
+
+    Pass a ursabot.formatters.Formatter instance for custom comment formatting.
+    """
 
     name = 'GitHubCommentPush'
+
+    # the formatter will receive all of the following details
+    # as a nested dictionary
     neededDetails = dict(
         wantProperties=True,
         wantSteps=True,

@@ -9,11 +9,20 @@ from .utils import ensure_deferred
 
 
 class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
-    """Saves the content of a json file as JSONLog
+    """Saves the content of a json file as `log` with name `result`
 
     Only suitable for saving small amount of data, main purpose to save the
     machine formatted results to be used from reporters. Only jsonlines are
     supported.
+    Currently only BenchmarkCommentFormatter uses it. It looks for steps with
+    `result` logs and creates a comment with a markdown formatted version of
+    `result_file`.
+
+    Parameters
+    ----------
+    result_file : str, default None
+        Path to a jsonlines file, containing a machine formatted "result" of
+        the step. If omitted no result is saved.
     """
 
     def __init__(self, result_file=None, **kwargs):

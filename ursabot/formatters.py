@@ -9,6 +9,15 @@ from buildbot.process.results import Results
 
 
 class Formatter:
+    """Base class to render arbitrary formatted/templated messages
+
+    Parameters
+    ----------
+    layout : str, default None
+        jinja2 template used as a layout for the message
+    context : dict, default None
+        variables passed to the layout
+    """
 
     layout = None
     context = {}
@@ -24,6 +33,21 @@ class Formatter:
         self.context = toolz.merge(context or {}, self.context)
 
     async def render(self, build, master=None):
+        """Dispatches and renders the layout based on the build's results.
+
+        Each state/result has its own method, which should return a dictionary
+        of context variables which are passed for the layout rendering.
+
+        Parameters
+        ----------
+        build : dict
+            Details of a single buildbot build, depending on the caller it can
+            contain properties, steps, logs and/or the previous build of the
+            same builder. See buildbot.http.reporters.HttpStatusPushBase's
+            neededDetails property.
+        master : buildbot master, default None
+            Master instance, can be used for further database querying.
+        """
         result = Results[build['results']]
         method = getattr(self, f'render_{result}')
 
@@ -97,7 +121,7 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
         return results
 
     def _render_table(self, content):
-        """Renders the json content
+        """Renders the json content of a result log
 
         As a plaintext table embedded in a diff markdown snippet.
         """
@@ -120,6 +144,10 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
         results = self._extract_result_logs(build)
         try:
             # decode jsonlines objects and render the results as markdown table
+            # each step can have a result log, but in practice each builder
+            # should use a single step for logging results, for more see
+            # ursabot.steps.ResultLogMixin and usage at
+            # ursabot.builders.ArrowCppBenchmark
             tables = toolz.valmap(self._render_table, results)
         except Exception as e:
             # TODO(kszucs): nicer message
