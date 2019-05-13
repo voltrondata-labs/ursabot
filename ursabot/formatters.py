@@ -108,6 +108,7 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
                              headers=columns, tablefmt='rst')
 
         diff = ['-' if row['regression'] else ' ' for row in rows]
+        # prepend and append because of header and footer
         diff = [' '] * 3 + diff + [' ']
 
         rows = map(' '.join, zip(diff, formatted.splitlines()))
