@@ -99,7 +99,7 @@ class GithubHook(GitHubEventHandler):
         # still need something to determine which builders to run, so pass
         # the command as well
         for change in changes:
-            change['properties']['ursabot_command'] = command
+            change['properties']['command'] = command
 
         return changes, 'git'
 

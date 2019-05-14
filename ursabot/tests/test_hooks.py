@@ -94,7 +94,7 @@ class TestGithubHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 0
 
     @ensure_deferred
-    async def test_issue_comment_build_command(self):
+    async def check_issue_comment_with_command(self, command):
         # handle_issue_comment queries the pull request
         request_json = self.load_fixture('pull-request-26')
         self.http.expect('get', '/repos/ursa-labs/ursabot/pulls/26',
@@ -112,5 +112,18 @@ class TestGithubHook(ChangeHookTestCase):
                          json=request_json, content_json=response_json)
 
         payload = self.load_fixture('issue-comment-build-command')
+        payload['comment']['body'] = f'@ursabot {command}'
         await self.trigger('issue_comment', payload=payload)
+
         assert len(self.hook.master.data.updates.changesAdded) == 1
+        for change in self.hook.master.data.updates.changesAdded:
+            assert change['properties']['event'] == 'issue_comment'
+            assert change['properties']['command'] == command
+
+    @ensure_deferred
+    async def test_issue_comment_build_command(self):
+        await self.check_issue_comment_with_command('build')
+
+    @ensure_deferred
+    async def test_issue_comment_benchmark_command(self):
+        await self.check_issue_comment_with_command('benchmark')
