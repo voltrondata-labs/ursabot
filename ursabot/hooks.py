@@ -97,11 +97,17 @@ class GithubHook(GitHubEventHandler):
         comments_url = issue['comments_url']
         command = self._parse_command(payload['comment']['body'])
 
+        # https://developer.github.com/v4/enum/commentauthorassociation/
+        allowed_roles = {'OWNER', 'MEMBER', 'CONTRIBUTOR'}
+
         if payload['sender']['login'] == BOTNAME:
             # don't respond to itself
             return [], 'git'
         elif payload['action'] not in {'created', 'edited'}:
             # don't respond to comment deletion
+            return [], 'git'
+        elif payload['comment']['author_association'] not in allowed_roles:
+            # don't respond to comments from non-authorized users
             return [], 'git'
         elif command is None:
             # ursabot is not mentioned, nothing to do

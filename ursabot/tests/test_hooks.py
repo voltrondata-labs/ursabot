@@ -68,6 +68,12 @@ class TestGithubHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 0
 
     @ensure_deferred
+    async def test_issue_comment_by_non_authorized_user(self):
+        payload = self.load_fixture('issue-comment-by-non-authorized-user')
+        await self.trigger('issue_comment', payload=payload)
+        assert len(self.hook.master.data.updates.changesAdded) == 0
+
+    @ensure_deferred
     async def test_issue_comment_with_empty_command(self):
         # responds to the comment
         request_json = {'body': 'Unknown command ""'}
