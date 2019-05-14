@@ -107,4 +107,4 @@ name = 'jetson1'
 arch = 'arm64v8'
 docker.host = 'tcp://ursa-jetson1:2375'
 docker.hostconfig = { network_mode = 'host' }
-max_builds = 4
+max_builds = 2

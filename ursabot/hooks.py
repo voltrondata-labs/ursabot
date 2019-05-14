@@ -89,14 +89,13 @@ class GithubHook(GitHubEventHandler):
             return message.split(mention)[-1].lower().strip()
         return None
 
-    # TODO(kszucs): only allow users of apache org to submit commands
-
     @ensure_deferred
     async def handle_issue_comment(self, payload, event):
         issue = payload['issue']
         comments_url = issue['comments_url']
         command = self._parse_command(payload['comment']['body'])
 
+        # only allow users of apache org to submit commands, for more see
         # https://developer.github.com/v4/enum/commentauthorassociation/
         allowed_roles = {'OWNER', 'MEMBER', 'CONTRIBUTOR'}
 
@@ -124,7 +123,7 @@ class GithubHook(GitHubEventHandler):
 
         try:
             pull_request = await self._get(issue['pull_request']['url'])
-            # handle pull request contains skip-logic and misc message
+            # handle_pull_request contains pull request specific logic
             changes, _ = await self.handle_pull_request({
                 'action': 'synchronize',
                 'sender': payload['sender'],
@@ -151,7 +150,5 @@ class GithubHook(GitHubEventHandler):
 
         return changes, 'git'
 
-    # TODO(kszucs):
-    # handle_commit_comment d
-    # handle_pull_request_review
-    # handle_pull_request_review_comment
+    # TODO(kszucs): ursabot might listen on:handle_commit_comment,
+    # handle_pull_request_review and/or handle_pull_request_review_comment
