@@ -146,6 +146,7 @@ definitions = {
     'CMAKE_CXX_FLAGS': None,
     'CMAKE_AR': None,
     'CMAKE_RANLIB': None,
+    'PYTHON_EXECUTABLE': None,
     # Build Arrow with Altivec
     # 'ARROW_ALTIVEC': 'ON',
     # Rely on boost shared libraries where relevant
@@ -193,7 +194,7 @@ definitions = {
     # Pass -ggdb flag to debug builds
     # 'ARROW_GGDB_DEBUG': 'ON',
     # Build the Arrow HDFS bridge
-    # 'ARROW_HDFS': 'ON',
+    'ARROW_HDFS': 'OFF',
     # Build the HiveServer2 client and Arrow adapter
     # 'ARROW_HIVESERVER2': 'OFF',
     # Build Arrow libraries with install_name set to @rpath
@@ -355,7 +356,7 @@ class ArrowCppTest(DockerBuilder):
     images = arrow_images.filter(
         name='cpp',
         os=startswith('ubuntu') | startswith('alpine'),
-        variant=None,  # plain linux images, no conda
+        variant=None,  # plain linux images, not conda
         tag='worker'
     )
 
@@ -377,7 +378,7 @@ class ArrowCppBenchmark(DockerBuilder):
     images = arrow_images.filter(
         name='cpp-benchmark',
         os=startswith('ubuntu'),
-        variant=None,  # plain linux images, no conda
+        variant=None,  # plain linux images, not conda
         tag='worker'
     )
 
@@ -402,7 +403,7 @@ class ArrowPythonTest(DockerBuilder):
     images = arrow_images.filter(
         name=startswith('python'),
         os=startswith('ubuntu') | startswith('alpine'),
-        variant=None,
+        variant=None,  # plain linux images, not conda
         tag='worker'
     )
 

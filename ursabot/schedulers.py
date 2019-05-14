@@ -4,7 +4,13 @@ from buildbot.plugins import schedulers, util
 class SchedulerMixin:
 
     def __init__(self, *args, builders, **kwargs):
-        builder_names = [b.name for b in builders]
+        if callable(builders):
+            @util.renderable
+            def builder_names(props):
+                return [builder.name for builder in builders(props)]
+        else:
+            builder_names = [b.name for b in builders]
+
         super().__init__(*args, builderNames=builder_names, **kwargs)
 
 

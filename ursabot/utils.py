@@ -49,6 +49,10 @@ def startswith(prefix):
     return Filter(lambda s: s.startswith(prefix))
 
 
+def any_of(*args):
+    return Filter(lambda s: s in args)
+
+
 class Collection(list):
 
     def filter(self, **kwargs):

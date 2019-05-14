@@ -10,6 +10,12 @@ BOTNAME = 'ursabot'
 
 
 class GithubHook(GitHubEventHandler):
+    """Converts github events to changes
+
+    It extends the original implementation for push and pull request events
+    with a pull request comment event in order to drive buildbot with gihtub
+    comments.
+    """
 
     def _client(self):
         headers = {'User-Agent': 'Buildbot'}
@@ -43,6 +49,8 @@ class GithubHook(GitHubEventHandler):
             return message.split(mention)[-1].lower().strip()
         return None
 
+    # TODO(kszucs): only allow users of apache org to submit commands
+
     @ensure_deferred
     async def handle_issue_comment(self, payload, event):
         issue = payload['issue']
@@ -70,22 +78,30 @@ class GithubHook(GitHubEventHandler):
 
         try:
             pull_request = await self._get(issue['pull_request']['url'])
+            # handle pull request contains skip-logic and misc message
             changes, _ = await self.handle_pull_request({
                 'action': 'synchronize',
                 'sender': payload['sender'],
                 'repository': payload['repository'],
                 'pull_request': pull_request,
                 'number': pull_request['number'],
-                'is_benchmark': command == 'benchmark'
             }, event)
         except Exception as e:
             message = "I've failed to start builds for this PR"
             await self._post(comments_url, {'body': message})
             raise e
-        else:
-            message = "I've successfully started builds for this PR"
-            await self._post(comments_url, {'body': message})
-            return changes, 'git'
+
+        # TODO(kszucs): consider not responding
+        message = "I've successfully started builds for this PR"
+        await self._post(comments_url, {'body': message})
+
+        # event: issue_comment will be available between the properties, but We
+        # still need something to determine which builders to run, so pass
+        # the command as well
+        for change in changes:
+            change['properties']['ursabot_command'] = command
+
+        return changes, 'git'
 
     # TODO(kszucs):
     # handle_commit_comment d
