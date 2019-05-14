@@ -84,6 +84,7 @@ def test_docker_image_save(tmp_path, image):
     assert target.read_text().startswith('FROM ubuntu')
 
 
+@pytest.mark.slow
 @pytest.mark.docker
 def test_docker_image_build(image):
     client = DockerClientWrapper()
@@ -102,6 +103,7 @@ def test_image_collection(collection):
     assert sorted(imgs) == ['b', 'f', 'g', 'h', 'i']
 
 
+@pytest.mark.slow
 @pytest.mark.docker
 def test_image_collection_build(collection):
     collection.build()
