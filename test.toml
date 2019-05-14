@@ -10,10 +10,11 @@ token = "invalid_token"
 
   [projects.ursabot]
   enabled = true
-  reporters = ['github_status', 'github_review']
+  reporters = []
 
   [projects.arrow]
   enabled = true
+  reporters = []
 
 [[workers]]
 # docker-on-mac is able to containers for multiple architectures

@@ -381,6 +381,7 @@ for arch in ['amd64']:
 # configure and set it as the command of the docker image
 worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
+    ENV(LC_ALL='C.UTF-8', LANG='C.UTF-8'),
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
     ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
@@ -400,6 +401,6 @@ arrow_images.extend(worker_images)
 # docker images for testing ursabot itself
 ursabot_images = ImageCollection([
     DockerImage('ursabot', base='python:3.7', arch='amd64', os='debian',
-                tag='worker', title='Amd64 Python 3.7 Ursabot',
-                steps=worker_steps)
+                tag='worker', title='Ursabot Python 3.7',
+                steps=worker_steps + [CMD(worker_command)])
 ])

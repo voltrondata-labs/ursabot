@@ -28,6 +28,7 @@ setup(
         'codenamize',
         'docker',
         'docker-map',
+        'tabulate',
         'toml',
         'toolz',
         'toposort',

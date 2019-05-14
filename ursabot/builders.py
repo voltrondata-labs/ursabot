@@ -63,7 +63,8 @@ class Builder(util.BuilderConfig):
             raise TypeError('Tags must be a list')
 
         name = name or self._generate_name()
-        name = f'{self.name_prefix} {name}'
+        if self.name_prefix:
+            name = f'{self.name_prefix} {name}'
         factory = factory or BuildFactory(steps)
         properties = toolz.merge(properties or {}, self.properties or {})
         default_properties = toolz.merge(default_properties or {},
@@ -360,7 +361,7 @@ class ArrowCppTest(DockerBuilder):
 
 
 class ArrowCppBenchmark(DockerBuilder):
-    tags = ['arrow', 'cpp']
+    tags = ['arrow', 'cpp', 'benchmark']
     properties = {
         'ARROW_PLASMA': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
@@ -369,11 +370,9 @@ class ArrowCppBenchmark(DockerBuilder):
     steps = [
         checkout_arrow,
         Pip(['install', '-e', '.'], workdir='dev/archery'),
-        Archery(
-            ['benchmark', 'diff'],
-            # Click requires this
-            env={'LC_ALL': 'C.UTF-8', 'LANG': 'C.UTF-8'},
-        )
+        Archery(args=['benchmark', 'diff', 'WORKSPACE', 'master',
+                      '--output=diff.json'],
+                result_file='diff.json')
     ]
     images = arrow_images.filter(
         name='cpp-benchmark',
