@@ -149,7 +149,8 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
 
         As a plaintext table embedded in a diff markdown snippet.
         """
-        rows = [json.loads(l) for l in content.strip().splitlines() if l]
+        lines = (l.strip() for l in content.strip().splitlines())
+        rows = [json.loads(l) for l in lines if l]
 
         columns = ['benchmark', 'baseline', 'contender', 'change']
         formatted = tabulate(toolz.pluck(columns, rows),
