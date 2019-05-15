@@ -5,6 +5,7 @@ import jinja2
 import toolz
 from tabulate import tabulate
 from twisted.python import log
+from buildbot.reporters import utils
 from buildbot.process.results import Results
 
 
@@ -32,6 +33,20 @@ class Formatter:
 
         self.context = toolz.merge(context or {}, self.context)
 
+    def default_context(self, build, master=None):
+        props = build['properties']
+        context = {
+            'build': build,
+            'worker_name': props.get('workername', ['unknown'])[0],
+            'builder_name': props.get('buildername', ['unknown'])[0],
+            'buildbot_url': master.config.buildbotURL,
+            'state_string': build.get('state_string'),
+            'build_url': utils.getURLForBuild(
+                master, build['builder']['builderid'], build['number']
+            )
+        }
+        return toolz.merge(context, self.context)
+
     async def render(self, build, master=None):
         """Dispatches and renders the layout based on the build's results.
 
@@ -50,6 +65,7 @@ class Formatter:
         """
         result = Results[build['results']]
         method = getattr(self, f'render_{result}')
+        default_context = self.default_context(build, master)
 
         try:
             context = method(build, master)
@@ -58,7 +74,7 @@ class Formatter:
                 f'Not implemented formatter for result `{result}`'
             )
         else:
-            context = toolz.merge(context, self.context)
+            context = toolz.merge(context, default_context)
 
         return self.layout.render(**context)
 
@@ -86,6 +102,7 @@ class Formatter:
 
 class GitHubCommentFormatter(Formatter):
 
+    # TODO(kszucs): support pathlib.Path object for layouts
     layout = "{{ message }}"
 
     def render_success(self, build, master):
@@ -111,6 +128,13 @@ class GitHubCommentFormatter(Formatter):
 
 
 class BenchmarkCommentFormatter(GitHubCommentFormatter):
+
+    # TODO(kszucs): support pathlib.Path object for layouts
+    layout = textwrap.dedent("""
+        [{{ builder_name }}]({{ build_url }}): {{ state_string }}
+
+        {{ message }}
+    """).strip()
 
     def _extract_result_logs(self, build):
         results = {}

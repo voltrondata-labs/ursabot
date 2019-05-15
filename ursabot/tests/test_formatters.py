@@ -104,6 +104,8 @@ class TestBenchmarkCommentFormatter(TestFormatter):
     @ensure_deferred
     async def test_message_success(self):
         expected = '''
+        [unknown](http://localhost:8080/#builders/80/builds/1): test
+
         ```diff
           ============================  ===========  ===========  ===========
           benchmark                        baseline    contender       change
