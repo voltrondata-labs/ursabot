@@ -36,8 +36,9 @@ class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
         if result == SUCCESS and self.result_file is not None:
             # retrieve the file's content from the worker and ensure its format
             content = await self.getFileContentFromWorker(self.result_file)
+
             # save name under `result` log
-            log = await self.addLog('result', type='t')
+            log = await self.addLog('result')
             await log.addStdout(content)
             await log.finish()
 
