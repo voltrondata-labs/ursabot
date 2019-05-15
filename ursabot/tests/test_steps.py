@@ -3,6 +3,7 @@ from pathlib import Path
 
 from twisted.trial import unittest
 from buildbot.process.results import SUCCESS
+from buildbot.test.fake import logfile
 from buildbot.process import remotetransfer, buildstep
 from buildbot.test.util import config, steps
 from buildbot.test.util.misc import TestReactorMixin
@@ -13,9 +14,28 @@ from ursabot.steps import ShellCommand, ResultLogMixin
 from ursabot.utils import ensure_deferred
 
 
+# the original FakeLogFile doesn't have an addContent which is used by the
+# ResultLogMixin
+class FakeLogFile(logfile.FakeLogFile):
+
+    @ensure_deferred
+    async def addContent(self, lines):
+        return await self.addStdout(lines)
+
+
 class BuildStepTestCase(unittest.TestCase, TestReactorMixin,
                         steps.BuildStepMixin, config.ConfigErrorsMixin):
-    pass
+
+    def setupStep(self, *args, **kwargs):
+        super().setupStep(*args, **kwargs)
+
+        @ensure_deferred
+        async def addLog(name, type='s', logEncoding=None):
+            log_ = FakeLogFile(name, self.step)
+            self.step.logs[name] = log_
+            return log_
+
+        self.step.addLog = addLog
 
 
 class MyDockerCommand(ShellCommand):
