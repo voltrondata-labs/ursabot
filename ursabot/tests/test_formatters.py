@@ -45,12 +45,12 @@ class TestFormatter(TestReactorMixin, unittest.TestCase):
                     buildid=_id, name='reason', value='because'),
             ])
 
-    async def render(self, previous, current):
+    async def render(self, previous, current, buildsetid=99):
         self.setupDb(current, previous)
 
         buildset = await utils.getDetailsForBuildset(
             self.master,
-            99,
+            buildsetid,
             wantProperties=True,
             wantSteps=True,
             wantLogs=True
@@ -90,15 +90,22 @@ class TestBenchmarkCommentFormatter(TestFormatter):
     def setupDb(self, *args, **kwargs):
         super().setupDb(*args, **kwargs)
 
-        result_log_content = self.load_fixture('archery-benchmark-diff.jsonl')
+        log1 = self.load_fixture('archery-benchmark-diff.jsonl')
+        log2 = self.load_fixture('archery-benchmark-diff-empty-lines.jsonl')
 
         self.db.insertTestData([
             fakedb.Step(id=50, buildid=21, number=0, name='compile'),
             fakedb.Step(id=51, buildid=21, number=1, name='benchmark'),
+            fakedb.Step(id=52, buildid=20, number=0, name='compile'),
+            fakedb.Step(id=53, buildid=20, number=1, name='benchmark'),
             fakedb.Log(id=60, stepid=51, name='result', slug='result',
                        type='s', num_lines=4),
+            fakedb.Log(id=61, stepid=53, name='result', slug='result',
+                       type='s', num_lines=6),
             fakedb.LogChunk(logid=60, first_line=0, last_line=4, compressed=0,
-                            content=result_log_content)
+                            content=log1),
+            fakedb.LogChunk(logid=61, first_line=0, last_line=6, compressed=0,
+                            content=log2)
         ])
 
     @ensure_deferred
@@ -117,5 +124,26 @@ class TestBenchmarkCommentFormatter(TestFormatter):
           ============================  ===========  ===========  ===========
         ```
         '''
-        content = await self.render(previous=SUCCESS, current=SUCCESS)
+        content = await self.render(previous=SUCCESS, current=SUCCESS,
+                                    buildsetid=99)
+        assert content == textwrap.dedent(expected).strip()
+
+    @ensure_deferred
+    async def test_message_empty_lines(self):
+        expected = '''
+        [unknown](http://localhost:8080/#builders/80/builds/0): test
+
+        ```diff
+          ============================  ===========  ===========  ==========
+          benchmark                        baseline    contender      change
+          ============================  ===========  ===========  ==========
+          RegressionSumKernel/32768/10  1.32654e+10  1.33275e+10  0.00467565
+          RegressionSumKernel/32768/1   1.51819e+10  1.522e+10    0.00251084
+          RegressionSumKernel/32768/50  1.14718e+10  1.15116e+10  0.00346736
+          RegressionSumKernel/32768/0   1.8317e+10   1.85027e+10  0.010141
+          ============================  ===========  ===========  ==========
+        ```
+        '''
+        content = await self.render(previous=SUCCESS, current=SUCCESS,
+                                    buildsetid=98)
         assert content == textwrap.dedent(expected).strip()
