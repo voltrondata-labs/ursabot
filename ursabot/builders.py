@@ -374,7 +374,8 @@ class ArrowCppBenchmark(DockerBuilder):
         Archery(args=['benchmark', 'diff', 'WORKSPACE', 'master',
                       '--output=diff.json'],
                 result_file='diff.json'),
-        ShellCommand(command=['cat'], args=['diff.json'])
+        ShellCommand(command=['cat'], args=['diff.json']),
+        ShellCommand(command=['wc'], args=['-l', 'diff.json'])
     ]
     images = arrow_images.filter(
         name='cpp-benchmark',
