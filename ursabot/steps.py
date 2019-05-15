@@ -37,8 +37,8 @@ class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
             # retrieve the file's content from the worker and ensure its format
             content = await self.getFileContentFromWorker(self.result_file)
             # save name under `result` log
-            log = self.addLog('result', type='t')
-            await log.addRawLines(content)
+            log = await self.addLog('result', type='t')
+            await log.addStdout(content)
             await log.finish()
 
         return result
