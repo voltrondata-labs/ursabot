@@ -324,9 +324,15 @@ class UrsabotTest(DockerBuilder):
         Pip(['install', '--no-binary', 'buildbot',
              'pytest', 'flake8', 'mock', '-e', '.']),
         PyTest(args=['-m', 'not docker', 'ursabot']),
-        ShellCommand(command=['flake8', 'ursabot']),
-        ShellCommand(command=['buildbot', 'checkconfig', '.'],
-                     env={'URSABOT_ENV': 'test'})
+        ShellCommand(
+            command=['flake8', 'ursabot'],
+            name='Flake8'
+        ),
+        ShellCommand(
+            command=['buildbot', 'checkconfig', '.'],
+            env={'URSABOT_ENV': 'test'},
+            name='Checkconfig'
+        )
     ]
     images = ursabot_images.filter(tag='worker')
 

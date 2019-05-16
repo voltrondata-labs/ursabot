@@ -67,9 +67,17 @@ database_url = 'sqlite:///ursabot.sqlite'
 [reporters]
 # global flags for reporters, to enable/disable per project add/remove to/from
 # the projects' reporters list
-github_status = { debug = true }
-github_review = { debug = true }
-# zulip = { from = ..., address = ... }
+
+  [reporters.github_status]
+  debug = true
+
+  [reporters.github_review]
+  debug = true
+
+  [reporters.zulip_status]
+  endpoint = 'https://ursalabs.zulipchat.com'
+  stream = 'ursabot'
+  # token = ...
 
 [changes]
 
