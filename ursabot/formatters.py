@@ -40,7 +40,6 @@ class Formatter:
             'worker_name': props.get('workername', ['unknown'])[0],
             'builder_name': props.get('buildername', ['unknown'])[0],
             'buildbot_url': master.config.buildbotURL,
-            'state_string': build.get('state_string'),
             'build_url': utils.getURLForBuild(
                 master, build['builder']['builderid'], build['number']
             )
@@ -131,7 +130,7 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
 
     # TODO(kszucs): support pathlib.Path object for layouts
     layout = textwrap.dedent("""
-        [{{ builder_name }}]({{ build_url }}): {{ state_string }}
+        [{{ builder_name }}]({{ build_url }})
 
         {{ message }}
     """).strip()
