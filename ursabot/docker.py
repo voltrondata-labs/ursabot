@@ -374,7 +374,7 @@ for arch in ['amd64', 'arm64v8']:
         arrow_images.extend([cpp, python])
 
 # CONDA
-for arch in ['amd64']:
+for arch in ['amd64', 'arm64v8']:
     basetitle = f'{arch.upper()} Conda'
 
     cpp = DockerImage(
