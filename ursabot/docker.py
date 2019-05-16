@@ -24,13 +24,16 @@ class DockerFile(DockerFile):
 
 
 class DockerImage:
+    """Docker image abstraction for image hierarchies with strict naming"""
 
-    def __init__(self, name, base, tag='latest', org='ursalab', title='',
+    def __init__(self, name, base, title=None, org=None, tag='latest',
                  arch=None, os=None, variant=None, steps=tuple(),
                  properties=None):
         if isinstance(base, DockerImage):
             if not title:
                 title = base.title
+            if not org:
+                org = base.org
             if os is not None and os != base.os:
                 raise ValueError(
                     f"Given os `{os}` is not equal with the base "
@@ -47,14 +50,14 @@ class DockerImage:
                 '`tag` argument must be an instance of DockerImage or str'
             )
 
-        string_args = {'name': name, 'org': org, 'tag': tag, 'os': os,
-                       'title': title}
+        string_args = {'org': org, 'name': name, 'tag': tag, 'os': os,
+                       'title': title, 'variant': variant}
+        optional_args = {'org', 'title', 'variant'}
         for k, v in string_args.items():
+            if v is None and k in optional_args:
+                continue
             if not isinstance(v, str):
                 raise TypeError(f'`{k}` argument must be an instance of str')
-
-        if variant is not None and not isinstance(variant, str):
-            raise TypeError(f'`variant` argument must be an instance of str')
 
         if arch not in {'amd64', 'arm64v8'}:
             raise ValueError(f'invalid architecture `{arch}`')
@@ -79,21 +82,25 @@ class DockerImage:
         self.arch = arch
         self.os = os
         self.variant = variant
-        self.steps = steps
+        self.steps = tuple(steps)
         self.properties = properties
 
     def __str__(self):
         return self.fqn
 
     def __repr__(self):
-        return f'<DockerImage: {self.repo}:{self.tag} at {id(self)}>'
+        return f'<DockerImage: {self.fqn} at {id(self)}>'
 
     def __hash__(self):
-        return hash(self.fqn)
+        return hash((self.name, self.tag, self.steps))
 
     @property
     def fqn(self):
-        return f'{self.org}/{self.repo}:{self.tag}'
+        """Return the fully qualified name including organization and tag"""
+        if self.org:
+            return f'{self.org}/{self.repo}:{self.tag}'
+        else:
+            return f'{self.repo}:{self.tag}'
 
     @property
     def repo(self):
@@ -120,6 +127,14 @@ class DockerImage:
         self.dockerfile.save(path)
 
     def build(self, client=None, **kwargs):
+        """Build the docker images
+
+        Params
+        ------
+        client : dockermap.api.DockerClientWrapper, default None
+            Docker client to build the images with. For example it can be
+            used to build images on another host.
+        """
         if client is None:
             client = DockerClientWrapper()
 
@@ -301,79 +316,110 @@ arrow_images = ImageCollection()
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
     for version in ['16.04', '18.04']:
-        os = f'ubuntu-{version}'
-        base = f'{arch}/ubuntu:{version}'
         basetitle = f'{arch.upper()} Ubuntu {version}'
 
-        title = f'{basetitle} C++'
-        cpp = DockerImage('cpp', base, arch=arch, os=os, title=title, steps=[
-            RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
-            RUN(symlink(python_symlinks))
-        ])
-
-        title = f'{basetitle} Python 3'
-        python = DockerImage('python-3', cpp, title=title, steps=python_steps)
+        cpp = DockerImage(
+            name='cpp',
+            base=f'{arch}/ubuntu:{version}',
+            arch=arch,
+            os=f'ubuntu-{version}',
+            org='ursalab',
+            title=f'{basetitle} C++',
+            steps=[
+                RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
+                RUN(symlink(python_symlinks))
+            ]
+        )
+        python = DockerImage(
+            name='python-3',
+            base=cpp,
+            title=f'{basetitle} Python 3',
+            steps=python_steps
+        )
         arrow_images.extend([cpp, python])
 
         if version in {'18.04'}:
-            title = f'{basetitle} C++ Benchmark'
-            cpp_benchmark = DockerImage('cpp-benchmark', base=cpp, title=title,
-                                        steps=[RUN(apt('libbenchmark-dev'))])
+            cpp_benchmark = DockerImage(
+                name='cpp-benchmark',
+                base=cpp,
+                title=f'{basetitle} C++ Benchmark',
+                steps=[
+                    RUN(apt('libbenchmark-dev'))
+                ]
+            )
             arrow_images.append(cpp_benchmark)
 
     # ALPINE
     for version in ['3.9']:
-        os = f'alpine-{version}'
-        base = f'{arch}/alpine:{version}'
         basetitle = f'{arch.upper()} Alpine {version}'
 
-        title = f'{basetitle} C++'
-        cpp = DockerImage('cpp', base, arch=arch, os=os, title=title, steps=[
-            RUN(apk(*alpine_pkgs, 'python3-dev', 'py3-pip')),
-            RUN(symlink(python_symlinks))
-        ])
-
-        title = f'{basetitle} Python 3'
-        python = DockerImage('python-3', cpp, title=title, steps=python_steps)
+        cpp = DockerImage(
+            name='cpp',
+            base=f'{arch}/alpine:{version}',
+            arch=arch,
+            os=f'alpine-{version}',
+            title=f'{basetitle} C++',
+            org='ursalab',
+            steps=[
+                RUN(apk(*alpine_pkgs, 'python3-dev', 'py3-pip')),
+                RUN(symlink(python_symlinks))
+            ]
+        )
+        python = DockerImage(
+            name='python-3',
+            base=cpp,
+            title=f'{basetitle} Python 3',
+            steps=python_steps
+        )
         arrow_images.extend([cpp, python])
 
 # CONDA
 for arch in ['amd64']:
-    os = 'ubuntu-18.04'
-    base = f'{arch}/ubuntu:18.04'
     basetitle = f'{arch.upper()} Conda'
-    steps = [
-        RUN(apt('wget')),
-        # install miniconda
-        ENV(PATH='/opt/conda/bin:$PATH'),
-        ADD(docker_assets / 'install_conda.sh'),
-        RUN('/install_conda.sh', arch, '/opt/conda'),
-        # install cpp dependencies
-        ADD(docker_assets / 'conda-linux.txt'),
-        ADD(docker_assets / 'conda-cpp.txt'),
-        RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
-        # run conda activate
-        SHELL(['/bin/bash', '-l', '-c']),
-        ENTRYPOINT(['/bin/bash', '-l', '-c']),
-    ]
 
-    title = f'{basetitle} C++'
-    cpp = DockerImage('cpp', base=base, arch=arch, os=os, variant='conda',
-                      title=title, steps=steps)
-
-    title = f'{basetitle} C++ Benchmark'
-    cpp_benchmark = DockerImage('cpp-benchmark', base=cpp, title=title, steps=[
-        RUN(conda('benchmark'))
-    ])
+    cpp = DockerImage(
+        name='cpp',
+        base=f'{arch}/ubuntu:18.04',
+        arch=arch,
+        os='ubuntu-18.04',
+        variant='conda',
+        org='ursalab',
+        title=f'{basetitle} C++',
+        steps=[
+            RUN(apt('wget')),
+            # install miniconda
+            ENV(PATH='/opt/conda/bin:$PATH'),
+            ADD(docker_assets / 'install_conda.sh'),
+            RUN('/install_conda.sh', arch, '/opt/conda'),
+            # install cpp dependencies
+            ADD(docker_assets / 'conda-linux.txt'),
+            ADD(docker_assets / 'conda-cpp.txt'),
+            RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
+            # run conda activate
+            SHELL(['/bin/bash', '-l', '-c']),
+            ENTRYPOINT(['/bin/bash', '-l', '-c']),
+        ]
+    )
+    cpp_benchmark = DockerImage(
+        name='cpp-benchmark',
+        base=cpp,
+        title=f'{basetitle} C++ Benchmark',
+        steps=[
+            RUN(conda('benchmark'))
+        ]
+    )
     arrow_images.extend([cpp, cpp_benchmark])
 
     for pyversion in ['2.7', '3.6', '3.7']:
-        name = f'python-{pyversion}'
-        title = f'{basetitle} Python {pyversion}'
-        python = DockerImage(name, base=cpp, title=title, steps=[
-            ADD(docker_assets / 'conda-python.txt'),
-            RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
-        ])
+        python = DockerImage(
+            name=f'python-{pyversion}',
+            base=cpp,
+            title=f'{basetitle} Python {pyversion}',
+            steps=[
+                ADD(docker_assets / 'conda-python.txt'),
+                RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
+            ]
+        )
         arrow_images.append(python)
 
 
@@ -387,6 +433,7 @@ worker_steps = [
     ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot')
 ]
+
 # create worker images and add them to the list of arrow images
 worker_images = []
 for image in arrow_images:
@@ -400,7 +447,14 @@ arrow_images.extend(worker_images)
 
 # docker images for testing ursabot itself
 ursabot_images = ImageCollection([
-    DockerImage('ursabot', base='python:3.7', arch='amd64', os='debian',
-                tag='worker', title='Ursabot Python 3.7',
-                steps=worker_steps + [CMD(worker_command)])
+    DockerImage(
+        name='ursabot',
+        base='python:3.7',
+        arch='amd64',
+        os='debian',
+        tag='worker',
+        org='ursalab',
+        title='Ursabot Python 3.7',
+        steps=worker_steps + [CMD(worker_command)]
+    )
 ])
