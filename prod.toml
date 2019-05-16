@@ -5,7 +5,8 @@ webui_port = 8010
 
   [projects.ursabot]
   reporters = ['github_status']
-  change_sources = ['git_poller', 'pull_request_poller']
+  # github hook is enabled so no additional change source is required
+  change_sources = []
 
   [projects.arrow]
   reporters = ['github_comment']
