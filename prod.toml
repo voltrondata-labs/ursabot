@@ -8,7 +8,7 @@ webui_port = 8010
   change_sources = ['git_poller', 'pull_request_poller']
 
   [projects.arrow]
-  reporters = []
+  reporters = ['github_comment']
   # github hook is enabled so no additional change source is required
   change_sources = []
 
@@ -16,7 +16,7 @@ webui_port = 8010
 
   [github.event_hook]
   # disable poller change sources for projects with event_hook set up
-  enabled = false
+  enabled = true
   debug = true
 
   [github.auth]
