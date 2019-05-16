@@ -344,7 +344,8 @@ for arch in ['amd64', 'arm64v8']:
                 base=cpp,
                 title=f'{basetitle} C++ Benchmark',
                 steps=[
-                    RUN(apt('libbenchmark-dev'))
+                    RUN(apt('libbenchmark-dev')),
+                    RUN(pip('click', 'pandas'))
                 ]
             )
             arrow_images.append(cpp_benchmark)
@@ -405,7 +406,7 @@ for arch in ['amd64']:
         base=cpp,
         title=f'{basetitle} C++ Benchmark',
         steps=[
-            RUN(conda('benchmark'))
+            RUN(conda('benchmark', 'click', 'pandas'))
         ]
     )
     arrow_images.extend([cpp, cpp_benchmark])
