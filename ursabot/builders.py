@@ -353,11 +353,21 @@ class ArrowCppTest(DockerBuilder):
         cpp_compile,
         cpp_test
     ]
-    images = arrow_images.filter(
-        name='cpp',
-        os=startswith('ubuntu') | startswith('alpine'),
-        variant=None,  # plain linux images, not conda
-        tag='worker'
+    images = (
+        arrow_images.filter(
+            name='cpp',
+            arch='amd64',
+            os=startswith('ubuntu') | startswith('alpine'),
+            variant=None,  # plain linux images, not conda
+            tag='worker'
+        ) +
+        arrow_images.filter(
+            name='cpp',
+            arch='arm64v8',
+            os='ubuntu-18.04',
+            variant=None,  # plain linux images, not conda
+            tag='worker'
+        )
     )
 
 
@@ -400,11 +410,21 @@ class ArrowPythonTest(DockerBuilder):
         python_install,
         python_test
     ]
-    images = arrow_images.filter(
-        name=startswith('python'),
-        os=startswith('ubuntu') | startswith('alpine'),
-        variant=None,  # plain linux images, not conda
-        tag='worker'
+    images = (
+        arrow_images.filter(
+            name=startswith('python'),
+            arch='amd64',
+            os=startswith('ubuntu') | startswith('alpine'),
+            variant=None,  # plain linux images, not conda
+            tag='worker'
+        ) +
+        arrow_images.filter(
+            name=startswith('python'),
+            arch='arm64v8',
+            os='ubuntu-18.04',
+            variant=None,  # plain linux images, not conda
+            tag='worker'
+        )
     )
 
 
