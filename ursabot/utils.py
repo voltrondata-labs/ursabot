@@ -77,6 +77,12 @@ class Collection(list):
     def groupby(self, *args):
         return toolz.groupby(operator.attrgetter(*args), self)
 
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            return self.__class__(super().__add__(other))
+        else:
+            return NotImplemented
+
 
 class ConfigError(Exception):
     pass
