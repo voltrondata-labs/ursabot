@@ -13,30 +13,12 @@ from .utils import ensure_deferred
 from .formatters import GitHubCommentFormatter
 
 
-_template = u'''\
-<h4>Build status: {{ summary }}</h4>
-<p> Worker used: {{ workername }}</p>
-{% for step in build['steps'] %}
-<p> {{ step['name'] }}: {{ step['result'] }}</p>
-{% endfor %}
-<p><b> -- The Buildbot</b></p>
-'''
+class ZulipStatusPush(reporters.ZulipStatusPush):
 
-
-class ZulipMailNotifier(reporters.MailNotifier):
-
-    def __init__(self, zulipaddr, fromaddr, template=None, builders=None):
-        formatter = reporters.MessageFormatter(
-            template=template or _template,
-            template_type='html',
-            wantProperties=True,
-            wantSteps=True
-        )
+    def __init__(self, *args, builders=None, **kwargs):
         if builders is not None:
-            builders = [b.name for b in builders]
-        super().__init__(fromaddr=fromaddr, extraRecipients=[zulipaddr],
-                         messageFormatter=formatter, builders=builders,
-                         sendToInterestedUsers=False)
+            kwargs['builders'] = [b.name for b in builders]
+        super().__init__(*args, **kwargs)
 
 
 # TODO(kszucs): buildset handling is not yet implemented in HttpStatusPush,

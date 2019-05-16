@@ -4,12 +4,12 @@ webui_port = 8010
 [projects]
 
   [projects.ursabot]
-  reporters = ['github_status']
+  reporters = ['github_status', 'zulip_status']
   # github hook is enabled so no additional change source is required
   change_sources = []
 
   [projects.arrow]
-  reporters = ['github_comment']
+  reporters = ['github_comment', 'zulip_status']
   # github hook is enabled so no additional change source is required
   change_sources = []
 
@@ -37,11 +37,6 @@ webui_port = 8010
 
   [schedulers.try]
   enabled = true
-
-[reporters]
-
-  [reporters.zulip]
-  from = 'ursabot@ursalabs.org'
 
 [[workers]]
 name = 'dgx1-1'
