@@ -35,18 +35,30 @@ class Filter:
     def __call__(self, *args, **kwargs):
         return self.fn(*args, **kwargs)
 
+    @classmethod
+    def _binop(cls, fn, other):
+        if isinstance(other, cls):
+            return cls(fn)
+        else:
+            return NotImplemented
+
     def __or__(self, other):
         def _or(*args, **kwargs):
             return self(*args, **kwargs) or other(*args, **kwargs)
+        return self._binop(_or, other)
 
-        if isinstance(other, self.__class__):
-            return Filter(_or)
-        else:
-            return NotImplemented
+    def __and__(self, other):
+        def _and(*args, **kwargs):
+            return self(*args, **kwargs) and other(*args, **kwargs)
+        return self._binop(_and, other)
 
 
 def startswith(prefix):
     return Filter(lambda s: s.startswith(prefix))
+
+
+def any_of(*args):
+    return Filter(lambda s: s in args)
 
 
 class Collection(list):

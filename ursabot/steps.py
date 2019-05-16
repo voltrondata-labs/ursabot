@@ -33,11 +33,14 @@ class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
     async def run(self):
         result = await super().run()
 
-        if self.result_file is not None:
+        if result == SUCCESS and self.result_file is not None:
             # retrieve the file's content from the worker and ensure its format
             content = await self.getFileContentFromWorker(self.result_file)
+
             # save name under `result` log
-            await self.addCompleteLog('result', text=content)
+            log = await self.addLog('result', type='t')
+            await log.addContent(content)
+            await log.finish()
 
         return result
 
