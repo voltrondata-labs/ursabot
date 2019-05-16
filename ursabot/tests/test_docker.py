@@ -3,8 +3,8 @@ from textwrap import dedent
 import pytest
 from dockermap.api import DockerFile, DockerClientWrapper
 
-from ursabot.docker import (DockerImage, ImageCollection, RUN, CMD, apk, apt,
-                            pip, conda, arrow_images)
+from ursabot.docker import DockerImage, ImageCollection, arrow_images
+from ursabot.docker import RUN, CMD, apk, apt, pip, conda
 
 
 @pytest.fixture
@@ -78,6 +78,11 @@ def test_dockerfile_dsl(image):
     assert dockerfile.strip() == expected.strip()
 
 
+def test_docker_image_hashing(collection):
+    unique_images = set(collection)
+    assert len(unique_images) == len(collection)
+
+
 def test_docker_image_save(tmp_path, image):
     target = tmp_path / f'{image.repo}.{image.tag}.dockerfile'
     image.save_dockerfile(tmp_path)
@@ -113,3 +118,33 @@ def test_arrow_images():
     dockerfiles = [img.dockerfile for img in arrow_images]
     for df in dockerfiles:
         assert isinstance(df, DockerFile)
+
+
+def test_readme_example():
+    images = ImageCollection()
+
+    miniconda = DockerImage('conda', base='continuumio/miniconda3',
+                            arch='amd64', os='debian-9')
+    pandas = DockerImage('pandas', base=miniconda, steps=[
+        RUN(conda('pandas'))
+    ])
+    pyarrow = DockerImage('pyarrow', base=miniconda, steps=[
+        RUN(conda('pyarrow'))
+    ])
+    images.extend([miniconda, pandas, pyarrow])
+
+    images.extend([
+        DockerImage(
+            name=img.name,
+            base=img,
+            tag='jupyter',
+            steps=[
+                RUN(conda('jupyter')),
+                CMD(['jupyter', 'notebook', '--ip', '0.0.0.0', '--no-browser',
+                     '--allow-root'])
+            ]
+        ) for img in images
+    ])
+
+    assert len(images) == 6
+    assert len(images.filter(name='pyarrow', tag='jupyter')) == 1
