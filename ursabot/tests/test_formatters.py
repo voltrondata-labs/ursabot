@@ -111,7 +111,7 @@ class TestBenchmarkCommentFormatter(TestFormatter):
     @ensure_deferred
     async def test_message_success(self):
         expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1): test
+        [unknown](http://localhost:8080/#builders/80/builds/1)
 
         ```diff
           ============================  ===========  ===========  ===========
@@ -131,7 +131,7 @@ class TestBenchmarkCommentFormatter(TestFormatter):
     @ensure_deferred
     async def test_message_empty_lines(self):
         expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/0): test
+        [unknown](http://localhost:8080/#builders/80/builds/0)
 
         ```diff
           ============================  ===========  ===========  ==========
