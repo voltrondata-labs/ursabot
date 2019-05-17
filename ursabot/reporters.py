@@ -270,14 +270,14 @@ class GitHubReviewPush(GitHubReporterBase):
             EXCEPTION: 'REQUEST_CHANGES',
             CANCELLED: 'REQUEST_CHANGES',
             FAILURE: 'REQUEST_CHANGES',
-            RETRY: ''
+            RETRY: 'PENDING'
         }
 
         if build['complete']:
             result = build['results']
             return events.get(result, 'REQUEST_CHANGES')
         else:
-            return ''
+            return 'PENDING'
 
     @ensure_deferred
     async def report(self, build, properties, github_params):
@@ -328,9 +328,6 @@ class GitHubCommentPush(GitHubReporterBase):
 
     @ensure_deferred
     async def report(self, build, properties, github_params):
-        if not build['complete']:
-            return
-
         payload = {
             'body': await self.formatter.render(build, master=self.master)
         }
