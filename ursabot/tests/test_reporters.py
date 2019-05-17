@@ -170,12 +170,40 @@ class TestZulipStatusPush(zulip.TestZulipStatusPush):
         self.sp.buildFinished(('build', 20, 'finished'), build)
 
 
-class DumbFormatter(Formatter):
+class DumbFormatterForStatusPush(Formatter):
+    """Formatter to conform the original test case"""
 
     layout = "{{ message }}"
 
+    def render_success(self, build, master):
+        return dict(message='Build done.')
+
+    def render_warnings(self, build, master):
+        return dict(message='Build done.')
+
+    def render_skipped(self, build, master):
+        return dict(message='Build done.')
+
+    def render_exception(self, build, master):
+        return dict(message='Build done.')
+
+    def render_cancelled(self, build, master):
+        return dict(message='Build done.')
+
+    def render_failure(self, build, master):
+        return dict(message='Build done.')
+
+    def render_retry(self, build, master):
+        return dict(message='Build started.')
+
     def render_started(self, build, master):
-        return dict(message='started')
+        return dict(message='Build started.')
+
+
+class DumbFormatterForReviewPush(Formatter):
+    """Formatter to conform the original test case"""
+
+    layout = "{{ message }}"
 
     def render_success(self, build, master):
         return dict(message='success')
@@ -198,12 +226,18 @@ class DumbFormatter(Formatter):
     def render_retry(self, build, master):
         return dict(message='retry')
 
+    def render_started(self, build, master):
+        return dict(message='started')
+
 
 class TestGitHubStatusPush(github.TestGitHubStatusPush):
 
     def setService(self):
         # test or own implementation
-        self.sp = GitHubStatusPush(token='XXYYZZ', formatter=DumbFormatter())
+        self.sp = GitHubStatusPush(
+            token='XXYYZZ',
+            formatter=DumbFormatterForStatusPush()
+        )
         return self.sp
 
 
@@ -214,14 +248,20 @@ class TestGitHubStatusPushURL(github.TestGitHubStatusPushURL):
 
     def setService(self):
         # test or own implementation
-        self.sp = GitHubStatusPush(token='XXYYZZ', formatter=DumbFormatter())
+        self.sp = GitHubStatusPush(
+            token='XXYYZZ',
+            formatter=DumbFormatterForStatusPush()
+        )
         return self.sp
 
 
 class TestGitHubReviewPush(TestGitHubStatusPush):
 
     def setService(self):
-        self.sp = GitHubReviewPush(token='XXYYZZ', formatter=DumbFormatter())
+        self.sp = GitHubReviewPush(
+            token='XXYYZZ',
+            formatter=DumbFormatterForReviewPush()
+        )
         return self.sp
 
     @ensure_deferred
@@ -279,7 +319,10 @@ class TestGitHubCommentPush(github.TestGitHubCommentPush):
 
     def setService(self):
         # test or own implementation
-        self.sp = GitHubCommentPush(token='XXYYZZ', formatter=DumbFormatter())
+        self.sp = GitHubCommentPush(
+            token='XXYYZZ',
+            formatter=DumbFormatterForReviewPush()
+        )
         return self.sp
 
     @ensure_deferred
