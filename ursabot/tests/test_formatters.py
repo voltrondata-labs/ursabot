@@ -7,12 +7,12 @@ from buildbot.reporters import utils
 from buildbot.test.fake import fakedb, fakemaster
 from buildbot.test.util.misc import TestReactorMixin
 
-from ursabot.formatters import (GitHubCommentFormatter,
+from ursabot.formatters import (Formatter, MarkdownCommentFormatter,
                                 BenchmarkCommentFormatter)
 from ursabot.utils import ensure_deferred
 
 
-class TestFormatter(TestReactorMixin, unittest.TestCase):
+class TestFormatterBase(TestReactorMixin, unittest.TestCase):
 
     def setUp(self):
         self.setUpTestReactor()
@@ -45,7 +45,7 @@ class TestFormatter(TestReactorMixin, unittest.TestCase):
                     buildid=_id, name='reason', value='because'),
             ])
 
-    async def render(self, previous, current, buildsetid=99):
+    async def render(self, previous, current, buildsetid=99, complete=True):
         self.setupDb(current, previous)
 
         buildset = await utils.getDetailsForBuildset(
@@ -56,29 +56,73 @@ class TestFormatter(TestReactorMixin, unittest.TestCase):
             wantLogs=True
         )
         build = buildset['builds'][0]
+        build['complete'] = complete
 
         formatter = self.setupFormatter()
 
         return await formatter.render(build, master=self.master)
 
 
-class TestGitHubCommentFormatter(TestFormatter):
+class TestFormatter(TestFormatterBase):
 
     def setupFormatter(self):
-        return GitHubCommentFormatter()
+        return Formatter()
+
+    @ensure_deferred
+    async def test_message_started(self):
+        content = await self.render(previous=SUCCESS, current=-1,
+                                    complete=False)
+        assert content == 'Build started.'
 
     @ensure_deferred
     async def test_message_success(self):
         content = await self.render(previous=SUCCESS, current=SUCCESS)
-        assert content == 'success'
+        assert content == 'Build succeeded.'
 
     @ensure_deferred
     async def test_message_failure(self):
         content = await self.render(previous=SUCCESS, current=FAILURE)
-        assert content == 'failure'
+        assert content == 'Build failed.'
 
 
-class TestBenchmarkCommentFormatter(TestFormatter):
+class TestMarkdownCommentFormatter(TestFormatterBase):
+
+    def setupFormatter(self):
+        return MarkdownCommentFormatter()
+
+    @ensure_deferred
+    async def test_message_started(self):
+        expected = '''
+        [unknown](http://localhost:8080/#builders/80/builds/1)
+
+        Build started.
+        '''
+        content = await self.render(previous=SUCCESS, current=-1,
+                                    complete=False)
+        assert content == textwrap.dedent(expected).strip()
+
+    @ensure_deferred
+    async def test_message_success(self):
+        expected = '''
+        [unknown](http://localhost:8080/#builders/80/builds/1)
+
+        Build succeeded.
+        '''
+        content = await self.render(previous=SUCCESS, current=SUCCESS)
+        assert content == textwrap.dedent(expected).strip()
+
+    @ensure_deferred
+    async def test_message_failure(self):
+        expected = '''
+        [unknown](http://localhost:8080/#builders/80/builds/1)
+
+        Build failed.
+        '''
+        content = await self.render(previous=SUCCESS, current=FAILURE)
+        assert content == textwrap.dedent(expected).strip()
+
+
+class TestBenchmarkCommentFormatter(TestFormatterBase):
 
     def load_fixture(self, name):
         path = Path(__file__).parent / 'fixtures' / f'{name}'
@@ -107,6 +151,16 @@ class TestBenchmarkCommentFormatter(TestFormatter):
             fakedb.LogChunk(logid=61, first_line=0, last_line=6, compressed=0,
                             content=log2)
         ])
+
+    @ensure_deferred
+    async def test_message_failure(self):
+        expected = '''
+        [unknown](http://localhost:8080/#builders/80/builds/1)
+
+        Build failed.
+        '''
+        content = await self.render(previous=SUCCESS, current=FAILURE)
+        assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
     async def test_message_success(self):

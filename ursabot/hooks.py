@@ -1,11 +1,15 @@
 from urllib.parse import urlparse
 
-from twisted.python import log
+from buildbot.util.logger import Logger
 from buildbot.www.hooks.github import GitHubEventHandler
 from buildbot.util.httpclientservice import HTTPClientService
 
 from .utils import ensure_deferred
 
+
+log = Logger()
+
+# TODO(kszucs): make it configurable
 BOTNAME = 'ursabot'
 
 
@@ -79,7 +83,7 @@ class GithubHook(GitHubEventHandler):
         client = await self._client()
         response = await client.post(url.path, json=data)
         result = await response.json()
-        log.msg(f'POST to {url} with the following result: {result}')
+        log.info(f'POST to {url} with the following result: {result}')
         return result
 
     def _parse_command(self, message):

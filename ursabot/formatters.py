@@ -4,9 +4,12 @@ import textwrap
 import jinja2
 import toolz
 from tabulate import tabulate
-from twisted.python import log
+from buildbot.util.logger import Logger
 from buildbot.reporters import utils
 from buildbot.process.results import Results
+
+
+log = Logger()
 
 
 class Formatter:
@@ -20,7 +23,8 @@ class Formatter:
         variables passed to the layout
     """
 
-    layout = None
+    # TODO(kszucs): support pathlib.Path object for layouts
+    layout = "{{ message }}"
     context = {}
 
     def __init__(self, layout=None, context=None):
@@ -62,71 +66,44 @@ class Formatter:
         master : buildbot master, default None
             Master instance, can be used for further database querying.
         """
-        result = Results[build['results']]
-        method = getattr(self, f'render_{result}')
-        default_context = self.default_context(build, master)
-
-        try:
-            context = method(build, master)
-        except NotImplementedError:
-            raise ValueError(
-                f'Not implemented formatter for result `{result}`'
-            )
+        if build['complete']:
+            result = Results[build['results']]
+            method = getattr(self, f'render_{result}')
         else:
-            context = toolz.merge(context, default_context)
+            method = self.render_started
+
+        default = self.default_context(build, master)
+        context = method(build, master)
+        context = toolz.merge(context, default)
 
         return self.layout.render(**context)
 
-    def render_success(self, build, master):
-        raise NotImplementedError()
-
-    def render_warnings(self, build, master):
-        raise NotImplementedError()
-
-    def render_skipped(self, build, master):
-        raise NotImplementedError()
-
-    def render_exception(self, build, master):
-        raise NotImplementedError()
-
-    def render_cancelled(self, build, master):
-        raise NotImplementedError()
-
-    def render_failure(self, build, master):
-        raise NotImplementedError()
-
-    def render_retry(self, build, master):
-        raise NotImplementedError()
-
-
-class GitHubCommentFormatter(Formatter):
-
-    # TODO(kszucs): support pathlib.Path object for layouts
-    layout = "{{ message }}"
+    def render_started(self, build, master):
+        return dict(message='Build started.')
 
     def render_success(self, build, master):
-        return dict(message='success')
+        return dict(message='Build succeeded.')
 
     def render_warnings(self, build, master):
-        return dict(message='warnings')
+        return dict(message='Build has warnings.')
 
     def render_skipped(self, build, master):
-        return dict(message='skipped')
+        return dict(message='Build skipped.')
 
     def render_exception(self, build, master):
-        return dict(message='exception')
+        return dict(message='Build failed with an exception.')
 
     def render_cancelled(self, build, master):
-        return dict(message='cancelled')
+        return dict(message='Build has been cancelled.')
 
     def render_failure(self, build, master):
-        return dict(message='failure')
+        return dict(message='Build failed.')
 
     def render_retry(self, build, master):
-        return dict(message='retry')
+        return dict(message='Build is retried.')
 
 
-class BenchmarkCommentFormatter(GitHubCommentFormatter):
+class MarkdownCommentFormatter(Formatter):
 
     # TODO(kszucs): support pathlib.Path object for layouts
     layout = textwrap.dedent("""
@@ -134,6 +111,9 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
 
         {{ message }}
     """).strip()
+
+
+class BenchmarkCommentFormatter(MarkdownCommentFormatter):
 
     def _extract_result_logs(self, build):
         results = {}
@@ -175,7 +155,7 @@ class BenchmarkCommentFormatter(GitHubCommentFormatter):
             tables = toolz.valmap(self._render_table, results)
         except Exception as e:
             # TODO(kszucs): nicer message
-            log.err(e)
+            log.error(e)
             raise
 
         message = '\n\n'.join(tables.values())
