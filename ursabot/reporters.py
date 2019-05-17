@@ -2,11 +2,10 @@ import re
 import collections
 
 from buildbot import config
-from buildbot.plugins import reporters
 from buildbot.util.logger import Logger
 from buildbot.util.giturlparse import giturlparse
 from buildbot.util.httpclientservice import HTTPClientService
-from buildbot.reporters.http import HttpStatusPushBase
+from buildbot.reporters import http, zulip
 from buildbot.process.properties import Properties, Interpolate
 from buildbot.process.results import (Results, CANCELLED, EXCEPTION, FAILURE,
                                       RETRY, SKIPPED, SUCCESS, WARNINGS)
@@ -22,7 +21,7 @@ log = Logger()
 _statuses = frozenset(['started'] + Results)
 
 
-class HttpStatusPush(HttpStatusPushBase):
+class HttpStatusPush(http.HttpStatusPushBase):
     """Makes possible to configure whether to send reports on started builds"""
 
     def __init__(self, *args, builders=None, **kwargs):
@@ -61,7 +60,7 @@ class HttpStatusPush(HttpStatusPushBase):
         return super().filterBuilds(build)
 
 
-class ZulipStatusPush(reporters.ZulipStatusPush, HttpStatusPush):
+class ZulipStatusPush(zulip.ZulipStatusPush, HttpStatusPush):
     pass
 
 
@@ -324,8 +323,8 @@ class GitHubCommentPush(GitHubReporterBase):
 
     @ensure_deferred
     async def reconfigService(self, formatter=None, **kwargs):
-        self.formatter = formatter or MarkdownCommentFormatter()
         await super().reconfigService(**kwargs)
+        self.formatter = formatter or MarkdownCommentFormatter()
 
     @ensure_deferred
     async def report(self, build, properties, github_params):

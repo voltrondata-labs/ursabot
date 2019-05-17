@@ -15,6 +15,7 @@ from buildbot.test.unit import test_reporter_zulip as zulip
 from ursabot.reporters import (HttpStatusPush, ZulipStatusPush,
                                GitHubStatusPush, GitHubReviewPush,
                                GitHubCommentPush)
+from ursabot.formatters import Formatter
 from ursabot.utils import ensure_deferred
 
 
@@ -162,17 +163,47 @@ class TestZulipStatusPush(zulip.TestZulipStatusPush):
                 'project': 'testProject',
                 'timestamp': 1554161923,
                 'results': FAILURE
-            })
+            }
+        )
         self.sp.buildFinished(('build', 20, 'finished'), build)
         build['results'] = FAILURE
         self.sp.buildFinished(('build', 20, 'finished'), build)
+
+
+class DumbFormatter(Formatter):
+
+    layout = "{{ message }}"
+
+    def render_started(self, build, master):
+        return dict(message='started')
+
+    def render_success(self, build, master):
+        return dict(message='success')
+
+    def render_warnings(self, build, master):
+        return dict(message='warnings')
+
+    def render_skipped(self, build, master):
+        return dict(message='skipped')
+
+    def render_exception(self, build, master):
+        return dict(message='exception')
+
+    def render_cancelled(self, build, master):
+        return dict(message='cancelled')
+
+    def render_failure(self, build, master):
+        return dict(message='failure')
+
+    def render_retry(self, build, master):
+        return dict(message='retry')
 
 
 class TestGitHubStatusPush(github.TestGitHubStatusPush):
 
     def setService(self):
         # test or own implementation
-        self.sp = GitHubStatusPush(token='XXYYZZ')
+        self.sp = GitHubStatusPush(token='XXYYZZ', formatter=DumbFormatter())
         return self.sp
 
 
@@ -183,14 +214,14 @@ class TestGitHubStatusPushURL(github.TestGitHubStatusPushURL):
 
     def setService(self):
         # test or own implementation
-        self.sp = GitHubStatusPush(token='XXYYZZ')
+        self.sp = GitHubStatusPush(token='XXYYZZ', formatter=DumbFormatter())
         return self.sp
 
 
 class TestGitHubReviewPush(TestGitHubStatusPush):
 
     def setService(self):
-        self.sp = GitHubReviewPush(token='XXYYZZ')
+        self.sp = GitHubReviewPush(token='XXYYZZ', formatter=DumbFormatter())
         return self.sp
 
     @ensure_deferred
@@ -202,7 +233,8 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
             '/repos/buildbot/buildbot/pulls/34/reviews',
             json={
                 'event': '',
-                'commit_id': 'd34db33fd43db33f'
+                'commit_id': 'd34db33fd43db33f',
+                'body': 'started'
             }
         )
         self._http.expect(
@@ -210,7 +242,8 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
             '/repos/buildbot/buildbot/pulls/34/reviews',
             json={
                 'event': 'APPROVE',
-                'commit_id': 'd34db33fd43db33f'
+                'commit_id': 'd34db33fd43db33f',
+                'body': 'success'
             }
         )
         self._http.expect(
@@ -218,7 +251,8 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
             '/repos/buildbot/buildbot/pulls/34/reviews',
             json={
                 'event': 'REQUEST_CHANGES',
-                'commit_id': 'd34db33fd43db33f'
+                'commit_id': 'd34db33fd43db33f',
+                'body': 'failure'
             }
         )
         self._http.expect(
@@ -226,7 +260,8 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
             '/repos/buildbot/buildbot/pulls/34/reviews',
             json={
                 'event': 'REQUEST_CHANGES',
-                'commit_id': 'd34db33fd43db33f'
+                'commit_id': 'd34db33fd43db33f',
+                'body': 'exception'
             }
         )
 
@@ -244,7 +279,7 @@ class TestGitHubCommentPush(github.TestGitHubCommentPush):
 
     def setService(self):
         # test or own implementation
-        self.sp = GitHubCommentPush(token='XXYYZZ')
+        self.sp = GitHubCommentPush(token='XXYYZZ', formatter=DumbFormatter())
         return self.sp
 
     @ensure_deferred
@@ -254,11 +289,13 @@ class TestGitHubCommentPush(github.TestGitHubCommentPush):
         self._http.expect(
             'post',
             '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'success'})
+            json={'body': 'success'}
+        )
         self._http.expect(
             'post',
             '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'failure'})
+            json={'body': 'failure'}
+        )
 
         build['complete'] = False
         self.sp.buildStarted(('build', 20, 'started'), build)
