@@ -22,7 +22,7 @@ log = Logger()
 _statuses = frozenset(['started'] + Results)
 
 
-class HttpReporterBase(HttpStatusPushBase):
+class HttpStatusPush(HttpStatusPushBase):
     """Makes possible to configure whether to send reports on started builds"""
 
     def __init__(self, *args, builders=None, **kwargs):
@@ -61,14 +61,14 @@ class HttpReporterBase(HttpStatusPushBase):
         return super().filterBuilds(build)
 
 
-class ZulipStatusPush(reporters.ZulipStatusPush, HttpReporterBase):
+class ZulipStatusPush(reporters.ZulipStatusPush, HttpStatusPush):
     pass
 
 
 # TODO(kszucs): buildset handling is not yet implemented in HttpStatusPush,
 # so We can only handle single builds. We need to fetch and group builds to
 # buildsets manually on long term.
-class GitHubReporterBase(HttpReporterBase):
+class GitHubReporterBase(HttpStatusPush):
     """Base class for reporters interacting with GitHub's API"""
 
     neededDetails = dict(

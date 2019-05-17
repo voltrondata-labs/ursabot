@@ -12,14 +12,13 @@ from buildbot.test.util.reporter import ReporterTestMixin
 from buildbot.test.unit import test_reporter_github as github
 from buildbot.test.unit import test_reporter_zulip as zulip
 
-from ursabot.reporters import (HttpReporterBase, ZulipStatusPush,
+from ursabot.reporters import (HttpStatusPush, ZulipStatusPush,
                                GitHubStatusPush, GitHubReviewPush,
                                GitHubCommentPush)
 from ursabot.utils import ensure_deferred
 
 
-class TestHttpReporterBase(unittest.TestCase, TestReactorMixin,
-                           ReporterTestMixin):
+class TestHttpReporter(unittest.TestCase, TestReactorMixin, ReporterTestMixin):
 
     @ensure_deferred
     async def setUp(self):
@@ -31,7 +30,7 @@ class TestHttpReporterBase(unittest.TestCase, TestReactorMixin,
             return self.master.stopService()
 
     async def setService(self, **kwargs):
-        self.sp = HttpReporterBase(name='test', **kwargs)
+        self.sp = HttpStatusPush(name='test', **kwargs)
         await self.sp.setServiceParent(self.master)
         await self.master.startService()
         return self.sp
