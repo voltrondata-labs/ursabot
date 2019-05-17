@@ -1,44 +1,88 @@
 import re
+import collections
 
-from twisted.python import log
-from buildbot.plugins import reporters
-from buildbot.reporters import http
+from buildbot import config
+from buildbot.util.logger import Logger
 from buildbot.util.giturlparse import giturlparse
 from buildbot.util.httpclientservice import HTTPClientService
+from buildbot.reporters import http, zulip
 from buildbot.process.properties import Properties, Interpolate
-from buildbot.process.results import (CANCELLED, EXCEPTION, FAILURE, RETRY,
-                                      SKIPPED, SUCCESS, WARNINGS)
+from buildbot.process.results import (Results, CANCELLED, EXCEPTION, FAILURE,
+                                      RETRY, SKIPPED, SUCCESS, WARNINGS)
 
 from .utils import ensure_deferred
-from .formatters import GitHubCommentFormatter
+from .formatters import Formatter, MarkdownCommentFormatter
 
 
-class ZulipStatusPush(reporters.ZulipStatusPush):
+log = Logger()
+
+# `started` doesn't belong to results
+# a build is started if build[complete] is False
+_statuses = frozenset(['started'] + Results)
+
+
+class HttpStatusPush(http.HttpStatusPushBase):
+    """Makes possible to configure whether to send reports on started builds"""
 
     def __init__(self, *args, builders=None, **kwargs):
         if builders is not None:
             kwargs['builders'] = [b.name for b in builders]
         super().__init__(*args, **kwargs)
 
+    def checkConfig(self, report_on=None, dont_report_on=None, **kwargs):
+        args = [('report_on', report_on),
+                ('dont_report_on', dont_report_on)]
+        for name, value in args:
+            if value is None:
+                continue
+            elif not isinstance(value, collections.abc.Set):
+                config.error(f'`{name}` argument must be a set')
+            elif not value.issubset(_statuses):
+                invalids = value - _statuses
+                config.error(f'`{name}` contains invalid elements: {invalids}')
+
+        if report_on and dont_report_on:
+            config.error('Ambiguously both `report_on` and `dont_report_on` '
+                         'are defined, please pass either `report_on` or '
+                         '`dont_report_on`')
+
+        super().checkConfig(**kwargs)
+
+    @ensure_deferred
+    def reconfigService(self, report_on=None, dont_report_on=None, **kwargs):
+        self.report_on = (report_on or _statuses) - (dont_report_on or set())
+        yield super().reconfigService()
+
+    def filterBuilds(self, build):
+        status = Results[build['results']] if build['complete'] else 'started'
+        if status not in self.report_on:
+            return False
+        return super().filterBuilds(build)
+
+
+class ZulipStatusPush(zulip.ZulipStatusPush, HttpStatusPush):
+    pass
+
 
 # TODO(kszucs): buildset handling is not yet implemented in HttpStatusPush,
 # so We can only handle single builds. We need to fetch and group builds to
 # buildsets manually on long term.
-class GitHubReporterBase(http.HttpStatusPushBase):
+class GitHubReporterBase(HttpStatusPush):
     """Base class for reporters interacting with GitHub's API"""
 
     neededDetails = dict(
         wantProperties=True
     )
 
-    def __init__(self, *args, builders=None, **kwargs):
-        if builders is not None:
-            kwargs['builders'] = [b.name for b in builders]
-        return super().__init__(*args, **kwargs)
+    def checkConfig(self, formatter=None, **kwargs):
+        if not isinstance(formatter, (type(None), Formatter)):
+            config.error('`formatter` must be an instance of '
+                         'ursabot.formatters.Formatter')
+        super().checkConfig(**kwargs)
 
     @ensure_deferred
     async def reconfigService(self, token, baseURL=None, verbose=False,
-                              **kwargs):
+                              formatter=None, **kwargs):
         await super().reconfigService(**kwargs)
 
         # support for self-hosted github enterprise
@@ -61,6 +105,7 @@ class GitHubReporterBase(http.HttpStatusPushBase):
             verify=self.verify
         )
         self.verbose = verbose
+        self.formatter = formatter or Formatter()
 
     def _github_params(self, sourcestamp, branch=None):
         """Parses parameters required to by github"""
@@ -114,7 +159,7 @@ class GitHubReporterBase(http.HttpStatusPushBase):
             repo = github_params['repo']
 
             if self.verbose:
-                log.msg(
+                log.info(
                     f'Triggering {cls}.report() for repository {repo}, '
                     f'builder {builder_name}, build number {build_number}'
                 )
@@ -122,7 +167,7 @@ class GitHubReporterBase(http.HttpStatusPushBase):
             try:
                 response = await self.report(build, properties, github_params)
             except Exception as e:
-                log.err(e)
+                log.error(e)
                 raise e
 
             # report() can return None to skip reporting
@@ -137,11 +182,11 @@ class GitHubReporterBase(http.HttpStatusPushBase):
                     f'number {build_number} with error code {response.code} '
                     f'and response "{content}"'
                 )
-                log.err(e)
+                log.error(e)
                 raise e
 
             if self.verbose:
-                log.msg(
+                log.info(
                     f'Successful report {cls}.report() for repository {repo}, '
                     f'builder {builder_name}, build number {build_number}'
                 )
@@ -187,15 +232,11 @@ class GitHubStatusPush(GitHubReporterBase):
 
     @ensure_deferred
     async def report(self, build, properties, github_params):
-        state = self._state_for(build)
-        context = await properties.render(self.context)
-        description = 'Build started.' if state == 'pending' else 'Build done.'
-
         payload = {
-            'state': state,
-            'context': context,
-            'description': description,
-            'target_url': build['url']
+            'target_url': build['url'],
+            'state': self._state_for(build),
+            'context': await properties.render(self.context),
+            'description': await self.formatter.render(build, self.master)
         }
         urlpath = '/'.join([
             '/repos',
@@ -205,7 +246,7 @@ class GitHubStatusPush(GitHubReporterBase):
             github_params['sha']
         ])
         if self.verbose:
-            log.msg(f'Invoking {urlpath} with payload: {payload}')
+            log.info(f'Invoking {urlpath} with payload: {payload}')
 
         return await self._http.post(urlpath, json=payload)
 
@@ -246,8 +287,9 @@ class GitHubReviewPush(GitHubReporterBase):
                              github_params['branch'])
 
         payload = {
+            'commit_id': github_params['sha'],
             'event': self._event_for(build),
-            'commit_id': github_params['sha']
+            'body': await self.formatter.render(build, master=self.master)
         }
         urlpath = '/'.join([
             '/repos',
@@ -258,7 +300,7 @@ class GitHubReviewPush(GitHubReporterBase):
             'reviews'
         ])
         if self.verbose:
-            log.msg(f'Invoking {urlpath} with payload: {payload}')
+            log.info(f'Invoking {urlpath} with payload: {payload}')
 
         return await self._http.post(urlpath, json=payload)
 
@@ -282,7 +324,7 @@ class GitHubCommentPush(GitHubReporterBase):
     @ensure_deferred
     async def reconfigService(self, formatter=None, **kwargs):
         await super().reconfigService(**kwargs)
-        self.formatter = formatter or GitHubCommentFormatter()
+        self.formatter = formatter or MarkdownCommentFormatter()
 
     @ensure_deferred
     async def report(self, build, properties, github_params):
