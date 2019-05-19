@@ -4,7 +4,7 @@ webui_port = 8010
 [projects]
 
   [projects.ursabot]
-  reporters = ['github_status', 'zulip_status']
+  reporters = ['github_status']
   # github hook is enabled so no additional change source is required
   change_sources = []
 

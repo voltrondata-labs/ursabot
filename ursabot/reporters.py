@@ -26,7 +26,16 @@ class HttpStatusPush(http.HttpStatusPushBase):
 
     def __init__(self, *args, builders=None, **kwargs):
         if builders is not None:
-            kwargs['builders'] = [b.name for b in builders]
+            builder_names = []
+            for b in builders:
+                if isinstance(b, config.BuilderConfig):
+                    builder_names.append(b.name)
+                elif isinstance(b, str):
+                    builder_names.append(b)
+                else:
+                    config.error('`builders` must be a list of strings or '
+                                 'a list of BuilderConfig objects')
+            kwargs['builders'] = builder_names
         super().__init__(*args, **kwargs)
 
     def checkConfig(self, report_on=None, dont_report_on=None, **kwargs):
@@ -49,9 +58,10 @@ class HttpStatusPush(http.HttpStatusPushBase):
         super().checkConfig(**kwargs)
 
     @ensure_deferred
-    def reconfigService(self, report_on=None, dont_report_on=None, **kwargs):
+    async def reconfigService(self, report_on=None, dont_report_on=None,
+                              **kwargs):
         self.report_on = (report_on or _statuses) - (dont_report_on or set())
-        yield super().reconfigService()
+        await super().reconfigService(**kwargs)
 
     def filterBuilds(self, build):
         status = Results[build['results']] if build['complete'] else 'started'

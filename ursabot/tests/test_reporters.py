@@ -19,7 +19,8 @@ from ursabot.formatters import Formatter
 from ursabot.utils import ensure_deferred
 
 
-class TestHttpReporter(unittest.TestCase, TestReactorMixin, ReporterTestMixin):
+class TestHttpStatusPush(unittest.TestCase, TestReactorMixin,
+                         ReporterTestMixin):
 
     @ensure_deferred
     async def setUp(self):
@@ -39,7 +40,9 @@ class TestHttpReporter(unittest.TestCase, TestReactorMixin, ReporterTestMixin):
     async def setupBuildResults(self, build_results, complete=True):
         self.insertTestData([build_results], build_results)
         build = await self.master.data.get(('builds', 20))
-        build['complete'] = complete  # complete flag is not handled...
+        builder = await self.master.data.get(('builders', build['builderid']))
+        build['builder'] = builder
+        build['complete'] = complete
         return build
 
     async def check_report_on(self, whitelist, blacklist, expected):
@@ -117,6 +120,30 @@ class TestHttpReporter(unittest.TestCase, TestReactorMixin, ReporterTestMixin):
                 expected={}
             )
 
+    @ensure_deferred
+    async def test_filter_builds_with_undefined_builders(self):
+        reporter = await self.setService(builders=None)
+        build = await self.setupBuildResults(SUCCESS, complete=True)
+        assert reporter.filterBuilds(build)
+
+    @ensure_deferred
+    async def test_filter_builds_with_empty_list_of_builders(self):
+        reporter = await self.setService(builders=[])
+        build = await self.setupBuildResults(SUCCESS, complete=True)
+        assert not reporter.filterBuilds(build)
+
+    @ensure_deferred
+    async def test_filter_builds_should_report_on_builder(self):
+        reporter = await self.setService(builders=['Builder0'])
+        build = await self.setupBuildResults(SUCCESS, complete=True)
+        assert reporter.filterBuilds(build)
+
+    @ensure_deferred
+    async def test_filter_builds_should_not_report_on_builder(self):
+        reporter = await self.setService(builders=['Builder1'])
+        build = await self.setupBuildResults(SUCCESS, complete=True)
+        assert not reporter.filterBuilds(build)
+
 
 class TestZulipStatusPush(zulip.TestZulipStatusPush):
 
@@ -135,6 +162,12 @@ class TestZulipStatusPush(zulip.TestZulipStatusPush):
     async def setupBuildResults(self, result=SUCCESS):
         self.insertTestData([result], result)
         return await self.master.data.get(('builds', 20))
+
+    @ensure_deferred
+    async def test_filter_builders(self):
+        await self.setupZulipStatusPush(stream='xyz', builders=['Builder1'])
+        build = await self.setupBuildResults(SUCCESS)
+        self.sp.buildStarted(('build', 20, 'new'), build)
 
     @ensure_deferred
     async def test_dont_report_build_started(self):
