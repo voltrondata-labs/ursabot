@@ -272,7 +272,7 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
             'post',
             '/repos/buildbot/buildbot/pulls/34/reviews',
             json={
-                'event': '',
+                'event': 'PENDING',
                 'commit_id': 'd34db33fd43db33f',
                 'body': 'started'
             }
@@ -329,6 +329,11 @@ class TestGitHubCommentPush(github.TestGitHubCommentPush):
     async def test_basic(self):
         build = await self.setupBuildResults(SUCCESS)
 
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/issues/34/comments',
+            json={'body': 'started'}
+        )
         self._http.expect(
             'post',
             '/repos/buildbot/buildbot/issues/34/comments',
