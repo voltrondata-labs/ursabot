@@ -315,14 +315,14 @@ arrow_images = ImageCollection()
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
-    for version in ['16.04', '18.04']:
-        basetitle = f'{arch.upper()} Ubuntu {version}'
+    for ubuntu_version in ['16.04', '18.04']:
+        basetitle = f'{arch.upper()} Ubuntu {ubuntu_version}'
 
         cpp = DockerImage(
             name='cpp',
-            base=f'{arch}/ubuntu:{version}',
+            base=f'{arch}/ubuntu:{ubuntu_version}',
             arch=arch,
-            os=f'ubuntu-{version}',
+            os=f'ubuntu-{ubuntu_version}',
             org='ursalab',
             title=f'{basetitle} C++',
             steps=[
@@ -338,7 +338,7 @@ for arch in ['amd64', 'arm64v8']:
         )
         arrow_images.extend([cpp, python])
 
-        if version in {'18.04'}:
+        if ubuntu_version in {'18.04'}:
             cpp_benchmark = DockerImage(
                 name='cpp-benchmark',
                 base=cpp,
@@ -351,14 +351,14 @@ for arch in ['amd64', 'arm64v8']:
             arrow_images.append(cpp_benchmark)
 
     # ALPINE
-    for version in ['3.9']:
-        basetitle = f'{arch.upper()} Alpine {version}'
+    for alpine_version in ['3.9']:
+        basetitle = f'{arch.upper()} Alpine {alpine_version}'
 
         cpp = DockerImage(
             name='cpp',
-            base=f'{arch}/alpine:{version}',
+            base=f'{arch}/alpine:{alpine_version}',
             arch=arch,
-            os=f'alpine-{version}',
+            os=f'alpine-{alpine_version}',
             title=f'{basetitle} C++',
             org='ursalab',
             steps=[
@@ -411,17 +411,44 @@ for arch in ['amd64']:
     )
     arrow_images.extend([cpp, cpp_benchmark])
 
-    for pyversion in ['2.7', '3.6', '3.7']:
+    for python_version in ['2.7', '3.6', '3.7']:
         python = DockerImage(
-            name=f'python-{pyversion}',
+            name=f'python-{python_version}',
             base=cpp,
-            title=f'{basetitle} Python {pyversion}',
+            title=f'{basetitle} Python {python_version}',
             steps=[
                 ADD(docker_assets / 'conda-python.txt'),
-                RUN(conda(f'python={pyversion}', files=['conda-python.txt']))
+                RUN(conda(f'python={python_version}',
+                          files=['conda-python.txt']))
             ]
         )
         arrow_images.append(python)
+
+# CUDA
+for arch in ['amd64']:
+    for toolkit_version in {'10.1'}:
+        basetitle = f'{arch.upper()} CUDA {toolkit_version}'
+
+        cpp = DockerImage(
+            name='cpp',
+            base=f'nvidia/cuda:{toolkit_version}-devel-ubuntu18.04',
+            arch=arch,
+            os=f'ubuntu-18.04',
+            org='ursalab',
+            variant='cuda',
+            title=f'{basetitle} C++',
+            steps=[
+                RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
+                RUN(symlink(python_symlinks))
+            ]
+        )
+        python = DockerImage(
+            name='python-3',
+            base=cpp,
+            title=f'{basetitle} Python 3',
+            steps=python_steps
+        )
+        arrow_images.extend([cpp, python])
 
 
 # none of the above images are usable as buildbot workers until We install,

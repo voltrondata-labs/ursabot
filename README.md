@@ -97,6 +97,14 @@ To build and push Arrow `amd64` `conda` images:
 ursabot --verbose docker --arch amd64 --variant conda build --push
 ```
 
+To build and push Arrow `arm64v8` `alpine` images:
+
+```bash
+ursabot --verbose \
+  docker --docker-host tcp://arm-machine:2375 --arch arm64v8 --os alpine-3.9
+  build --push
+```
+
 ## Development
 
 Buildbot doesn't distribute its testing suite with binary wheels, so it must
