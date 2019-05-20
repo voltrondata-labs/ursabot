@@ -7,6 +7,7 @@ flex
 g++
 gcc
 git
+grep
 gzip
 make
 musl-dev

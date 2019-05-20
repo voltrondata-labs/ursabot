@@ -214,6 +214,12 @@ class Ninja(ShellCommand):
     command = ['ninja']
 
 
+class CTest(ShellCommand):
+    name = 'CTest'
+    command = ['ctest']
+    args = ['--verbose']
+
+
 class SetupPy(ShellCommand):
     name = 'Setup.py'
     command = ['python', 'setup.py']
