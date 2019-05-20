@@ -453,6 +453,12 @@ class ArrowPythonTest(DockerBuilder):
 
 class ArrowCppCondaTest(DockerBuilder):
     tags = ['arrow', 'cpp']
+    properties = {
+        'ARROW_FLIGHT': 'ON',
+        'ARROW_PLASMA': 'ON',
+        'ARROW_PARQUET': 'ON',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
     steps = [
         SetPropertiesFromEnv({
             'CMAKE_AR': 'AR',
@@ -476,8 +482,10 @@ class ArrowCppCondaTest(DockerBuilder):
 class ArrowPythonCondaTest(DockerBuilder):
     tags = ['arrow', 'python']
     properties = {
+        'ARROW_FLIGHT': 'ON',
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',
+        'ARROW_PARQUET': 'ON',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     steps = [
