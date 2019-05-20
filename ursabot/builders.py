@@ -75,10 +75,9 @@ class Builder(util.BuilderConfig):
                                          self.default_properties or {})
         workernames = None if workers is None else [w.name for w in workers]
 
-        return super().__init__(name=name, tags=tags, properties=properties,
-                                defaultProperties=default_properties, env=env,
-                                workernames=workernames, factory=factory,
-                                **kwargs)
+        super().__init__(name=name, tags=tags, properties=properties,
+                         defaultProperties=default_properties, env=env,
+                         workernames=workernames, factory=factory, **kwargs)
 
     @classmethod
     def _generate_name(cls, prefix=None, slug=True, ids=True, codename=None):
@@ -283,6 +282,9 @@ definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 ld_library_path = util.Interpolate(
     '%(prop:CMAKE_INSTALL_PREFIX)s/%(prop:CMAKE_INSTALL_LIBDIR)s'
 )
+parquet_test_data_path = util.Interpolate(
+    '%(prop:builddir)s/cpp/submodules/parquet-testing/data'
+)
 
 cpp_mkdir = Mkdir(dir='cpp/build', name='Create C++ build directory')
 cpp_cmake = CMake(
@@ -463,7 +465,7 @@ class ArrowCppCondaTest(DockerBuilder):
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     env = {
-        'PARQUET_TEST_DATA': 'cpp/submodules/parquet-testing/data'
+        'PARQUET_TEST_DATA': parquet_test_data_path
     }
     steps = [
         SetPropertiesFromEnv({
@@ -495,7 +497,7 @@ class ArrowPythonCondaTest(DockerBuilder):
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     env = {
-        'PARQUET_TEST_DATA': 'cpp/submodules/parquet-testing/data'
+        'PARQUET_TEST_DATA': parquet_test_data_path
     }
     steps = [
         SetPropertiesFromEnv({
