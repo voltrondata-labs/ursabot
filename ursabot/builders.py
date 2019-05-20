@@ -355,6 +355,7 @@ class ArrowCppTest(DockerBuilder):
     tags = ['arrow', 'cpp']
     properties = {
         'ARROW_PLASMA': 'ON',
+        'ARROW_PARQUET': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }

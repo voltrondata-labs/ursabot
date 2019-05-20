@@ -10,3 +10,4 @@ libboost-regex-dev
 libboost-system-dev
 libzstd1-dev
 ninja-build
+thrift-compiler
