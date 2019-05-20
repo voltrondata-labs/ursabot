@@ -217,7 +217,6 @@ class Ninja(ShellCommand):
 class CTest(ShellCommand):
     name = 'CTest'
     command = ['ctest']
-    args = ['--verbose']
 
 
 class SetupPy(ShellCommand):
@@ -242,3 +241,4 @@ GitHub = steps.GitHub
 class Archery(ResultLogMixin, ShellCommand):
     name = 'Archery'
     command = ['archery']
+    env = dict(LC_ALL='C.UTF-8', LANG='C.UTF-8')  # required for click

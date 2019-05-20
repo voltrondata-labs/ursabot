@@ -426,7 +426,7 @@ for arch in ['amd64']:
 
 # CUDA
 for arch in ['amd64']:
-    for toolkit_version in {'10.1'}:
+    for toolkit_version in ['10.1']:
         basetitle = f'{arch.upper()} CUDA {toolkit_version}'
 
         cpp = DockerImage(
@@ -455,7 +455,6 @@ for arch in ['amd64']:
 # configure and set it as the command of the docker image
 worker_command = 'twistd --pidfile= -ny buildbot.tac'
 worker_steps = [
-    ENV(LC_ALL='C.UTF-8', LANG='C.UTF-8'),
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
     ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),

@@ -170,7 +170,7 @@ definitions = {
     # Build the Arrow Compute Modules
     'ARROW_COMPUTE': 'ON',
     # Build the Arrow CUDA extensions (requires CUDA toolkit)
-    # 'ARROW_CUDA': 'OFF',
+    'ARROW_CUDA': 'OFF',
     # Compiler flags to append when compiling Arrow
     # 'ARROW_CXXFLAGS': '',
     # Compile with extra error context (line numbers, code)
@@ -375,6 +375,22 @@ class ArrowCppTest(DockerBuilder):
             variant=None,  # plain linux images, not conda
             tag='worker'
         )
+    )
+
+
+class ArrowCppCudaTest(ArrowCppTest):
+    tags = ['arrow', 'cpp', 'cuda']
+    properties = {
+        'ARROW_CUDA': 'ON',
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_PREFIX': '/usr/local',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    images = arrow_images.filter(
+        name='cpp',
+        arch='amd64',
+        variant='cuda',
+        tag='worker'
     )
 
 
