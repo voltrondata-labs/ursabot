@@ -34,6 +34,8 @@ class Builder(util.BuilderConfig):
 
     # used for generating unique default names
     _ids = defaultdict(itertools.count)
+    # merged with env argument
+    env = None
     # concatenated to tags constructor argument
     tags = tuple()
     # default for steps argument so it gets overwritten if steps is passed
@@ -46,7 +48,7 @@ class Builder(util.BuilderConfig):
     default_properties = None
 
     def __init__(self, name=None, steps=None, factory=None, workers=None,
-                 tags=None, properties=None, default_properties=None,
+                 tags=None, properties=None, default_properties=None, env=None,
                  **kwargs):
         if isinstance(steps, (list, tuple)):
             # replace the class' steps
@@ -67,15 +69,15 @@ class Builder(util.BuilderConfig):
         if self.name_prefix:
             name = f'{self.name_prefix} {name}'
         factory = factory or BuildFactory(steps)
+        env = toolz.merge(env or {}, self.env or {})
         properties = toolz.merge(properties or {}, self.properties or {})
         default_properties = toolz.merge(default_properties or {},
                                          self.default_properties or {})
         workernames = None if workers is None else [w.name for w in workers]
 
-        return super().__init__(name=name, tags=tags, properties=properties,
-                                defaultProperties=default_properties,
-                                workernames=workernames, factory=factory,
-                                **kwargs)
+        super().__init__(name=name, tags=tags, properties=properties,
+                         defaultProperties=default_properties, env=env,
+                         workernames=workernames, factory=factory, **kwargs)
 
     @classmethod
     def _generate_name(cls, prefix=None, slug=True, ids=True, codename=None):
@@ -280,6 +282,9 @@ definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 ld_library_path = util.Interpolate(
     '%(prop:CMAKE_INSTALL_PREFIX)s/%(prop:CMAKE_INSTALL_LIBDIR)s'
 )
+parquet_test_data_path = util.Interpolate(
+    '%(prop:builddir)s/cpp/submodules/parquet-testing/data'
+)
 
 cpp_mkdir = Mkdir(dir='cpp/build', name='Create C++ build directory')
 cpp_cmake = CMake(
@@ -453,6 +458,15 @@ class ArrowPythonTest(DockerBuilder):
 
 class ArrowCppCondaTest(DockerBuilder):
     tags = ['arrow', 'cpp']
+    properties = {
+        'ARROW_FLIGHT': 'ON',
+        'ARROW_PLASMA': 'ON',
+        'ARROW_PARQUET': 'ON',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    env = {
+        'PARQUET_TEST_DATA': parquet_test_data_path
+    }
     steps = [
         SetPropertiesFromEnv({
             'CMAKE_AR': 'AR',
@@ -476,9 +490,14 @@ class ArrowCppCondaTest(DockerBuilder):
 class ArrowPythonCondaTest(DockerBuilder):
     tags = ['arrow', 'python']
     properties = {
+        'ARROW_FLIGHT': 'ON',
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',
+        'ARROW_PARQUET': 'ON',
         'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    env = {
+        'PARQUET_TEST_DATA': parquet_test_data_path
     }
     steps = [
         SetPropertiesFromEnv({
