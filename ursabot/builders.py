@@ -10,7 +10,8 @@ from codenamize import codenamize
 
 from .docker import DockerImage, arrow_images, ursabot_images
 from .steps import (ShellCommand, SetPropertiesFromEnv,
-                    Ninja, SetupPy, CMake, PyTest, Mkdir, Pip, GitHub, Archery)
+                    Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
+                    Archery)
 from .utils import startswith, slugify
 
 
@@ -202,7 +203,7 @@ definitions = {
     # Build the Arrow IPC extensions
     # 'ARROW_IPC': 'ON',
     # Build the Arrow jemalloc-based allocator
-    'ARROW_JEMALLOC': 'ON',
+    # 'ARROW_JEMALLOC': 'ON',
     # Exclude deprecated APIs from build
     # 'ARROW_NO_DEPRECATED_API': 'OFF',
     # Only define the lint and check-format targets
@@ -288,7 +289,7 @@ cpp_cmake = CMake(
     definitions=definitions
 )
 cpp_compile = Ninja(name='Compile C++', workdir='cpp/build')
-cpp_test = Ninja(args=['test'], name='Test C++', workdir='cpp/build')
+cpp_test = CTest(workdir='cpp/build')
 cpp_install = Ninja(args=['install'], name='Install C++', workdir='cpp/build')
 
 python_install = SetupPy(
