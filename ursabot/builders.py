@@ -459,6 +459,9 @@ class ArrowCppCondaTest(DockerBuilder):
         'ARROW_PARQUET': 'ON',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
+    env = {
+        'PARQUET_TEST_DATA': 'cpp/submodules/parquet-testing/data'
+    }
     steps = [
         SetPropertiesFromEnv({
             'CMAKE_AR': 'AR',
@@ -487,6 +490,9 @@ class ArrowPythonCondaTest(DockerBuilder):
         'ARROW_PLASMA': 'ON',
         'ARROW_PARQUET': 'ON',
         'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    env = {
+        'PARQUET_TEST_DATA': 'cpp/submodules/parquet-testing/data'
     }
     steps = [
         SetPropertiesFromEnv({
