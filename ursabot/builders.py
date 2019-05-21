@@ -416,6 +416,7 @@ class ArrowCppBenchmark(DockerBuilder):
     images = arrow_images.filter(
         name='cpp-benchmark',
         os=startswith('ubuntu'),
+        arch='amd64',  # until ARROW-5382: SSE on ARM NEON gets resolved
         variant=None,  # plain linux images, not conda
         tag='worker'
     )
