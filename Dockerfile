@@ -8,14 +8,22 @@ RUN conda update --all -c conda-forge && \
         flake8 \
         click \
         docker-py \
+        psycopg2 \
         toolz && \
     conda clean --all -y
 
 RUN pip install --no-binary buildbot \
+        buildbot-console-view \
+        buildbot-grid-view \
+        buildbot-waterfall-view \
+        buildbot-www \
         buildbot \
+        codenamize \
         docker-map \
-        treq \
-        toposort
+        tabulate \
+        toml \
+        toposort \
+        treq
 
 ADD . /ursabot
 WORKDIR /ursabot
