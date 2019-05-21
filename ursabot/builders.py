@@ -112,7 +112,7 @@ class DockerBuilder(Builder):
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
 
     @classmethod
-    def builders_for(cls, workers, images=None):
+    def builders_for(cls, workers, images=None, properties=None):
         images = images or cls.images
         workers_by_arch = workers.groupby('arch')
 
@@ -120,13 +120,17 @@ class DockerBuilder(Builder):
         for image in images:
             if image.arch in workers_by_arch:
                 workers = workers_by_arch[image.arch]
-                builder = cls(image=image, workers=workers)
+                builder = cls(image=image, workers=workers,
+                              properties=properties)
                 builders.append(builder)
             else:
                 warnings.warn(
                     f'There are no docker workers available for architecture '
                     f'`{image.arch}`, omitting image `{image}`'
                 )
+
+        if not builders:
+            warnings.warn(f'No builders can be contructed for {cls.__name__}')
 
         return builders
 
@@ -352,10 +356,10 @@ class UrsabotTest(DockerBuilder):
 
 
 class ArrowCppTest(DockerBuilder):
+    """Base test for Arrow with default flags"""
+
     tags = ['arrow', 'cpp']
-    properties = {
-        'ARROW_PLASMA': 'ON',
-        'ARROW_PARQUET': 'ON',
+    default_properties = {
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
@@ -366,11 +370,44 @@ class ArrowCppTest(DockerBuilder):
         cpp_compile,
         cpp_test
     ]
+    images = arrow_images.filter(
+        name='cpp',
+        arch='amd64',
+        os=startswith('alpine'),
+        variant=None,  # plain linux images, not conda
+        tag='worker'
+    )
+
+
+class ArrowCppCudaTest(ArrowCppTest):
+    tags = ['arrow', 'cpp', 'cuda', 'plasma']
+    properties = {
+        'ARROW_CUDA': 'ON',
+        'ARROW_PLASMA': 'ON',
+    }
+    images = arrow_images.filter(
+        name='cpp',
+        arch='amd64',
+        variant='cuda',
+        tag='worker'
+    )
+
+
+# TODO(kszucs): enabled flight, orc
+class ArrowCppExtensiveTest(ArrowCppTest):
+    tags = ['arrow', 'cpp', 'parquet', 'plasma']
+    properties = {
+        'ARROW_PLASMA': 'ON',
+        'ARROW_PARQUET': 'ON'
+    }
+    env = {
+        'PARQUET_TEST_DATA': parquet_test_data_path
+    }
     images = (
         arrow_images.filter(
             name='cpp',
             arch='amd64',
-            os=startswith('ubuntu') | startswith('alpine'),
+            os=startswith('ubuntu'),
             variant=None,  # plain linux images, not conda
             tag='worker'
         ) +
@@ -381,22 +418,6 @@ class ArrowCppTest(DockerBuilder):
             variant=None,  # plain linux images, not conda
             tag='worker'
         )
-    )
-
-
-class ArrowCppCudaTest(ArrowCppTest):
-    tags = ['arrow', 'cpp', 'cuda']
-    properties = {
-        'ARROW_CUDA': 'ON',
-        'ARROW_PLASMA': 'ON',
-        'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
-    }
-    images = arrow_images.filter(
-        name='cpp',
-        arch='amd64',
-        variant='cuda',
-        tag='worker'
     )
 
 
@@ -425,9 +446,8 @@ class ArrowCppBenchmark(DockerBuilder):
 
 class ArrowPythonTest(DockerBuilder):
     tags = ['arrow', 'python']
-    properties = {
+    default_properties = {
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
@@ -440,11 +460,29 @@ class ArrowPythonTest(DockerBuilder):
         python_install,
         python_test
     ]
+    images = arrow_images.filter(
+        name=startswith('python'),
+        arch='amd64',
+        os=startswith('alpine'),
+        variant=None,  # plain linux images, not conda
+        tag='worker'
+    )
+
+
+class ArrowPythonExtensiveTest(ArrowPythonTest):
+    tags = ['arrow', 'parquet', 'plasma', 'python']
+    properties = {
+        'ARROW_PARQUET': 'ON',  # enables PYARROW_PARQUET
+        'ARROW_PLASMA': 'ON'
+    }
+    env = {
+        'PARQUET_TEST_DATA': parquet_test_data_path
+    }
     images = (
         arrow_images.filter(
             name=startswith('python'),
             arch='amd64',
-            os=startswith('ubuntu') | startswith('alpine'),
+            os=startswith('ubuntu'),
             variant=None,  # plain linux images, not conda
             tag='worker'
         ) +

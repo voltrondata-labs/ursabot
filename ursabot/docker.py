@@ -27,8 +27,7 @@ class DockerImage:
     """Docker image abstraction for image hierarchies with strict naming"""
 
     def __init__(self, name, base, title=None, org=None, tag='latest',
-                 arch=None, os=None, variant=None, steps=tuple(),
-                 properties=None):
+                 arch=None, os=None, variant=None, steps=tuple()):
         if isinstance(base, DockerImage):
             if not title:
                 title = base.title
@@ -71,9 +70,6 @@ class DockerImage:
                 'each `step` must be a callable, use `run` function'
             )
 
-        if not isinstance(properties, (type(None), dict)):
-            raise TypeError(f'`properties` argument must be a dictionary')
-
         self.name = name
         self.title = title
         self.base = base
@@ -83,7 +79,6 @@ class DockerImage:
         self.os = os
         self.variant = variant
         self.steps = tuple(steps)
-        self.properties = properties
 
     def __str__(self):
         return self.fqn
