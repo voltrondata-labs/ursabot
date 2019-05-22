@@ -6,7 +6,8 @@ from buildbot.util.logger import Logger
 from buildbot.util.giturlparse import giturlparse
 from buildbot.util.httpclientservice import HTTPClientService
 from buildbot.reporters.http import HttpStatusPushBase
-from buildbot.process.properties import Properties, Interpolate
+from buildbot.interfaces import IRenderable
+from buildbot.process.properties import Properties, Interpolate, renderer
 from buildbot.process.results import (Results, CANCELLED, EXCEPTION, FAILURE,
                                       RETRY, SKIPPED, SUCCESS, WARNINGS)
 
@@ -221,13 +222,14 @@ class GitHubStatusPush(GitHubReporter):
 
     name = 'GitHubStatusPush'
 
+    def __init__(self, *args, context=None, **kwargs):
+        context = context or Interpolate('ursabot/%(prop:buildername)s')
+        super().__init__(*args, context=context, **kwargs)
+
     @ensure_deferred
     async def reconfigService(self, context=None, **kwargs):
         await super().reconfigService(**kwargs)
-        if context is None:
-            self.context = Interpolate('buildbot/%(prop:buildername)s')
-        else:
-            self.context = context
+        self.context = context
 
     def _state_for(self, build):
         # maps buildbot results to github statuses
@@ -333,7 +335,7 @@ class GitHubCommentPush(GitHubReporter):
     name = 'GitHubCommentPush'
 
     # the formatter will receive all of the following details
-    # as a nested dictionary
+    # as nested dictionaries under the build variable
     neededDetails = dict(
         wantProperties=True,
         wantSteps=True,
@@ -361,30 +363,47 @@ class GitHubCommentPush(GitHubReporter):
         return await self._http.post(urlpath, json=payload)
 
 
+@renderer
+def _topic_default(props):
+    return (
+        # set by ursabot.hooks.GithubHoook in case of pull requests
+        props.getProperty('github.title') or
+        props.getProperty('branch') or
+        props.getProperty('buildername')
+    )
+
+
 class ZulipStatusPush(HttpStatusPush):
 
     name = 'ZulipStatusPush'
+    neededDetails = dict(
+        wantProperties=True
+    )
 
-    def __init__(self, organization, bot, apikey, stream, formatter=None,
-                 **kwargs):
+    def __init__(self, organization, bot, apikey, stream, topic=None,
+                 formatter=None, **kwargs):
         auth = (bot, apikey)
         baseURL = f'https://{organization}.zulipchat.com/api/v1'
+        topic = topic or _topic_default
         formatter = formatter or Formatter()
         super().__init__(baseURL=baseURL, auth=auth, stream=stream,
-                         formatter=formatter, **kwargs)
+                         topic=topic, formatter=formatter, **kwargs)
 
-    def checkConfig(self, stream, formatter, **kwargs):
+    def checkConfig(self, stream, topic, formatter, **kwargs):
         super().checkConfig(**kwargs)
         if not isinstance(stream, str):
-            config.error('`stream` must be an instrance of str')
+            config.error('`stream` must be an instance of str')
+        if not (isinstance(topic, str) or IRenderable.providedBy(topic)):
+            config.error('`topic` must be a renderable or an instance of str')
         if not isinstance(formatter, (type(None), Formatter)):
             config.error('`formatter` must be an instance of '
                          'ursabot.formatters.Formatter')
         super().checkConfig(**kwargs)
 
     @ensure_deferred
-    async def reconfigService(self, stream, formatter, **kwargs):
+    async def reconfigService(self, stream, topic, formatter, **kwargs):
         await super().reconfigService(**kwargs)
+        self.topic = topic
         self.stream = stream
         self.formatter = formatter
 
@@ -393,11 +412,7 @@ class ZulipStatusPush(HttpStatusPush):
         payload = {
             'type': 'stream',
             'to': self.stream,
-            'subject': (  # zulip topic
-                properties.getProperty('title') or
-                sourcestamp.get('project') or
-                sourcestamp.get('repository')
-            ),
+            'subject': await properties.render(self.topic),  # zulip topic
             'content': await self.formatter.render(build, self.master)
         }
         urlpath = '/messages'

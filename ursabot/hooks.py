@@ -9,6 +9,13 @@ from .utils import ensure_deferred
 
 log = Logger()
 
+# TODO(kszucs): make it configurable
+BOTNAME = 'ursabot'
+
+# USE github_property_whitelist ala. ['title', 'repo.*']
+# if github_property_whitelist is None:
+#     self.github_property_whitelist = []
+
 
 class GithubHook(GitHubEventHandler):
     """Converts github events to changes
@@ -58,6 +65,16 @@ class GithubHook(GitHubEventHandler):
         )
     """
 
+    def __init__(self, *args, **kwargs):
+        if not kwargs.get('github_property_whitelist'):
+            # handle_pull_request calls self.extractProperties with
+            # payload['pull_request'], so in order to set a title property
+            # to the pull_request's title, 'github.title' must be passed to
+            # the property whitelist, for the exact implementation see
+            # buildbot.changes.github.PullRequestMixin and handle_pull_request
+            kwargs['github_property_whitelist'] = ['github.title']
+        super().__init__(*args, **kwargs)
+
     def _client(self):
         headers = {'User-Agent': 'Buildbot'}
         if self._token:
@@ -65,8 +82,12 @@ class GithubHook(GitHubEventHandler):
 
         # TODO(kszucs): initialize it once?
         return HTTPClientService.getService(
-            self.master, self.github_api_endpoint, headers=headers,
-            debug=self.debug, verify=self.verify)
+            self.master,
+            self.github_api_endpoint,
+            headers=headers,
+            debug=self.debug,
+            verify=self.verify
+        )
 
     async def _get(self, url):
         url = urlparse(url)
@@ -85,7 +106,7 @@ class GithubHook(GitHubEventHandler):
 
     def _parse_command(self, message):
         # TODO(kszucs): make it more sophisticated
-        mention = f'@ursabot'
+        mention = f'@{BOTNAME}'
         if mention in message:
             return message.split(mention)[-1].lower().strip()
         return None
@@ -100,7 +121,7 @@ class GithubHook(GitHubEventHandler):
         # https://developer.github.com/v4/enum/commentauthorassociation/
         allowed_roles = {'OWNER', 'MEMBER', 'CONTRIBUTOR'}
 
-        if payload['sender']['login'] == 'ursabot':
+        if payload['sender']['login'] == BOTNAME:
             # don't respond to itself
             return [], 'git'
         elif payload['action'] not in {'created', 'edited'}:
@@ -148,12 +169,8 @@ class GithubHook(GitHubEventHandler):
             # `comment` instead of `pull`
             change['category'] = 'comment'
             change['properties']['command'] = command
-            # TODO(kszucs): update change['comments']
-            # pass a title property ZulipReporter uses it as a topic
 
         return changes, 'git'
-
-    # TODO(kszucs): try to add title property from the push event as well
 
     # TODO(kszucs): ursabot might listen on:
     # - handle_commit_comment

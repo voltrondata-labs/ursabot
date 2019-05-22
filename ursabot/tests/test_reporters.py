@@ -1,6 +1,7 @@
 import pytest
 from twisted.trial import unittest
 from buildbot.config import ConfigErrors
+from buildbot.process.properties import Property, Interpolate, renderer
 from buildbot.process.results import SUCCESS, FAILURE, EXCEPTION, Results
 from buildbot.test.fake import fakemaster
 from buildbot.test.fake import httpclientservice
@@ -68,7 +69,6 @@ class TestHttpStatusPush(HttpReporterTestCase):
 
     async def setupReporter(self, **kwargs):
         reporter = HttpStatusPush(name='test', baseURL=self.BASEURL, **kwargs)
-        # reporter.sessionFactory = Mock(return_value=Mock())
         await reporter.setServiceParent(self.master)
         return reporter
 
@@ -228,7 +228,7 @@ class TestGitHubStatusPush(GithubReporterTestCase):
                 'state': 'pending',
                 'target_url': 'http://localhost:8080/#builders/79/builds/0',
                 'description': 'started',
-                'context': 'buildbot/Builder0'
+                'context': 'ursabot/Builder0'
             }
         )
         self._http.expect(
@@ -238,7 +238,7 @@ class TestGitHubStatusPush(GithubReporterTestCase):
                 'state': 'success',
                 'target_url': 'http://localhost:8080/#builders/79/builds/0',
                 'description': 'success',
-                'context': 'buildbot/Builder0'
+                'context': 'ursabot/Builder0'
             }
         )
         self._http.expect(
@@ -248,7 +248,7 @@ class TestGitHubStatusPush(GithubReporterTestCase):
                 'state': 'failure',
                 'target_url': 'http://localhost:8080/#builders/79/builds/0',
                 'description': 'failure',
-                'context': 'buildbot/Builder0'
+                'context': 'ursabot/Builder0'
             }
         )
 
@@ -380,22 +380,33 @@ class TestZulipStatusPush(HttpReporterTestCase):
     HEADERS = {'User-Agent': 'Ursabot'}
     AUTH = ('ursabot', 'secret')
 
-    async def setupReporter(self):
+    async def setupReporter(self, **kwargs):
         reporter = ZulipStatusPush(organization='testorg', bot='ursabot',
                                    apikey='secret', stream='blueberry',
-                                   formatter=DumbFormatter())
+                                   formatter=DumbFormatter(), **kwargs)
         await reporter.setServiceParent(self.master)
         return reporter
 
     @ensure_deferred
-    async def test_only_report_on_failure(self):
+    async def test_topic_is_renderable(self):
+        @renderer
+        def branch(props):
+            return props.getProperty('branch')
+
+        await self.setupReporter(name='a', topic='test')
+        await self.setupReporter(name='d', topic=branch)
+        await self.setupReporter(name='b', topic=Property('branch'))
+        await self.setupReporter(name='c', topic=Interpolate('%(prop:event)s'))
+
+    @ensure_deferred
+    async def test_basic(self):
         self._http.expect(
             'post',
             '/messages',
             json={
                 'type': 'stream',
                 'to': 'blueberry',
-                'subject': 'blue/berry',
+                'subject': 'Builder0',
                 'content': 'started'
             }
         )
@@ -405,7 +416,7 @@ class TestZulipStatusPush(HttpReporterTestCase):
             json={
                 'type': 'stream',
                 'to': 'blueberry',
-                'subject': 'blue/berry',
+                'subject': 'Builder0',
                 'content': 'success'
             }
         )
@@ -415,7 +426,7 @@ class TestZulipStatusPush(HttpReporterTestCase):
             json={
                 'type': 'stream',
                 'to': 'blueberry',
-                'subject': 'blue/berry',
+                'subject': 'Builder0',
                 'content': 'exception'
             }
         )
@@ -425,12 +436,12 @@ class TestZulipStatusPush(HttpReporterTestCase):
             json={
                 'type': 'stream',
                 'to': 'blueberry',
-                'subject': 'blue/berry',
+                'subject': 'Builder0',
                 'content': 'failure'
             }
         )
 
-        reporter = await self.setupReporter()
+        reporter = await self.setupReporter(topic=Property('buildername'))
         build = await self.setupBuildResults(SUCCESS, complete=False)
 
         reporter.buildStarted(('build', 20, 'started'), build)
@@ -439,4 +450,34 @@ class TestZulipStatusPush(HttpReporterTestCase):
         build['results'] = EXCEPTION
         reporter.buildFinished(('build', 20, 'finished'), build)
         build['results'] = FAILURE
+        reporter.buildFinished(('build', 20, 'finished'), build)
+
+    @ensure_deferred
+    async def test_custom_topic(self):
+        self._http.expect(
+            'post',
+            '/messages',
+            json={
+                'type': 'stream',
+                'to': 'blueberry',
+                'subject': 'refs/pull/34/merge',
+                'content': 'started'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/messages',
+            json={
+                'type': 'stream',
+                'to': 'blueberry',
+                'subject': 'refs/pull/34/merge',
+                'content': 'success'
+            }
+        )
+
+        reporter = await self.setupReporter(topic=Property('branch'))
+        build = await self.setupBuildResults(SUCCESS, complete=False)
+
+        reporter.buildStarted(('build', 20, 'started'), build)
+        build['complete'] = True
         reporter.buildFinished(('build', 20, 'finished'), build)

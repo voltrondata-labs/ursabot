@@ -24,8 +24,13 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
         self.hook = _prepare_github_change_hook(self, **{'class': self.klass})
         self.master = self.hook.master
         self.http = await FakeHTTPClientService.getFakeService(
-            self.master, self, 'https://api.github.com',
-            headers={'User-Agent': 'Buildbot'}, debug=False, verify=False)
+            self.master,
+            self,
+            'https://api.github.com',
+            headers={'User-Agent': 'Buildbot'},
+            debug=False,
+            verify=False
+        )
 
         await self.master.startService()
 
@@ -121,10 +126,13 @@ class TestGithubHook(ChangeHookTestCase):
         payload['comment']['body'] = f'@ursabot {command}'
         await self.trigger('issue_comment', payload=payload)
 
+        expected_title = 'Unittests for GithubHook'
+
         assert len(self.hook.master.data.updates.changesAdded) == 1
         for change in self.hook.master.data.updates.changesAdded:
             assert change['properties']['event'] == 'issue_comment'
             assert change['properties']['command'] == command
+            assert change['properties']['github.title'] == expected_title
 
     @ensure_deferred
     async def test_issue_comment_build_command(self):
