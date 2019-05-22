@@ -1,7 +1,6 @@
 title = 'Ursabot Docker Compose'
 url = 'http://localhost:8100/'
 webui_port = 8100
-# database_url = 'sqlite:///ursabot.sqlite'
 database_url = 'postgresql://ursabot:topsecret@db:5432/ursabot'
 
 [github]
@@ -22,10 +21,10 @@ token = "invalid_token"
 name = 'local1'
 arch = 'amd64'
 docker.host = 'tcp://worker1:2375'
-# docker.hostconfig = { network_mode = 'host', cpuset_cpus = '0,1' }
+docker.hostconfig = { network_mode = 'host' }
 
 [[workers]]
 name = 'local2'
 arch = 'amd64'
 docker.host = 'tcp://worker1:2375'
-# docker.hostconfig = { network_mode = 'host', cpuset_cpus = '2,3' }
+docker.hostconfig = { network_mode = 'host' }

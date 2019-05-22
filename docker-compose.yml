@@ -27,20 +27,24 @@ services:
       - worker2:worker2
     ports:
       - 8100:8100
-    volumes:
-      - .:/ursabot:delegated
     environment:
       URSABOT_ENV: compose
+    volumes:
+      - .:/ursabot:delegated
     command: /bin/sh -c "buildbot upgrade-master . && buildbot start . && tail -f twistd.log"
 
   worker1:
     image: docker:dind
     privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     expose:
       - 2375
 
   worker2:
     image: docker:dind
     privileged: true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     expose:
       - 2375

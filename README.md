@@ -29,11 +29,23 @@ For the available configuration keys see `default.toml`.
 
 ## Running a local instance of ursabot
 
+Configuration file: `test.toml`. Docker daemon must run with its default
+socket `/var/run/docker.sock`.
+
 ```bash
 $ export USABOT_ENV=test  # this is the default
 $ buildbot restart ursabot
 $ tail -f ursabot/twisted.log
 ```
+
+Or use docker-compose:
+
+```bash
+$ cd ursabot
+$ docker-compose up --build
+```
+
+Then open `http://localhost:8100`
 
 ## Docker build tool
 
