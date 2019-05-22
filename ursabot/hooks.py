@@ -12,10 +12,6 @@ log = Logger()
 # TODO(kszucs): make it configurable
 BOTNAME = 'ursabot'
 
-# USE github_property_whitelist ala. ['title', 'repo.*']
-# if github_property_whitelist is None:
-#     self.github_property_whitelist = []
-
 
 class GithubHook(GitHubEventHandler):
     """Converts github events to changes
