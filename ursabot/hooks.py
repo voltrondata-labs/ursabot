@@ -149,9 +149,11 @@ class GithubHook(GitHubEventHandler):
             change['category'] = 'comment'
             change['properties']['command'] = command
             # TODO(kszucs): update change['comments']
-            # pass a title property
+            # pass a title property ZulipReporter uses it as a topic
 
         return changes, 'git'
+
+    # TODO(kszucs): try to add title property from the push event as well
 
     # TODO(kszucs): ursabot might listen on:
     # - handle_commit_comment

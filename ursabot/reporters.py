@@ -363,6 +363,8 @@ class GitHubCommentPush(GitHubReporter):
 
 class ZulipStatusPush(HttpStatusPush):
 
+    name = 'ZulipStatusPush'
+
     def __init__(self, organization, bot, apikey, stream, formatter=None,
                  **kwargs):
         auth = (bot, apikey)
@@ -371,15 +373,20 @@ class ZulipStatusPush(HttpStatusPush):
         super().__init__(baseURL=baseURL, auth=auth, stream=stream,
                          formatter=formatter, **kwargs)
 
-    def checkConfig(self, stream, **kwargs):
+    def checkConfig(self, stream, formatter, **kwargs):
         super().checkConfig(**kwargs)
         if not isinstance(stream, str):
             config.error('`stream` must be an instrance of str')
+        if not isinstance(formatter, (type(None), Formatter)):
+            config.error('`formatter` must be an instance of '
+                         'ursabot.formatters.Formatter')
+        super().checkConfig(**kwargs)
 
     @ensure_deferred
-    async def reconfigService(self, stream, **kwargs):
+    async def reconfigService(self, stream, formatter, **kwargs):
         await super().reconfigService(**kwargs)
         self.stream = stream
+        self.formatter = formatter
 
     @ensure_deferred
     async def report(self, build, sourcestamp, properties):
@@ -387,9 +394,9 @@ class ZulipStatusPush(HttpStatusPush):
             'type': 'stream',
             'to': self.stream,
             'subject': (  # zulip topic
-                properties.get('title') or
-                properties.get('project') or
-                properties.get('repository')
+                properties.getProperty('title') or
+                sourcestamp.get('project') or
+                sourcestamp.get('repository')
             ),
             'content': await self.formatter.render(build, self.master)
         }
