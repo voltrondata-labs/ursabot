@@ -2,7 +2,9 @@ from datetime import datetime
 from dateutil.tz import tzutc
 
 import pytest
+from mock import Mock
 from twisted.trial import unittest
+from buildbot import config
 from buildbot.config import ConfigErrors
 from buildbot.process.results import SUCCESS, FAILURE, EXCEPTION, Results
 from buildbot.test.fake import fakemaster
@@ -32,7 +34,8 @@ class TestHttpStatusPush(unittest.TestCase, TestReactorMixin,
             return self.master.stopService()
 
     async def setService(self, **kwargs):
-        self.sp = HttpStatusPush(name='test', **kwargs)
+        self.sp = HttpStatusPush(name='test', baseURL='http://example.com',
+                                 **kwargs)
         await self.sp.setServiceParent(self.master)
         await self.master.startService()
         return self.sp
@@ -263,7 +266,49 @@ class DumbFormatterForReviewPush(Formatter):
         return dict(message='started')
 
 
-class TestGitHubStatusPush(github.TestGitHubStatusPush):
+_headers = {
+    # XXX: authorization is overwritten by the github reporters, but the order
+    # of the keys in the headers dictionary matters for the test suite
+
+    'Authorization': 'token <token>',
+    'User-Agent': 'Buildbot',
+}
+
+
+class GithubReporterTestMixin:
+
+    BASEURL = 'https://api.github.com'
+    HEADERS = {
+        # XXX: the order of the keys matters for buildbot's test suite
+        'User-Agent': 'Ursabot',
+        'Authorization': 'token XXYYZZ'
+    }
+    AUTH = None
+
+    @ensure_deferred
+    async def setUp(self):
+        self.setUpTestReactor()
+        # ignore config error if txrequests is not installed
+        self.patch(config, '_errors', Mock())
+        self.master = fakemaster.make_master(self, wantData=True, wantDb=True,
+                                             wantMq=True)
+        await self.master.startService()
+        self._http = await httpclientservice.HTTPClientService.getFakeService(
+            self.master,
+            self,
+            self.BASEURL,
+            auth=self.AUTH,
+            headers=self.HEADERS,
+            debug=None,
+            verify=None
+        )
+        service = self.setService()
+        service.sessionFactory = Mock(return_value=Mock())
+        await service.setServiceParent(self.master)
+
+
+class TestGitHubStatusPush(GithubReporterTestMixin,
+                           github.TestGitHubStatusPush):
 
     def setService(self):
         # test or own implementation
@@ -274,10 +319,8 @@ class TestGitHubStatusPush(github.TestGitHubStatusPush):
         return self.sp
 
 
-class TestGitHubStatusPushURL(github.TestGitHubStatusPushURL):
-    # project must be in the form <owner>/<project>
-    TEST_PROJECT = 'buildbot'
-    TEST_REPO = 'https://github.com/buildbot1/buildbot1.git'
+class TestGitHubStatusPushURL(GithubReporterTestMixin,
+                              github.TestGitHubStatusPushURL):
 
     def setService(self):
         # test or own implementation
@@ -286,6 +329,45 @@ class TestGitHubStatusPushURL(github.TestGitHubStatusPushURL):
             formatter=DumbFormatterForStatusPush()
         )
         return self.sp
+
+
+class TestGitHubCommentPush(GithubReporterTestMixin,
+                            github.TestGitHubCommentPush):
+
+    def setService(self):
+        # test or own implementation
+        self.sp = GitHubCommentPush(
+            token='XXYYZZ',
+            formatter=DumbFormatterForReviewPush()
+        )
+        return self.sp
+
+    @ensure_deferred
+    async def test_basic(self):
+        build = await self.setupBuildResults(SUCCESS)
+
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/issues/34/comments',
+            json={'body': 'started'}
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/issues/34/comments',
+            json={'body': 'success'}
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/issues/34/comments',
+            json={'body': 'failure'}
+        )
+
+        build['complete'] = False
+        self.sp.buildStarted(('build', 20, 'started'), build)
+        build['complete'] = True
+        self.sp.buildFinished(('build', 20, 'finished'), build)
+        build['results'] = FAILURE
+        self.sp.buildFinished(('build', 20, 'finished'), build)
 
 
 class TestGitHubReviewPush(TestGitHubStatusPush):
@@ -345,42 +427,4 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
         build['results'] = FAILURE
         self.sp.buildFinished(('build', 20, 'finished'), build)
         build['results'] = EXCEPTION
-        self.sp.buildFinished(('build', 20, 'finished'), build)
-
-
-class TestGitHubCommentPush(github.TestGitHubCommentPush):
-
-    def setService(self):
-        # test or own implementation
-        self.sp = GitHubCommentPush(
-            token='XXYYZZ',
-            formatter=DumbFormatterForReviewPush()
-        )
-        return self.sp
-
-    @ensure_deferred
-    async def test_basic(self):
-        build = await self.setupBuildResults(SUCCESS)
-
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'started'}
-        )
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'success'}
-        )
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'failure'}
-        )
-
-        build['complete'] = False
-        self.sp.buildStarted(('build', 20, 'started'), build)
-        build['complete'] = True
-        self.sp.buildFinished(('build', 20, 'finished'), build)
-        build['results'] = FAILURE
         self.sp.buildFinished(('build', 20, 'finished'), build)

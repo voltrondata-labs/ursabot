@@ -9,9 +9,6 @@ from .utils import ensure_deferred
 
 log = Logger()
 
-# TODO(kszucs): make it configurable
-BOTNAME = 'ursabot'
-
 
 class GithubHook(GitHubEventHandler):
     """Converts github events to changes
@@ -88,7 +85,7 @@ class GithubHook(GitHubEventHandler):
 
     def _parse_command(self, message):
         # TODO(kszucs): make it more sophisticated
-        mention = f'@{BOTNAME}'
+        mention = f'@ursabot'
         if mention in message:
             return message.split(mention)[-1].lower().strip()
         return None
@@ -103,7 +100,7 @@ class GithubHook(GitHubEventHandler):
         # https://developer.github.com/v4/enum/commentauthorassociation/
         allowed_roles = {'OWNER', 'MEMBER', 'CONTRIBUTOR'}
 
-        if payload['sender']['login'] == BOTNAME:
+        if payload['sender']['login'] == 'ursabot':
             # don't respond to itself
             return [], 'git'
         elif payload['action'] not in {'created', 'edited'}:
@@ -144,15 +141,19 @@ class GithubHook(GitHubEventHandler):
         message = "I've successfully started builds for this PR"
         await self._post(comments_url, {'body': message})
 
-        # `event: issue_comment` will be available between the properties, but
-        # We still need a way to determine which builders to run, so pass the
-        # command property as well and flag the change category as `comment`
-        # instead of `pull`
         for change in changes:
+            # `event: issue_comment` will be available between the properties,
+            # but We still need a way to determine which builders to run, so
+            # pass the command property as well and flag the change category as
+            # `comment` instead of `pull`
             change['category'] = 'comment'
             change['properties']['command'] = command
+            # TODO(kszucs): update change['comments']
+            # pass a title property
 
         return changes, 'git'
 
-    # TODO(kszucs): ursabot might listen on:handle_commit_comment,
-    # handle_pull_request_review and/or handle_pull_request_review_comment
+    # TODO(kszucs): ursabot might listen on:
+    # - handle_commit_comment
+    # - handle_pull_request_review
+    # - handle_pull_request_review_comment
