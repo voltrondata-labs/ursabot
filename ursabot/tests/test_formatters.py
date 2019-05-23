@@ -7,7 +7,7 @@ from buildbot.reporters import utils
 from buildbot.test.fake import fakedb, fakemaster
 from buildbot.test.util.misc import TestReactorMixin
 
-from ursabot.formatters import (Formatter, MarkdownCommentFormatter,
+from ursabot.formatters import (Formatter, MarkdownFormatter,
                                 BenchmarkCommentFormatter)
 from ursabot.utils import ensure_deferred
 
@@ -85,10 +85,10 @@ class TestFormatter(TestFormatterBase):
         assert content == 'Build failed.'
 
 
-class TestMarkdownCommentFormatter(TestFormatterBase):
+class TestMarkdownFormatter(TestFormatterBase):
 
     def setupFormatter(self):
-        return MarkdownCommentFormatter()
+        return MarkdownFormatter()
 
     @ensure_deferred
     async def test_message_started(self):

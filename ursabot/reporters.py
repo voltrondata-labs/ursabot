@@ -12,7 +12,7 @@ from buildbot.process.results import (Results, CANCELLED, EXCEPTION, FAILURE,
                                       RETRY, SKIPPED, SUCCESS, WARNINGS)
 
 from .utils import ensure_deferred
-from .formatters import Formatter, MarkdownCommentFormatter
+from .formatters import Formatter, MarkdownFormatter
 
 
 log = Logger()
@@ -28,7 +28,10 @@ class HttpStatusPush(HttpStatusPushBase):
     def __init__(self, baseURL, headers=None, auth=None, builders=None,
                  verbose=False, report_on=None, dont_report_on=None, **kwargs):
         headers = headers or {'User-Agent': 'Ursabot'}
-        if builders is not None:
+
+        if builders is None:
+            builder_names = None
+        else:
             builder_names = []
             for b in builders:
                 if isinstance(b, config.BuilderConfig):
@@ -39,9 +42,9 @@ class HttpStatusPush(HttpStatusPushBase):
                     config.error('`builders` must be a list of strings or '
                                  'a list of BuilderConfig objects')
 
-        super().__init__(baseURL=baseURL, headers=headers, builders=builders,
+        super().__init__(baseURL=baseURL, headers=headers, auth=auth,
                          report_on=report_on, dont_report_on=dont_report_on,
-                         auth=auth, verbose=verbose, **kwargs)
+                         builders=builder_names, verbose=verbose, **kwargs)
 
     def checkConfig(self, baseURL, headers, report_on, dont_report_on,
                     **kwargs):
@@ -343,7 +346,7 @@ class GitHubCommentPush(GitHubReporter):
     )
 
     def __init__(self, formatter=None, **kwargs):
-        formatter = formatter or MarkdownCommentFormatter()
+        formatter = formatter or MarkdownFormatter()
         super().__init__(formatter=formatter, **kwargs)
 
     @ensure_deferred
@@ -365,19 +368,30 @@ class GitHubCommentPush(GitHubReporter):
 
 @renderer
 def _topic_default(props):
-    return (
+    project = props['project']
+    builder = '{} # {}'.format(props['buildername'], props['buildnumber'])
+
+    if 'github.title' in props:
         # set by ursabot.hooks.GithubHoook in case of pull requests
-        props.getProperty('github.title') or
-        props.getProperty('branch') or
-        props.getProperty('buildername')
-    )
+        # title is usually more descriptive than the branch's name
+        branch = props['github.title']
+    else:
+        branch = props['branch']
+
+    title = branch or builder
+    if project:
+        return f'{project} @ {title}'
+    else:
+        return title
 
 
 class ZulipStatusPush(HttpStatusPush):
 
     name = 'ZulipStatusPush'
     neededDetails = dict(
-        wantProperties=True
+        wantProperties=True,
+        wantSteps=True,
+        wantLogs=True
     )
 
     def __init__(self, organization, bot, apikey, stream, topic=None,
@@ -419,4 +433,4 @@ class ZulipStatusPush(HttpStatusPush):
         if self.verbose:
             log.info(f'Invoking {urlpath} with payload: {payload}')
 
-        return await self._http.post(urlpath, json=payload)
+        return await self._http.post(urlpath, data=payload)

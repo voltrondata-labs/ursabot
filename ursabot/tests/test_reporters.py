@@ -72,6 +72,8 @@ class TestHttpStatusPush(HttpReporterTestCase):
         await reporter.setServiceParent(self.master)
         return reporter
 
+    # TODO(kszucs): have a test for builders argument
+
     async def check_report_on(self, whitelist, blacklist, expected):
         reporter = await self.setupReporter(report_on=whitelist,
                                             dont_report_on=blacklist)
