@@ -144,7 +144,7 @@ class MarkdownFormatter(Formatter):
             ```
             {stderr}
             ```
-        """)
+        """).strip()
 
         # extract stderr from logs named `stdio` from failing steps
         errors = []
@@ -167,7 +167,7 @@ class MarkdownFormatter(Formatter):
             ```pycon
             {traceback}
             ```
-        """)
+        """).strip()
 
         # steps failed with an exception usually have a log named 'err.text',
         # which contains a HTML formatted stack traceback.
