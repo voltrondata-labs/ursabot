@@ -14,6 +14,9 @@ from ursabot.utils import ensure_deferred
 
 class TestFormatterBase(TestReactorMixin, unittest.TestCase):
 
+    BUILD_URL = 'http://localhost:8080/#builders/80/builds/1'
+    REVISION = '989ec01feb96c2563f39b1751bcc29822c8db4b8'
+
     def setUp(self):
         self.setUpTestReactor()
         self.master = fakemaster.make_master(self, wantData=True, wantDb=True,
@@ -39,10 +42,14 @@ class TestFormatterBase(TestReactorMixin, unittest.TestCase):
         ])
         for _id in (20, 21):
             self.db.insertTestData([
-                fakedb.BuildProperty(
-                    buildid=_id, name='workername', value='wrkr'),
-                fakedb.BuildProperty(
-                    buildid=_id, name='reason', value='because'),
+                fakedb.BuildProperty(buildid=_id, name='buildername',
+                                     value='Builder1'),
+                fakedb.BuildProperty(buildid=_id, name='workername',
+                                     value='wrkr'),
+                fakedb.BuildProperty(buildid=_id, name='revision',
+                                     value=self.REVISION),
+                fakedb.BuildProperty(buildid=_id, name='reason',
+                                     value='because')
             ])
 
     async def render(self, previous, current, buildsetid=99, complete=True):
@@ -91,32 +98,32 @@ class TestMarkdownFormatter(TestFormatterBase):
         return MarkdownFormatter()
 
     @ensure_deferred
-    async def test_message_started(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_started(self):
+        expected = f'''
+        [Builder1]({self.BUILD_URL}) builder is started.
 
-        Build started.
+        Revision: {self.REVISION}
         '''
         content = await self.render(previous=SUCCESS, current=-1,
                                     complete=False)
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
-    async def test_message_success(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_success(self):
+        expected = f'''
+        [Builder1]({self.BUILD_URL}) builder has been succeeded.
 
-        Build succeeded.
+        Revision: {self.REVISION}
         '''
         content = await self.render(previous=SUCCESS, current=SUCCESS)
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
-    async def test_message_failure(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_failure(self):
+        expected = f'''
+        [Builder1]({self.BUILD_URL}) builder has been failed.
 
-        Build failed.
+        Revision: {self.REVISION}
         '''
         content = await self.render(previous=SUCCESS, current=FAILURE)
         assert content == textwrap.dedent(expected).strip()
@@ -143,9 +150,9 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
             fakedb.Step(id=52, buildid=20, number=0, name='compile'),
             fakedb.Step(id=53, buildid=20, number=1, name='benchmark'),
             fakedb.Log(id=60, stepid=51, name='result', slug='result',
-                       type='s', num_lines=4),
+                       type='t', num_lines=4),
             fakedb.Log(id=61, stepid=53, name='result', slug='result',
-                       type='s', num_lines=6),
+                       type='t', num_lines=6),
             fakedb.LogChunk(logid=60, first_line=0, last_line=4, compressed=0,
                             content=log1),
             fakedb.LogChunk(logid=61, first_line=0, last_line=6, compressed=0,
@@ -153,19 +160,21 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         ])
 
     @ensure_deferred
-    async def test_message_failure(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_failure(self):
+        expected = f'''
+        [Builder1]({self.BUILD_URL}) builder has been failed.
 
-        Build failed.
+        Revision: {self.REVISION}
         '''
         content = await self.render(previous=SUCCESS, current=FAILURE)
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
-    async def test_message_success(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_success(self):
+        expected = f'''
+        [Builder1]({self.BUILD_URL}) builder has been succeeded.
+
+        Revision: {self.REVISION}
 
         ```diff
           ============================  ===========  ===========  ===========
@@ -183,9 +192,12 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
-    async def test_message_empty_lines(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/0)
+    async def test_empty_jsonlines(self):
+        BUILD_URL = 'http://localhost:8080/#builders/80/builds/0'
+        expected = f'''
+        [Builder1]({BUILD_URL}) builder has been succeeded.
+
+        Revision: {self.REVISION}
 
         ```diff
           ============================  ===========  ===========  ==========

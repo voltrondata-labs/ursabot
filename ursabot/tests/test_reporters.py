@@ -176,7 +176,7 @@ class TestHttpStatusPush(HttpReporterTestCase):
 
 class DumbFormatter(Formatter):
 
-    layout = "{{ message }}"
+    layout = '{message}'
 
     def render_success(self, build, master):
         return dict(message='success')
@@ -405,7 +405,7 @@ class TestZulipStatusPush(HttpReporterTestCase):
         self._http.expect(
             'post',
             '/messages',
-            json={
+            data={
                 'type': 'stream',
                 'to': 'blueberry',
                 'subject': 'Builder0',
@@ -415,7 +415,7 @@ class TestZulipStatusPush(HttpReporterTestCase):
         self._http.expect(
             'post',
             '/messages',
-            json={
+            data={
                 'type': 'stream',
                 'to': 'blueberry',
                 'subject': 'Builder0',
@@ -425,7 +425,7 @@ class TestZulipStatusPush(HttpReporterTestCase):
         self._http.expect(
             'post',
             '/messages',
-            json={
+            data={
                 'type': 'stream',
                 'to': 'blueberry',
                 'subject': 'Builder0',
@@ -435,7 +435,7 @@ class TestZulipStatusPush(HttpReporterTestCase):
         self._http.expect(
             'post',
             '/messages',
-            json={
+            data={
                 'type': 'stream',
                 'to': 'blueberry',
                 'subject': 'Builder0',
@@ -459,7 +459,7 @@ class TestZulipStatusPush(HttpReporterTestCase):
         self._http.expect(
             'post',
             '/messages',
-            json={
+            data={
                 'type': 'stream',
                 'to': 'blueberry',
                 'subject': 'refs/pull/34/merge',
@@ -469,7 +469,7 @@ class TestZulipStatusPush(HttpReporterTestCase):
         self._http.expect(
             'post',
             '/messages',
-            json={
+            data={
                 'type': 'stream',
                 'to': 'blueberry',
                 'subject': 'refs/pull/34/merge',

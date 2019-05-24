@@ -5,7 +5,7 @@ import toolz
 from tabulate import tabulate
 from buildbot.util.logger import Logger
 from buildbot.reporters import utils
-from buildbot.process.results import Results, FAILURE
+from buildbot.process.results import Results, FAILURE, EXCEPTION
 
 
 log = Logger()
@@ -22,7 +22,6 @@ class Formatter:
         variables passed to the layout
     """
 
-    # TODO(kszucs): support pathlib.Path object for layouts
     layout = '{message}'
     context = {}
 
@@ -48,6 +47,31 @@ class Formatter:
             )
         }
         return toolz.merge(context, self.context)
+
+    def extract_logs(self, build, logname):
+        # stream type prefixes each line with the stream's abbreviation:
+        stream_prefixes = {
+            's': 'stdout',
+            'e': 'stderr',
+            'h': 'header'
+        }
+        for s in build['steps']:
+            for l in s['logs']:
+                if l['name'] == logname:
+                    typ = l['type']
+                    lines = l['content']['content'].splitlines()
+
+                    if typ == 'h':  # HTML
+                        lines = [('html', line) for line in lines]
+                    elif typ == 't':  # text
+                        lines = [('text', line) for line in lines]
+                    elif typ == 's':  # stream
+                        lines = [(stream_prefixes[line[0]], line[1:])
+                                 for line in lines]
+                    else:
+                        raise ValueError(f'Unknown log type: `{typ}`')
+
+                    yield (s, lines)
 
     async def render(self, build, master=None):
         """Dispatches and renders the layout based on the build's results.
@@ -75,7 +99,7 @@ class Formatter:
         context = method(build, master)
         context = toolz.merge(context, default)
 
-        return self.layout.format(**context)
+        return self.layout.format(**context).strip()
 
     def render_started(self, build, master):
         return dict(message='Build started.')
@@ -102,17 +126,21 @@ class Formatter:
         return dict(message='Build is retried.')
 
 
+# try to retrieve err.html log's content
+
 class MarkdownFormatter(Formatter):
 
     layout = textwrap.dedent("""
-        [{builder_name}]({build_url}) builder for {revision} has been {status}.
+        [{builder_name}]({build_url}) builder {status}.
+
+        Revision: {revision}
 
         {context}
-    """).strip()
+    """)
 
     def render_failure(self, build, master):
         template = textwrap.dedent("""
-            {step_name}: `{state_string}` step is failed with:
+            {step_name}: `{state_string}` step's stderr:
             ```
             {stderr}
             ```
@@ -120,52 +148,73 @@ class MarkdownFormatter(Formatter):
 
         # extract stderr from logs named `stdio` from failing steps
         errors = []
-        for s in build['steps']:
-            if s['results'] == FAILURE:
-                for l in s['logs']:
-                    if l['name'] == 'stdio':
-                        content = l['content']['content']
-                        stderr = [line[1:] for line in content.splitlines() if
-                                  line.startswith('e')]
-                        errors.append(template.format(
-                            step_name=s['name'],
-                            state_string=s['state_string'],
-                            stderr='\n'.join(stderr)
-                        ))
+        for step, log_lines in self.extract_logs(build, logname='stdio'):
+            if step['results'] == FAILURE:
+                stderr = [l for stream, l in log_lines if stream == 'stderr']
+                errors.append(
+                    template.format(
+                        step_name=step['name'],
+                        state_string=step['state_string'],
+                        stderr='\n'.join(stderr)
+                    )
+                )
 
-        return dict(status='failed', context='\n\n'.join(errors))
+        return dict(status='has been failed', context='\n\n'.join(errors))
 
     def render_exception(self, build, master):
-        return dict(status='failed with an exception', context='')
+        template = textwrap.dedent("""
+            {step_name}: `{state_string}` step's traceback:
+            ```pycon
+            {traceback}
+            ```
+        """)
+
+        # steps failed with an exception usually have a log named 'err.text',
+        # which contains a HTML formatted stack traceback.
+        errors = []
+        for step, log_lines in self.extract_logs(build, logname='err.text'):
+            if step['results'] == EXCEPTION:
+                traceback = [l for _, l in log_lines]
+                errors.append(
+                    template.format(
+                        step_name=step['name'],
+                        state_string=step['state_string'],
+                        traceback='\n'.join(traceback)
+                    )
+                )
+
+        return dict(
+            status='has been failed with an exception',
+            context='\n\n'.join(errors)
+        )
 
     def render_started(self, build, master):
-        return dict(status='started', context='')
+        return dict(status='is started', context='')
 
     def render_success(self, build, master):
-        return dict(status='succeeded', context='')
+        return dict(status='has been succeeded', context='')
 
     def render_warnings(self, build, master):
-        return dict(status='succeeded with warnings', context='')
+        return dict(status='has been succeeded with warnings', context='')
 
     def render_skipped(self, build, master):
-        return dict(status='skipped', context='')
+        return dict(status='was skipped', context='')
 
     def render_cancelled(self, build, master):
-        return dict(status='cancelled', context='')
+        return dict(status='was cancelled', context='')
 
     def render_retry(self, build, master):
-        return dict(status='retried', context='')
+        return dict(status='is retried', context='')
 
 
 class BenchmarkCommentFormatter(MarkdownFormatter):
 
-    def _render_table(self, content):
+    def _render_table(self, lines):
         """Renders the json content of a result log
 
         As a plaintext table embedded in a diff markdown snippet.
         """
-        lines = (line.strip() for line in content.strip().splitlines())
-        rows = [json.loads(line) for line in lines if line]
+        rows = [json.loads(line.strip()) for line in lines if line]
 
         columns = ['benchmark', 'baseline', 'contender', 'change']
         formatted = tabulate(toolz.pluck(columns, rows),
@@ -183,10 +232,8 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
     def render_success(self, build, master):
         # extract logs named as `result`
         results = {}
-        for s in build['steps']:
-            for l in s['logs']:
-                if l['name'] == 'result':
-                    results[s['stepid']] = l['content']['content']
+        for step, log_lines in self.extract_logs(build, logname='result'):
+            results[step['stepid']] = [line for _, line in log_lines]
         try:
             # decode jsonlines objects and render the results as markdown table
             # each step can have a result log, but in practice each builder
@@ -200,4 +247,4 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
             raise
 
         context = '\n\n'.join(tables.values())
-        return dict(status='succeeded', context=context)
+        return dict(status='has been succeeded', context=context)
