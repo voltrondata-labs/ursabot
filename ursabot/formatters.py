@@ -5,7 +5,7 @@ import toolz
 from tabulate import tabulate
 from buildbot.util.logger import Logger
 from buildbot.reporters import utils
-from buildbot.process.results import Results, FAILURE, EXCEPTION
+from buildbot.process.results import Results, FAILURE, EXCEPTION, SUCCESS
 
 
 log = Logger()
@@ -126,8 +126,6 @@ class Formatter:
         return dict(message='Build is retried.')
 
 
-# try to retrieve err.html log's content
-
 class MarkdownFormatter(Formatter):
 
     layout = textwrap.dedent("""
@@ -233,7 +231,9 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
         # extract logs named as `result`
         results = {}
         for step, log_lines in self.extract_logs(build, logname='result'):
-            results[step['stepid']] = [line for _, line in log_lines]
+            if step['results'] == SUCCESS:
+                results[step['stepid']] = [line for _, line in log_lines]
+
         try:
             # decode jsonlines objects and render the results as markdown table
             # each step can have a result log, but in practice each builder

@@ -244,17 +244,19 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
     def setupFormatter(self):
         return BenchmarkCommentFormatter()
 
-    def setupDb(self, *args, **kwargs):
-        super().setupDb(*args, **kwargs)
+    def setupDb(self, current, previous):
+        super().setupDb(current, previous)
 
         log1 = self.load_fixture('archery-benchmark-diff.jsonl')
         log2 = self.load_fixture('archery-benchmark-diff-empty-lines.jsonl')
 
         self.db.insertTestData([
             fakedb.Step(id=50, buildid=21, number=0, name='compile'),
-            fakedb.Step(id=51, buildid=21, number=1, name='benchmark'),
+            fakedb.Step(id=51, buildid=21, number=1, name='benchmark',
+                        results=current),
             fakedb.Step(id=52, buildid=20, number=0, name='compile'),
-            fakedb.Step(id=53, buildid=20, number=1, name='benchmark'),
+            fakedb.Step(id=53, buildid=20, number=1, name='benchmark',
+                        results=current),
             fakedb.Log(id=60, stepid=51, name='result', slug='result',
                        type='t', num_lines=4),
             fakedb.Log(id=61, stepid=53, name='result', slug='result',
