@@ -165,8 +165,8 @@ class TestMarkdownFormatter(TestFormatterBase):
 
         Revision: {self.REVISION}
         '''
-        log1 = ('hline1', 'hline2', 'sline3')
-        log2 = ('hline1', 'sline2', 'sline3', 'hline7')
+        log1 = ('hline1', 'hline2', 'oline3')
+        log2 = ('hline1', 'oline2', 'oline3', 'hline7')
         content = await self.render(previous=SUCCESS, current=SUCCESS,
                                     log1=log1, log2=log2)
         assert content == textwrap.dedent(expected).strip()
@@ -175,8 +175,8 @@ class TestMarkdownFormatter(TestFormatterBase):
     async def test_failure(self):
         BUILD_URL = self.BUILD_URL
         BUILD_ID = self.BUILD_ID
-        log1 = ('hline1', 'hline2', 'sline3', 'eline4', 'eline5')
-        log2 = ('hline1', 'eline2', 'eline3', 'sline4', 'eline5', 'eline6')
+        log1 = ('hline1', 'hline2', 'oline3', 'eline4', 'eline5')
+        log2 = ('hline1', 'eline2', 'eline3', 'oline4', 'eline5', 'eline6')
 
         expected = f'''
         [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been failed.

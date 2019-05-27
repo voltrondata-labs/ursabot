@@ -52,7 +52,7 @@ class Formatter:
     def extract_logs(self, build, logname):
         # stream type prefixes each line with the stream's abbreviation:
         _stream_prefixes = {
-            's': 'stdout',
+            'o': 'stdout',
             'e': 'stderr',
             'h': 'header'
         }
