@@ -75,9 +75,10 @@ database_url = 'sqlite:///ursabot.sqlite'
   debug = true
 
   [reporters.zulip_status]
-  endpoint = 'https://ursalabs.zulipchat.com'
+  organization = 'ursalabs'
+  bot = 'ursabot-bot@ursalabs.zulipchat.com'
   stream = 'ursabot'
-  # token = ...
+  # apikey = ...
 
 [changes]
 

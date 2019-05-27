@@ -1,16 +1,12 @@
-from datetime import datetime
-from dateutil.tz import tzutc
-
 import pytest
 from twisted.trial import unittest
 from buildbot.config import ConfigErrors
+from buildbot.process.properties import Property, Interpolate, renderer
 from buildbot.process.results import SUCCESS, FAILURE, EXCEPTION, Results
 from buildbot.test.fake import fakemaster
 from buildbot.test.fake import httpclientservice
 from buildbot.test.util.misc import TestReactorMixin
 from buildbot.test.util.reporter import ReporterTestMixin
-from buildbot.test.unit import test_reporter_github as github
-from buildbot.test.unit import test_reporter_zulip as zulip
 
 from ursabot.reporters import (HttpStatusPush, ZulipStatusPush,
                                GitHubStatusPush, GitHubReviewPush,
@@ -19,35 +15,68 @@ from ursabot.formatters import Formatter
 from ursabot.utils import ensure_deferred
 
 
-class TestHttpStatusPush(unittest.TestCase, TestReactorMixin,
-                         ReporterTestMixin):
+class HttpReporterTestCase(TestReactorMixin, unittest.TestCase,
+                           ReporterTestMixin):
+    # project must be in the form <owner>/<project>
+    TEST_PROJECT = 'buildbot/buildbot'
+    # XXX: the order of the keys matters for buildbot's test suite
+    HEADERS = {'User-Agent': 'Ursabot'}
+    AUTH = None
 
     @ensure_deferred
     async def setUp(self):
         self.setUpTestReactor()
-        self.master = fakemaster.make_master(self, wantData=True, wantDb=True)
+        # ignore config error if txrequests is not installed
+        # self.patch(config, '_errors', Mock())
+        self.master = fakemaster.make_master(
+            self,
+            wantData=True,
+            wantDb=True,
+            wantMq=True
+        )
+        self._http = await httpclientservice.HTTPClientService.getFakeService(
+            self.master,
+            self,
+            self.BASEURL,
+            auth=self.AUTH,
+            headers=self.HEADERS,
+            debug=None,
+            verify=None
+        )
+        await self.master.startService()
 
     def tearDown(self):
         if self.master.running:
             return self.master.stopService()
 
-    async def setService(self, **kwargs):
-        self.sp = HttpStatusPush(name='test', **kwargs)
-        await self.sp.setServiceParent(self.master)
-        await self.master.startService()
-        return self.sp
+    def setupReporter(self):
+        raise NotImplementedError()
 
-    async def setupBuildResults(self, build_results, complete=True):
-        self.insertTestData([build_results], build_results)
+    @ensure_deferred
+    async def setupBuildResults(self, build_results, complete=False,
+                                insertSS=True):
+        self.insertTestData([build_results], build_results, insertSS=insertSS)
         build = await self.master.data.get(('builds', 20))
         builder = await self.master.data.get(('builders', build['builderid']))
         build['builder'] = builder
         build['complete'] = complete
         return build
 
+
+class TestHttpStatusPush(HttpReporterTestCase):
+
+    BASEURL = 'http://example.com'
+
+    async def setupReporter(self, **kwargs):
+        reporter = HttpStatusPush(name='test', baseURL=self.BASEURL, **kwargs)
+        await reporter.setServiceParent(self.master)
+        return reporter
+
+    # TODO(kszucs): have a test for builders argument
+
     async def check_report_on(self, whitelist, blacklist, expected):
-        reporter = await self.setService(report_on=whitelist,
-                                         dont_report_on=blacklist)
+        reporter = await self.setupReporter(report_on=whitelist,
+                                            dont_report_on=blacklist)
 
         # it is not clear how does buildbot handle started state, at least the
         # test suite doesn't handle the complete flag properly, so set result
@@ -122,121 +151,32 @@ class TestHttpStatusPush(unittest.TestCase, TestReactorMixin,
 
     @ensure_deferred
     async def test_filter_builds_with_undefined_builders(self):
-        reporter = await self.setService(builders=None)
+        reporter = await self.setupReporter(builders=None)
         build = await self.setupBuildResults(SUCCESS, complete=True)
         assert reporter.filterBuilds(build)
 
     @ensure_deferred
     async def test_filter_builds_with_empty_list_of_builders(self):
-        reporter = await self.setService(builders=[])
+        reporter = await self.setupReporter(builders=[])
         build = await self.setupBuildResults(SUCCESS, complete=True)
         assert not reporter.filterBuilds(build)
 
     @ensure_deferred
     async def test_filter_builds_should_report_on_builder(self):
-        reporter = await self.setService(builders=['Builder0'])
+        reporter = await self.setupReporter(builders=['Builder0'])
         build = await self.setupBuildResults(SUCCESS, complete=True)
         assert reporter.filterBuilds(build)
 
     @ensure_deferred
     async def test_filter_builds_should_not_report_on_builder(self):
-        reporter = await self.setService(builders=['Builder1'])
+        reporter = await self.setupReporter(builders=['Builder1'])
         build = await self.setupBuildResults(SUCCESS, complete=True)
         assert not reporter.filterBuilds(build)
 
 
-class TestZulipStatusPush(zulip.TestZulipStatusPush):
+class DumbFormatter(Formatter):
 
-    @ensure_deferred
-    async def setupZulipStatusPush(self, endpoint='http://example.com',
-                                   token='123', stream=None, **kwargs):
-        # setup our own implementation
-        self.sp = ZulipStatusPush(endpoint=endpoint, token=token,
-                                  stream=stream, **kwargs)
-        self._http = await httpclientservice.HTTPClientService.getFakeService(
-            self.master, self, endpoint, debug=None, verify=None)
-        await self.sp.setServiceParent(self.master)
-        await self.master.startService()
-
-    @ensure_deferred
-    async def setupBuildResults(self, result=SUCCESS):
-        self.insertTestData([result], result)
-        return await self.master.data.get(('builds', 20))
-
-    @ensure_deferred
-    async def test_filter_builders(self):
-        await self.setupZulipStatusPush(stream='xyz', builders=['Builder1'])
-        build = await self.setupBuildResults(SUCCESS)
-        self.sp.buildStarted(('build', 20, 'new'), build)
-
-    @ensure_deferred
-    async def test_dont_report_build_started(self):
-        await self.setupZulipStatusPush(stream='xyz',
-                                        dont_report_on={'started'})
-        build = await self.setupBuildResults()
-        build['started_at'] = datetime(2019, 4, 1, 23, 38, 43, 154354,
-                                       tzinfo=tzutc())
-        self.sp.buildStarted(('build', 20, 'new'), build)
-
-    @ensure_deferred
-    async def test_only_report_on_failure(self):
-        await self.setupZulipStatusPush(stream='xyz', report_on={'failure'})
-        build = await self.setupBuildResults(SUCCESS)
-        build['complete'] = True
-        build['complete_at'] = datetime(2019, 4, 1, 23, 38, 43, 154354,
-                                        tzinfo=tzutc())
-        self._http.expect(
-            'post',
-            '/api/v1/external/buildbot?api_key=123&stream=xyz',
-            json={
-                'event': 'finished',
-                'buildid': 20,
-                'buildername': 'Builder0',
-                'url': 'http://localhost:8080/#builders/79/builds/0',
-                'project': 'testProject',
-                'timestamp': 1554161923,
-                'results': FAILURE
-            }
-        )
-        self.sp.buildFinished(('build', 20, 'finished'), build)
-        build['results'] = FAILURE
-        self.sp.buildFinished(('build', 20, 'finished'), build)
-
-
-class DumbFormatterForStatusPush(Formatter):
-    """Formatter to conform the original test case"""
-
-    layout = "{{ message }}"
-
-    def render_success(self, build, master):
-        return dict(message='Build done.')
-
-    def render_warnings(self, build, master):
-        return dict(message='Build done.')
-
-    def render_skipped(self, build, master):
-        return dict(message='Build done.')
-
-    def render_exception(self, build, master):
-        return dict(message='Build done.')
-
-    def render_cancelled(self, build, master):
-        return dict(message='Build done.')
-
-    def render_failure(self, build, master):
-        return dict(message='Build done.')
-
-    def render_retry(self, build, master):
-        return dict(message='Build started.')
-
-    def render_started(self, build, master):
-        return dict(message='Build started.')
-
-
-class DumbFormatterForReviewPush(Formatter):
-    """Formatter to conform the original test case"""
-
-    layout = "{{ message }}"
+    layout = '{message}'
 
     def render_success(self, build, master):
         return dict(message='success')
@@ -263,44 +203,129 @@ class DumbFormatterForReviewPush(Formatter):
         return dict(message='started')
 
 
-class TestGitHubStatusPush(github.TestGitHubStatusPush):
+class GithubReporterTestCase(HttpReporterTestCase):
 
-    def setService(self):
-        # test or own implementation
-        self.sp = GitHubStatusPush(
-            token='XXYYZZ',
-            formatter=DumbFormatterForStatusPush()
-        )
-        return self.sp
+    BASEURL = 'https://api.github.com'
+    HEADERS = {
+        'User-Agent': 'Ursabot',
+        'Authorization': 'token xyz'
+    }
 
-
-class TestGitHubStatusPushURL(github.TestGitHubStatusPushURL):
-    # project must be in the form <owner>/<project>
-    TEST_PROJECT = 'buildbot'
-    TEST_REPO = 'https://github.com/buildbot1/buildbot1.git'
-
-    def setService(self):
-        # test or own implementation
-        self.sp = GitHubStatusPush(
-            token='XXYYZZ',
-            formatter=DumbFormatterForStatusPush()
-        )
-        return self.sp
+    async def setupReporter(self):
+        reporter = self.Reporter(token='xyz', formatter=DumbFormatter())
+        await reporter.setServiceParent(self.master)
+        return reporter
 
 
-class TestGitHubReviewPush(TestGitHubStatusPush):
+class TestGitHubStatusPush(GithubReporterTestCase):
 
-    def setService(self):
-        self.sp = GitHubReviewPush(
-            token='XXYYZZ',
-            formatter=DumbFormatterForReviewPush()
-        )
-        return self.sp
+    Reporter = GitHubStatusPush
 
     @ensure_deferred
     async def test_basic(self):
-        build = await self.setupBuildResults(SUCCESS)
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/statuses/d34db33fd43db33f',
+            json={
+                'state': 'pending',
+                'target_url': 'http://localhost:8080/#builders/79/builds/0',
+                'description': 'started',
+                'context': 'ursabot/Builder0'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/statuses/d34db33fd43db33f',
+            json={
+                'state': 'success',
+                'target_url': 'http://localhost:8080/#builders/79/builds/0',
+                'description': 'success',
+                'context': 'ursabot/Builder0'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/statuses/d34db33fd43db33f',
+            json={
+                'state': 'failure',
+                'target_url': 'http://localhost:8080/#builders/79/builds/0',
+                'description': 'failure',
+                'context': 'ursabot/Builder0'
+            }
+        )
 
+        reporter = await self.setupReporter()
+        build = await self.setupBuildResults(SUCCESS, complete=False)
+
+        reporter.buildStarted(('build', 20, 'started'), build)
+        build['complete'] = True
+        reporter.buildFinished(('build', 20, 'finished'), build)
+        build['results'] = FAILURE
+        reporter.buildFinished(('build', 20, 'finished'), build)
+
+    @ensure_deferred
+    async def test_empty(self):
+        reporter = await self.setupReporter()
+        build = await self.setupBuildResults(SUCCESS, complete=False,
+                                             insertSS=False)
+
+        reporter.buildStarted(('build', 20, 'started'), build)
+        build['complete'] = True
+        reporter.buildFinished(('build', 20, 'finished'), build)
+        build['results'] = FAILURE
+        reporter.buildFinished(('build', 20, 'finished'), build)
+
+
+class TestGitHubCommentPush(GithubReporterTestCase):
+
+    Reporter = GitHubCommentPush
+
+    @ensure_deferred
+    async def test_basic(self):
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/issues/34/comments',
+            json={'body': 'started'}
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/issues/34/comments',
+            json={'body': 'success'}
+        )
+        self._http.expect(
+            'post',
+            '/repos/buildbot/buildbot/issues/34/comments',
+            json={'body': 'failure'}
+        )
+
+        reporter = await self.setupReporter()
+        build = await self.setupBuildResults(SUCCESS, complete=False)
+
+        reporter.buildStarted(('build', 20, 'started'), build)
+        build['complete'] = True
+        reporter.buildFinished(('build', 20, 'finished'), build)
+        build['results'] = FAILURE
+        reporter.buildFinished(('build', 20, 'finished'), build)
+
+    @ensure_deferred
+    async def test_empty(self):
+        reporter = await self.setupReporter()
+        build = await self.setupBuildResults(SUCCESS, complete=False,
+                                             insertSS=False)
+
+        reporter.buildStarted(('build', 20, 'started'), build)
+        build['complete'] = True
+        reporter.buildFinished(('build', 20, 'finished'), build)
+        build['results'] = FAILURE
+        reporter.buildFinished(('build', 20, 'finished'), build)
+
+
+class TestGitHubReviewPush(GithubReporterTestCase):
+
+    Reporter = GitHubReviewPush
+
+    @ensure_deferred
+    async def test_basic(self):
         self._http.expect(
             'post',
             '/repos/buildbot/buildbot/pulls/34/reviews',
@@ -338,49 +363,123 @@ class TestGitHubReviewPush(TestGitHubStatusPush):
             }
         )
 
-        build['complete'] = False
-        self.sp.buildStarted(('build', 20, 'started'), build)
+        reporter = await self.setupReporter()
+        build = await self.setupBuildResults(SUCCESS, complete=False)
+
+        reporter.buildStarted(('build', 20, 'started'), build)
         build['complete'] = True
-        self.sp.buildFinished(('build', 20, 'finished'), build)
+        reporter.buildFinished(('build', 20, 'finished'), build)
         build['results'] = FAILURE
-        self.sp.buildFinished(('build', 20, 'finished'), build)
+        reporter.buildFinished(('build', 20, 'finished'), build)
         build['results'] = EXCEPTION
-        self.sp.buildFinished(('build', 20, 'finished'), build)
+        reporter.buildFinished(('build', 20, 'finished'), build)
 
 
-class TestGitHubCommentPush(github.TestGitHubCommentPush):
+class TestZulipStatusPush(HttpReporterTestCase):
 
-    def setService(self):
-        # test or own implementation
-        self.sp = GitHubCommentPush(
-            token='XXYYZZ',
-            formatter=DumbFormatterForReviewPush()
-        )
-        return self.sp
+    TEST_PROJECT = 'blue/berry'
+    BASEURL = 'https://testorg.zulipchat.com/api/v1'
+    HEADERS = {'User-Agent': 'Ursabot'}
+    AUTH = ('ursabot', 'secret')
+
+    async def setupReporter(self, **kwargs):
+        reporter = ZulipStatusPush(organization='testorg', bot='ursabot',
+                                   apikey='secret', stream='blueberry',
+                                   formatter=DumbFormatter(), **kwargs)
+        await reporter.setServiceParent(self.master)
+        return reporter
+
+    @ensure_deferred
+    async def test_topic_is_renderable(self):
+        @renderer
+        def branch(props):
+            return props.getProperty('branch')
+
+        await self.setupReporter(name='a', topic='test')
+        await self.setupReporter(name='d', topic=branch)
+        await self.setupReporter(name='b', topic=Property('branch'))
+        await self.setupReporter(name='c', topic=Interpolate('%(prop:event)s'))
 
     @ensure_deferred
     async def test_basic(self):
-        build = await self.setupBuildResults(SUCCESS)
+        self._http.expect(
+            'post',
+            '/messages',
+            data={
+                'type': 'stream',
+                'to': 'blueberry',
+                'subject': 'Builder0',
+                'content': 'started'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/messages',
+            data={
+                'type': 'stream',
+                'to': 'blueberry',
+                'subject': 'Builder0',
+                'content': 'success'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/messages',
+            data={
+                'type': 'stream',
+                'to': 'blueberry',
+                'subject': 'Builder0',
+                'content': 'exception'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/messages',
+            data={
+                'type': 'stream',
+                'to': 'blueberry',
+                'subject': 'Builder0',
+                'content': 'failure'
+            }
+        )
 
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'started'}
-        )
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'success'}
-        )
-        self._http.expect(
-            'post',
-            '/repos/buildbot/buildbot/issues/34/comments',
-            json={'body': 'failure'}
-        )
+        reporter = await self.setupReporter(topic=Property('buildername'))
+        build = await self.setupBuildResults(SUCCESS, complete=False)
 
-        build['complete'] = False
-        self.sp.buildStarted(('build', 20, 'started'), build)
+        reporter.buildStarted(('build', 20, 'started'), build)
         build['complete'] = True
-        self.sp.buildFinished(('build', 20, 'finished'), build)
+        reporter.buildFinished(('build', 20, 'finished'), build)
+        build['results'] = EXCEPTION
+        reporter.buildFinished(('build', 20, 'finished'), build)
         build['results'] = FAILURE
-        self.sp.buildFinished(('build', 20, 'finished'), build)
+        reporter.buildFinished(('build', 20, 'finished'), build)
+
+    @ensure_deferred
+    async def test_custom_topic(self):
+        self._http.expect(
+            'post',
+            '/messages',
+            data={
+                'type': 'stream',
+                'to': 'blueberry',
+                'subject': 'refs/pull/34/merge',
+                'content': 'started'
+            }
+        )
+        self._http.expect(
+            'post',
+            '/messages',
+            data={
+                'type': 'stream',
+                'to': 'blueberry',
+                'subject': 'refs/pull/34/merge',
+                'content': 'success'
+            }
+        )
+
+        reporter = await self.setupReporter(topic=Property('branch'))
+        build = await self.setupBuildResults(SUCCESS, complete=False)
+
+        reporter.buildStarted(('build', 20, 'started'), build)
+        build['complete'] = True
+        reporter.buildFinished(('build', 20, 'finished'), build)

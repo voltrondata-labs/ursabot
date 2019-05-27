@@ -61,6 +61,16 @@ class GithubHook(GitHubEventHandler):
         )
     """
 
+    def __init__(self, *args, **kwargs):
+        if not kwargs.get('github_property_whitelist'):
+            # handle_pull_request calls self.extractProperties with
+            # payload['pull_request'], so in order to set a title property
+            # to the pull_request's title, 'github.title' must be passed to
+            # the property whitelist, for the exact implementation see
+            # buildbot.changes.github.PullRequestMixin and handle_pull_request
+            kwargs['github_property_whitelist'] = ['github.title']
+        super().__init__(*args, **kwargs)
+
     def _client(self):
         headers = {'User-Agent': 'Buildbot'}
         if self._token:
@@ -68,8 +78,12 @@ class GithubHook(GitHubEventHandler):
 
         # TODO(kszucs): initialize it once?
         return HTTPClientService.getService(
-            self.master, self.github_api_endpoint, headers=headers,
-            debug=self.debug, verify=self.verify)
+            self.master,
+            self.github_api_endpoint,
+            headers=headers,
+            debug=self.debug,
+            verify=self.verify
+        )
 
     async def _get(self, url):
         url = urlparse(url)
@@ -144,15 +158,17 @@ class GithubHook(GitHubEventHandler):
         message = "I've successfully started builds for this PR"
         await self._post(comments_url, {'body': message})
 
-        # `event: issue_comment` will be available between the properties, but
-        # We still need a way to determine which builders to run, so pass the
-        # command property as well and flag the change category as `comment`
-        # instead of `pull`
         for change in changes:
+            # `event: issue_comment` will be available between the properties,
+            # but We still need a way to determine which builders to run, so
+            # pass the command property as well and flag the change category as
+            # `comment` instead of `pull`
             change['category'] = 'comment'
             change['properties']['command'] = command
 
         return changes, 'git'
 
-    # TODO(kszucs): ursabot might listen on:handle_commit_comment,
-    # handle_pull_request_review and/or handle_pull_request_review_comment
+    # TODO(kszucs): ursabot might listen on:
+    # - handle_commit_comment
+    # - handle_pull_request_review
+    # - handle_pull_request_review_comment

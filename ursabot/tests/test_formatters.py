@@ -1,18 +1,23 @@
 import textwrap
+import traceback
 from pathlib import Path
 
 from twisted.trial import unittest
-from buildbot.process.results import FAILURE, SUCCESS
+from buildbot.process.results import FAILURE, SUCCESS, EXCEPTION
 from buildbot.reporters import utils
 from buildbot.test.fake import fakedb, fakemaster
 from buildbot.test.util.misc import TestReactorMixin
 
-from ursabot.formatters import (Formatter, MarkdownCommentFormatter,
+from ursabot.formatters import (Formatter, MarkdownFormatter,
                                 BenchmarkCommentFormatter)
 from ursabot.utils import ensure_deferred
 
 
 class TestFormatterBase(TestReactorMixin, unittest.TestCase):
+
+    BUILD_ID = 21
+    BUILD_URL = 'http://localhost:8080/#builders/80/builds/1'
+    REVISION = '989ec01feb96c2563f39b1751bcc29822c8db4b8'
 
     def setUp(self):
         self.setUpTestReactor()
@@ -39,14 +44,19 @@ class TestFormatterBase(TestReactorMixin, unittest.TestCase):
         ])
         for _id in (20, 21):
             self.db.insertTestData([
-                fakedb.BuildProperty(
-                    buildid=_id, name='workername', value='wrkr'),
-                fakedb.BuildProperty(
-                    buildid=_id, name='reason', value='because'),
+                fakedb.BuildProperty(buildid=_id, name='buildername',
+                                     value='Builder1'),
+                fakedb.BuildProperty(buildid=_id, name='workername',
+                                     value='wrkr'),
+                fakedb.BuildProperty(buildid=_id, name='revision',
+                                     value=self.REVISION),
+                fakedb.BuildProperty(buildid=_id, name='reason',
+                                     value='because')
             ])
 
-    async def render(self, previous, current, buildsetid=99, complete=True):
-        self.setupDb(current, previous)
+    async def render(self, previous, current, buildsetid=99, complete=True,
+                     **kwargs):
+        self.setupDb(current, previous, **kwargs)
 
         buildset = await utils.getDetailsForBuildset(
             self.master,
@@ -85,41 +95,149 @@ class TestFormatter(TestFormatterBase):
         assert content == 'Build failed.'
 
 
-class TestMarkdownCommentFormatter(TestFormatterBase):
+class TestMarkdownFormatter(TestFormatterBase):
+
+    def setupDb(self, current, previous, log1=None, log2=None):
+        super().setupDb(current, previous)
+
+        self.db.insertTestData([
+            fakedb.Step(id=50, buildid=21, number=0, name='Compile'),
+            fakedb.Step(id=51, buildid=21, number=1, name='Benchmark',
+                        results=current, state_string='/bin/run-benchmark'),
+            fakedb.Step(id=52, buildid=20, number=0, name='Compile'),
+            fakedb.Step(id=53, buildid=20, number=1, name='Benchmark',
+                        results=current, state_string='/bin/run-benchmark')
+        ])
+
+        if current == SUCCESS:
+            self.db.insertTestData([
+                fakedb.Log(id=60, stepid=51, name='stdio', slug='stdio',
+                           type='s', num_lines=len(log1)),
+                fakedb.Log(id=61, stepid=53, name='stdio', slug='stdio',
+                           type='s', num_lines=len(log2)),
+                fakedb.LogChunk(logid=60, first_line=0, last_line=4,
+                                compressed=0, content='\n'.join(log1)),
+                fakedb.LogChunk(logid=61, first_line=0, last_line=6,
+                                compressed=0, content='\n'.join(log2))
+            ])
+        elif current == FAILURE:
+            self.db.insertTestData([
+                fakedb.Log(id=60, stepid=51, name='stdio', slug='stdio',
+                           type='s', num_lines=len(log1)),
+                fakedb.Log(id=61, stepid=53, name='stdio', slug='stdio',
+                           type='s', num_lines=len(log2)),
+                fakedb.LogChunk(logid=60, first_line=0, last_line=4,
+                                compressed=0, content='\n'.join(log1)),
+                fakedb.LogChunk(logid=61, first_line=0, last_line=6,
+                                compressed=0, content='\n'.join(log2))
+            ])
+        elif current == EXCEPTION:
+            self.db.insertTestData([
+                fakedb.Log(id=60, stepid=51, name='err.text', slug='err_text',
+                           type='t', num_lines=len(log1)),
+                fakedb.Log(id=61, stepid=53, name='err.text', slug='err_text',
+                           type='t', num_lines=len(log2)),
+                fakedb.LogChunk(logid=60, first_line=0, last_line=4,
+                                compressed=0, content='\n'.join(log1)),
+                fakedb.LogChunk(logid=61, first_line=0, last_line=6,
+                                compressed=0, content='\n'.join(log2))
+            ])
 
     def setupFormatter(self):
-        return MarkdownCommentFormatter()
+        return MarkdownFormatter()
 
     @ensure_deferred
-    async def test_message_started(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_started(self):
+        expected = f'''
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder is started.
 
-        Build started.
+        Revision: {self.REVISION}
         '''
         content = await self.render(previous=SUCCESS, current=-1,
                                     complete=False)
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
-    async def test_message_success(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_success(self):
+        status = 'has been succeeded.'
+        expected = f'''
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
-        Build succeeded.
+        Revision: {self.REVISION}
         '''
-        content = await self.render(previous=SUCCESS, current=SUCCESS)
+        log1 = ('hline1', 'hline2', 'sline3')
+        log2 = ('hline1', 'sline2', 'sline3', 'hline7')
+        content = await self.render(previous=SUCCESS, current=SUCCESS,
+                                    log1=log1, log2=log2)
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
-    async def test_message_failure(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_failure(self):
+        BUILD_URL = self.BUILD_URL
+        BUILD_ID = self.BUILD_ID
+        log1 = ('hline1', 'hline2', 'sline3', 'eline4', 'eline5')
+        log2 = ('hline1', 'eline2', 'eline3', 'sline4', 'eline5', 'eline6')
 
-        Build failed.
+        expected = f'''
+        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been failed.
+
+        Revision: {self.REVISION}
+
+        Benchmark: `/bin/run-benchmark` step's stderr:
+        ```
+        line4
+        line5
+        ```
         '''
-        content = await self.render(previous=SUCCESS, current=FAILURE)
+        content = await self.render(buildsetid=99, previous=SUCCESS,
+                                    current=FAILURE, log1=log1, log2=log2)
         assert content == textwrap.dedent(expected).strip()
+
+        BUILD_URL = 'http://localhost:8080/#builders/80/builds/0'
+        BUILD_ID = 20
+        expected = f'''
+        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been failed.
+
+        Revision: {self.REVISION}
+
+        Benchmark: `/bin/run-benchmark` step's stderr:
+        ```
+        line2
+        line3
+        line5
+        line6
+        ```
+        '''
+        content = await self.render(buildsetid=98, previous=SUCCESS,
+                                    current=FAILURE, log1=log1, log2=log2)
+        assert content == textwrap.dedent(expected).strip()
+
+    @ensure_deferred
+    async def test_exception(self):
+        try:
+            raise ValueError()
+        except Exception:
+            log1 = traceback.format_exc().strip()
+        try:
+            raise TypeError()
+        except Exception:
+            log2 = traceback.format_exc().strip()
+
+        status = 'has been failed with an exception.'
+        expected = f'''
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
+
+        Revision: {self.REVISION}
+
+        Benchmark: `/bin/run-benchmark` step's traceback:
+        ```pycon
+        {{log1}}
+        ```
+        '''
+        content = await self.render(buildsetid=99, previous=SUCCESS,
+                                    current=EXCEPTION, log1=log1.splitlines(),
+                                    log2=log2.splitlines())
+        assert content == textwrap.dedent(expected).strip().format(log1=log1)
 
 
 class TestBenchmarkCommentFormatter(TestFormatterBase):
@@ -131,21 +249,23 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
     def setupFormatter(self):
         return BenchmarkCommentFormatter()
 
-    def setupDb(self, *args, **kwargs):
-        super().setupDb(*args, **kwargs)
+    def setupDb(self, current, previous):
+        super().setupDb(current, previous)
 
         log1 = self.load_fixture('archery-benchmark-diff.jsonl')
         log2 = self.load_fixture('archery-benchmark-diff-empty-lines.jsonl')
 
         self.db.insertTestData([
             fakedb.Step(id=50, buildid=21, number=0, name='compile'),
-            fakedb.Step(id=51, buildid=21, number=1, name='benchmark'),
+            fakedb.Step(id=51, buildid=21, number=1, name='benchmark',
+                        results=current),
             fakedb.Step(id=52, buildid=20, number=0, name='compile'),
-            fakedb.Step(id=53, buildid=20, number=1, name='benchmark'),
+            fakedb.Step(id=53, buildid=20, number=1, name='benchmark',
+                        results=current),
             fakedb.Log(id=60, stepid=51, name='result', slug='result',
-                       type='s', num_lines=4),
+                       type='t', num_lines=4),
             fakedb.Log(id=61, stepid=53, name='result', slug='result',
-                       type='s', num_lines=6),
+                       type='t', num_lines=6),
             fakedb.LogChunk(logid=60, first_line=0, last_line=4, compressed=0,
                             content=log1),
             fakedb.LogChunk(logid=61, first_line=0, last_line=6, compressed=0,
@@ -153,19 +273,23 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         ])
 
     @ensure_deferred
-    async def test_message_failure(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_failure(self):
+        status = 'has been failed.'
+        expected = f'''
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
-        Build failed.
+        Revision: {self.REVISION}
         '''
         content = await self.render(previous=SUCCESS, current=FAILURE)
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
-    async def test_message_success(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/1)
+    async def test_success(self):
+        status = 'has been succeeded.'
+        expected = f'''
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
+
+        Revision: {self.REVISION}
 
         ```diff
           ============================  ===========  ===========  ===========
@@ -183,9 +307,13 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
-    async def test_message_empty_lines(self):
-        expected = '''
-        [unknown](http://localhost:8080/#builders/80/builds/0)
+    async def test_empty_jsonlines(self):
+        BUILD_URL = 'http://localhost:8080/#builders/80/builds/0'
+        BUILD_ID = 20
+        expected = f'''
+        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been succeeded.
+
+        Revision: {self.REVISION}
 
         ```diff
           ============================  ===========  ===========  ==========
