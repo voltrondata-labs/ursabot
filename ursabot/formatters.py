@@ -42,6 +42,7 @@ class Formatter:
             'worker_name': props.get('workername', ['unknown'])[0],
             'builder_name': props.get('buildername', ['unknown'])[0],
             'buildbot_url': master.config.buildbotURL,
+            'build_id': build['buildid'],
             'build_url': utils.getURLForBuild(
                 master, build['builder']['builderid'], build['number']
             )
@@ -50,26 +51,37 @@ class Formatter:
 
     def extract_logs(self, build, logname):
         # stream type prefixes each line with the stream's abbreviation:
-        stream_prefixes = {
+        _stream_prefixes = {
             's': 'stdout',
             'e': 'stderr',
             'h': 'header'
         }
+
+        def _stream(line):
+            return (_stream_prefixes[line[0]], line[1:])
+
+        def _html(line):
+            return ('html', line)
+
+        def _text(line):
+            return ('text', line)
+
         for s in build['steps']:
             for l in s['logs']:
                 if l['name'] == logname:
                     typ = l['type']
-                    lines = l['content']['content'].splitlines()
 
                     if typ == 'h':  # HTML
-                        lines = [('html', line) for line in lines]
+                        extractor = _html
                     elif typ == 't':  # text
-                        lines = [('text', line) for line in lines]
+                        extractor = _text
                     elif typ == 's':  # stream
-                        lines = [(stream_prefixes[line[0]], line[1:])
-                                 for line in lines]
+                        extractor = _stream
                     else:
                         raise ValueError(f'Unknown log type: `{typ}`')
+
+                    content = l['content']['content']
+                    lines = (extractor(l) for l in content.splitlines())
 
                     yield (s, lines)
 
@@ -129,7 +141,7 @@ class Formatter:
 class MarkdownFormatter(Formatter):
 
     layout = textwrap.dedent("""
-        [{builder_name}]({build_url}) builder {status}.
+        [{builder_name} (#{build_id})]({build_url}) builder {status}.
 
         Revision: {revision}
 
@@ -148,7 +160,7 @@ class MarkdownFormatter(Formatter):
         errors = []
         for step, log_lines in self.extract_logs(build, logname='stdio'):
             if step['results'] == FAILURE:
-                stderr = [l for stream, l in log_lines if stream == 'stderr']
+                stderr = (l for stream, l in log_lines if stream == 'stderr')
                 errors.append(
                     template.format(
                         step_name=step['name'],
@@ -172,7 +184,7 @@ class MarkdownFormatter(Formatter):
         errors = []
         for step, log_lines in self.extract_logs(build, logname='err.text'):
             if step['results'] == EXCEPTION:
-                traceback = [l for _, l in log_lines]
+                traceback = (l for _, l in log_lines)
                 errors.append(
                     template.format(
                         step_name=step['name'],
@@ -232,7 +244,7 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
         results = {}
         for step, log_lines in self.extract_logs(build, logname='result'):
             if step['results'] == SUCCESS:
-                results[step['stepid']] = [line for _, line in log_lines]
+                results[step['stepid']] = (line for _, line in log_lines)
 
         try:
             # decode jsonlines objects and render the results as markdown table

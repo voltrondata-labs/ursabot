@@ -15,6 +15,7 @@ from ursabot.utils import ensure_deferred
 
 class TestFormatterBase(TestReactorMixin, unittest.TestCase):
 
+    BUILD_ID = 21
     BUILD_URL = 'http://localhost:8080/#builders/80/builds/1'
     REVISION = '989ec01feb96c2563f39b1751bcc29822c8db4b8'
 
@@ -148,7 +149,7 @@ class TestMarkdownFormatter(TestFormatterBase):
     @ensure_deferred
     async def test_started(self):
         expected = f'''
-        [Builder1]({self.BUILD_URL}) builder is started.
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder is started.
 
         Revision: {self.REVISION}
         '''
@@ -158,8 +159,9 @@ class TestMarkdownFormatter(TestFormatterBase):
 
     @ensure_deferred
     async def test_success(self):
+        status = 'has been succeeded.'
         expected = f'''
-        [Builder1]({self.BUILD_URL}) builder has been succeeded.
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
         Revision: {self.REVISION}
         '''
@@ -172,11 +174,12 @@ class TestMarkdownFormatter(TestFormatterBase):
     @ensure_deferred
     async def test_failure(self):
         BUILD_URL = self.BUILD_URL
+        BUILD_ID = self.BUILD_ID
         log1 = ('hline1', 'hline2', 'sline3', 'eline4', 'eline5')
         log2 = ('hline1', 'eline2', 'eline3', 'sline4', 'eline5', 'eline6')
 
         expected = f'''
-        [Builder1]({BUILD_URL}) builder has been failed.
+        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been failed.
 
         Revision: {self.REVISION}
 
@@ -191,8 +194,9 @@ class TestMarkdownFormatter(TestFormatterBase):
         assert content == textwrap.dedent(expected).strip()
 
         BUILD_URL = 'http://localhost:8080/#builders/80/builds/0'
+        BUILD_ID = 20
         expected = f'''
-        [Builder1]({BUILD_URL}) builder has been failed.
+        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been failed.
 
         Revision: {self.REVISION}
 
@@ -219,8 +223,9 @@ class TestMarkdownFormatter(TestFormatterBase):
         except Exception:
             log2 = traceback.format_exc().strip()
 
+        status = 'has been failed with an exception.'
         expected = f'''
-        [Builder1]({self.BUILD_URL}) builder has been failed with an exception.
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
         Revision: {self.REVISION}
 
@@ -269,8 +274,9 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
 
     @ensure_deferred
     async def test_failure(self):
+        status = 'has been failed.'
         expected = f'''
-        [Builder1]({self.BUILD_URL}) builder has been failed.
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
         Revision: {self.REVISION}
         '''
@@ -279,8 +285,9 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
 
     @ensure_deferred
     async def test_success(self):
+        status = 'has been succeeded.'
         expected = f'''
-        [Builder1]({self.BUILD_URL}) builder has been succeeded.
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
         Revision: {self.REVISION}
 
@@ -302,8 +309,9 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
     @ensure_deferred
     async def test_empty_jsonlines(self):
         BUILD_URL = 'http://localhost:8080/#builders/80/builds/0'
+        BUILD_ID = 20
         expected = f'''
-        [Builder1]({BUILD_URL}) builder has been succeeded.
+        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been succeeded.
 
         Revision: {self.REVISION}
 

@@ -188,7 +188,7 @@ class GitHubReporter(HttpStatusPush):
         await super().reconfigService(headers=headers, **kwargs)
         self.formatter = formatter
 
-    def _github_params(self, sourcestamp, branch=None):
+    def _extract_github_params(self, sourcestamp, branch=None):
         """Parses parameters required to by github"""
 
         # branch is updated by the checkoutstep, required for PRs
@@ -197,6 +197,7 @@ class GitHubReporter(HttpStatusPush):
         repo = sourcestamp['repository']
         sha = sourcestamp['revision']
 
+        # determine whether the branch refers to a PR
         m = re.search(r'refs/pull/([0-9]*)/merge', branch)
         if m:
             issue = m.group(1)
@@ -209,8 +210,14 @@ class GitHubReporter(HttpStatusPush):
             giturl = giturlparse(repo)
             repo_owner, repo_name = giturl.owner, giturl.repo
 
-        return dict(repo=repo, branch=branch, sha=sha, issue=issue,
-                    repo_owner=repo_owner, repo_name=repo_name)
+        return dict(
+            sha=sha,
+            repo=repo,
+            branch=branch,
+            issue=issue,
+            repo_owner=repo_owner,
+            repo_name=repo_name
+        )
 
     @ensure_deferred
     async def report(self, build, sourcestamp, properties):
@@ -254,7 +261,8 @@ class GitHubStatusPush(GitHubReporter):
 
     @ensure_deferred
     async def report(self, build, sourcestamp, properties):
-        params = self._github_params(sourcestamp, branch=properties['branch'])
+        params = self._extract_github_params(sourcestamp,
+                                             branch=properties['branch'])
         payload = {
             'target_url': build['url'],
             'state': self._state_for(build),
@@ -304,7 +312,8 @@ class GitHubReviewPush(GitHubReporter):
 
     @ensure_deferred
     async def report(self, build, sourcestamp, properties):
-        params = self._github_params(sourcestamp, branch=properties['branch'])
+        params = self._extract_github_params(sourcestamp,
+                                             branch=properties['branch'])
         if not params.get('issue'):
             raise ValueError('GitHub review push requires a pull request, but '
                              'the branch is not a pull request reference: ' +
@@ -351,7 +360,8 @@ class GitHubCommentPush(GitHubReporter):
 
     @ensure_deferred
     async def report(self, build, sourcestamp, properties):
-        params = self._github_params(sourcestamp, branch=properties['branch'])
+        params = self._extract_github_params(sourcestamp,
+                                             branch=properties['branch'])
         payload = {
             'body': await self.formatter.render(build, master=self.master)
         }
