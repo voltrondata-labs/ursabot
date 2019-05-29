@@ -169,7 +169,7 @@ class MarkdownFormatter(Formatter):
                     )
                 )
 
-        return dict(status='has been failed', context='\n\n'.join(errors))
+        return dict(status='failed', context='\n\n'.join(errors))
 
     def render_exception(self, build, master):
         template = textwrap.dedent("""
@@ -194,7 +194,7 @@ class MarkdownFormatter(Formatter):
                 )
 
         return dict(
-            status='has been failed with an exception',
+            status='failed with an exception',
             context='\n\n'.join(errors)
         )
 

@@ -179,7 +179,7 @@ class TestMarkdownFormatter(TestFormatterBase):
         log2 = ('hline1', 'eline2', 'eline3', 'oline4', 'eline5', 'eline6')
 
         expected = f'''
-        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been failed.
+        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder failed.
 
         Revision: {self.REVISION}
 
@@ -196,7 +196,7 @@ class TestMarkdownFormatter(TestFormatterBase):
         BUILD_URL = 'http://localhost:8080/#builders/80/builds/0'
         BUILD_ID = 20
         expected = f'''
-        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been failed.
+        [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder failed.
 
         Revision: {self.REVISION}
 
@@ -223,7 +223,7 @@ class TestMarkdownFormatter(TestFormatterBase):
         except Exception:
             log2 = traceback.format_exc().strip()
 
-        status = 'has been failed with an exception.'
+        status = 'failed with an exception.'
         expected = f'''
         [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
@@ -274,7 +274,7 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
 
     @ensure_deferred
     async def test_failure(self):
-        status = 'has been failed.'
+        status = 'failed.'
         expected = f'''
         [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
