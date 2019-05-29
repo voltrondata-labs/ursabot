@@ -8,5 +8,6 @@ libboost-dev
 libboost-filesystem-dev
 libboost-regex-dev
 libboost-system-dev
+libssl-dev
 libzstd1-dev
 ninja-build

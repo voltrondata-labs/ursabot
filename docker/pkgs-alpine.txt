@@ -12,5 +12,6 @@ gzip
 make
 musl-dev
 ninja
+openssl-dev
 wget
 zlib-dev

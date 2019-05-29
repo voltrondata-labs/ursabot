@@ -31,6 +31,7 @@ grpc-cpp
 gtest
 libprotobuf
 lz4-c
+openssl
 python
 rapidjson
 re2

@@ -94,15 +94,39 @@ ursabot docker build --help
 To build and push Arrow `amd64` `conda` images:
 
 ```bash
-ursabot --verbose docker --arch amd64 --variant conda build --push
+ursabot --verbose docker --arch amd64 --variant conda build --push arrow
 ```
 
 To build and push Arrow `arm64v8` `alpine` images:
 
 ```bash
 ursabot --verbose \
-  docker --docker-host tcp://arm-machine:2375 --arch arm64v8 --os alpine-3.9
-  build --push
+  docker --docker-host tcp://arm-machine:2375 --arch arm64v8 --os alpine-3.9 \
+  build --push arrow
+```
+
+### Adding a new dependency to the docker images
+
+For plain (non-conda) docker images append the appropiate package to
+[pkgs-alpine.txt](docker/pkgs-alpine.txt) and
+[pkgs-ubuntu.txt](docker/pkgs-ubuntu.txt).
+
+For conda images add the newly introduced dependency either to
+[conda-linux.txt](docker/conda-linux.txt),
+[conda-cpp.txt](docker/conda-cpp.txt),
+[conda-python.txt](docker/conda-cpp.txt) or
+[conda-sphinx.txt](docker/conda-sphinx.txt)
+depending on which images should contain the new dependency.
+
+In order to add a new pip dependency to the python images edit
+[requirements.txt](docker/requirements.txt) or
+[requirements-test.txt](docker/requirements-test.txt).
+
+Then build and push the new images:
+
+```bash
+$ ursabot -v docker -dh tcp://amd64-host:2375 -a amd64 build -p arrow
+$ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p arrow
 ```
 
 ## Development
