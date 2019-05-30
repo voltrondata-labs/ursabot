@@ -180,6 +180,8 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
         return SUCCESS
 
 
+# TODO(kszucs): this function is executed on the master's side, to execute
+# remote functions use cloudpickle
 class PythonFunction(buildstep.BuildStep):
     """Executes arbitrary python function."""
 

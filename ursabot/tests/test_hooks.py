@@ -10,6 +10,7 @@ from buildbot.test.unit.test_www_hooks_github import (
 
 from ursabot.utils import ensure_deferred
 from ursabot.hooks import GithubHook
+from ursabot.commands import ursabot_comment_handler
 
 
 class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
@@ -21,7 +22,10 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
         self.setUpTestReactor()
 
         assert self.klass is not None
-        self.hook = _prepare_github_change_hook(self, **{'class': self.klass})
+        self.hook = _prepare_github_change_hook(self, **{
+            'class': self.klass,
+            'comment_handler': ursabot_comment_handler
+        })
         self.master = self.hook.master
         self.http = await FakeHTTPClientService.getFakeService(
             self.master,
@@ -68,6 +72,7 @@ class TestGithubHook(ChangeHookTestCase):
 
     @ensure_deferred
     async def test_issue_comment_by_ursabot(self):
+        # don't respond to itself, it prevents recursive comment storms!
         payload = self.load_fixture('issue-comment-by-ursabot')
         await self.trigger('issue_comment', payload=payload)
         assert len(self.hook.master.data.updates.changesAdded) == 0
