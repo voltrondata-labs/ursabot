@@ -8,7 +8,7 @@ from buildbot import interfaces
 from buildbot.plugins import util
 from codenamize import codenamize
 
-from .docker import DockerImage, arrow_images, ursabot_images
+from .docker import DockerImage, images
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
                     Archery)
@@ -324,11 +324,7 @@ class UrsabotTest(DockerBuilder):
             repourl=util.Property('repository'),
             mode='full'
         ),
-        # --no-binary buildbot is required because buildbot doesn't bundle its
-        # tests to binary wheels, but ursabot's test suite depends on
-        # buildbot's so install it from source
-        Pip(['install', '--no-binary', 'buildbot',
-             'pytest', 'flake8', 'mock', '-e', '.']),
+        Pip(['install', '-e', '.']),
         PyTest(args=['-m', 'not docker', 'ursabot']),
         ShellCommand(
             command=['flake8', 'ursabot'],
@@ -340,7 +336,27 @@ class UrsabotTest(DockerBuilder):
             name='Checkconfig'
         )
     ]
-    images = ursabot_images.filter(tag='worker')
+    images = images.filter(
+        name='ursabot',
+        tag='worker'
+    )
+
+
+class CrossbowTrigger(DockerBuilder):
+    tags = ['crossbow']
+    steps = [
+        # TODO(kszucs):
+        # checkout arrow
+        # checkout crossbow
+        # pass github token as a secret
+        # Crossbow step with arguments from `crossbow_args` property
+        # write crossbow's output to a file, similarly like archery
+        # add a comment reporter with a crossbow formatter
+    ]
+    images = images.filter(
+        name='crossbow',
+        tag='worker'
+    )
 
 
 # TODO(kszucs): properly implement it
@@ -366,14 +382,14 @@ class ArrowCppTest(DockerBuilder):
         cpp_test
     ]
     images = (
-        arrow_images.filter(
+        images.filter(
             name='cpp',
             arch='amd64',
             os=startswith('ubuntu') | startswith('alpine'),
             variant=None,  # plain linux images, not conda
             tag='worker'
         ) +
-        arrow_images.filter(
+        images.filter(
             name='cpp',
             arch='arm64v8',
             os='ubuntu-18.04',
@@ -391,7 +407,7 @@ class ArrowCppCudaTest(ArrowCppTest):
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
-    images = arrow_images.filter(
+    images = images.filter(
         name='cpp',
         arch='amd64',
         variant='cuda',
@@ -413,7 +429,7 @@ class ArrowCppBenchmark(DockerBuilder):
                       '--output=diff.json'],
                 result_file='diff.json')
     ]
-    images = arrow_images.filter(
+    images = images.filter(
         name='cpp-benchmark',
         os=startswith('ubuntu'),
         arch='amd64',  # until ARROW-5382: SSE on ARM NEON gets resolved
@@ -440,14 +456,14 @@ class ArrowPythonTest(DockerBuilder):
         python_test
     ]
     images = (
-        arrow_images.filter(
+        images.filter(
             name=startswith('python'),
             arch='amd64',
             os=startswith('ubuntu') | startswith('alpine'),
             variant=None,  # plain linux images, not conda
             tag='worker'
         ) +
-        arrow_images.filter(
+        images.filter(
             name=startswith('python'),
             arch='arm64v8',
             os='ubuntu-18.04',
@@ -481,7 +497,7 @@ class ArrowCppCondaTest(DockerBuilder):
         cpp_compile,
         cpp_test
     ]
-    images = arrow_images.filter(
+    images = images.filter(
         name='cpp',
         variant='conda',
         tag='worker'
@@ -515,7 +531,7 @@ class ArrowPythonCondaTest(DockerBuilder):
         python_install,
         python_test
     ]
-    images = arrow_images.filter(
+    images = images.filter(
         name=startswith('python'),
         variant='conda',
         tag='worker'

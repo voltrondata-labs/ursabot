@@ -91,18 +91,18 @@ Ursabot has a CLI interface to build the docker images:
 ursabot docker build --help
 ```
 
-To build and push Arrow `amd64` `conda` images:
+To build and push Arrow C++ `amd64` `conda` images:
 
 ```bash
-ursabot --verbose docker --arch amd64 --variant conda build --push arrow
+ursabot --verbose docker --arch amd64 --variant conda --name cpp build --push
 ```
 
-To build and push Arrow `arm64v8` `alpine` images:
+To build and push all `arm64v8` `alpine` images:
 
 ```bash
 ursabot --verbose \
   docker --docker-host tcp://arm-machine:2375 --arch arm64v8 --os alpine-3.9 \
-  build --push arrow
+  build --push
 ```
 
 ### Adding a new dependency to the docker images
@@ -125,8 +125,8 @@ In order to add a new pip dependency to the python images edit
 Then build and push the new images:
 
 ```bash
-$ ursabot -v docker -dh tcp://amd64-host:2375 -a amd64 build -p arrow
-$ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p arrow
+$ ursabot -v docker -dh tcp://amd64-host:2375 -a amd64 build -p
+$ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p
 ```
 
 ## Development

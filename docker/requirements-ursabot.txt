@@ -1,0 +1,21 @@
+# --no-binary buildbot is required because buildbot doesn't bundle its
+# tests to binary wheels, but ursabot's test suite depends on
+# buildbot's so install it from source
+--no-binary buildbot
+buildbot
+buildbot-console-view
+buildbot-grid-view
+buildbot-waterfall-view
+buildbot-www
+click
+codenamize
+docker
+docker-map
+flake8
+mock
+pytest
+tabulate
+toml
+toolz
+toposort
+treq

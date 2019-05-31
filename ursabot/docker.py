@@ -311,7 +311,7 @@ python_steps = [
 # Note the python has a special treatment, because buildbot requires it.
 # So all of the following images must have a python interpreter and pip
 # pre-installed.
-arrow_images = ImageCollection()
+images = ImageCollection()
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
@@ -336,7 +336,7 @@ for arch in ['amd64', 'arm64v8']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        arrow_images.extend([cpp, python])
+        images.extend([cpp, python])
 
         if ubuntu_version in {'18.04'}:
             cpp_benchmark = DockerImage(
@@ -348,7 +348,7 @@ for arch in ['amd64', 'arm64v8']:
                     RUN(pip('click', 'pandas'))
                 ]
             )
-            arrow_images.append(cpp_benchmark)
+            images.append(cpp_benchmark)
 
     # ALPINE
     for alpine_version in ['3.9']:
@@ -372,7 +372,7 @@ for arch in ['amd64', 'arm64v8']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        arrow_images.extend([cpp, python])
+        images.extend([cpp, python])
 
 # CONDA
 for arch in ['amd64']:
@@ -409,7 +409,7 @@ for arch in ['amd64']:
             RUN(conda('benchmark', 'click', 'pandas'))
         ]
     )
-    arrow_images.extend([cpp, cpp_benchmark])
+    images.extend([cpp, cpp_benchmark])
 
     for python_version in ['2.7', '3.6', '3.7']:
         python = DockerImage(
@@ -422,7 +422,7 @@ for arch in ['amd64']:
                           files=['conda-python.txt']))
             ]
         )
-        arrow_images.append(python)
+        images.append(python)
 
 # CUDA
 for arch in ['amd64']:
@@ -448,8 +448,47 @@ for arch in ['amd64']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        arrow_images.extend([cpp, python])
+        images.extend([cpp, python])
 
+# URSABOT
+ursabot = DockerImage(
+    name='ursabot',
+    base='python:3.7',
+    arch='amd64',
+    os='debian',
+    org='ursalab',
+    title='Ursabot Python 3.7',
+    steps=[
+        ADD(docker_assets / 'requirements-ursabot.txt'),
+        RUN(pip(files=['requirements-ursabot.txt']))
+    ]
+)
+
+# CROSSBOW
+crossbow = DockerImage(
+    name='crossbow',
+    arch='amd64',
+    base='ubuntu:18.04',
+    os='ubuntu-18.04',
+    variant='conda',
+    org='ursalab',
+    title=f'Crossbow Conda Python 3.7',
+    steps=[
+        RUN(apt('wget')),
+        # install miniconda
+        ENV(PATH='/opt/conda/bin:$PATH'),
+        ADD(docker_assets / 'install_conda.sh'),
+        RUN('/install_conda.sh', arch, '/opt/conda'),
+        # install crossbow dependencies
+        ADD(docker_assets / 'conda-crossbow.txt'),
+        RUN(conda(files=['conda-crossbow.txt'])),
+        # run conda activate
+        SHELL(['/bin/bash', '-l', '-c']),
+        ENTRYPOINT(['/bin/bash', '-l', '-c']),
+    ]
+)
+
+images.extend([ursabot, crossbow])
 
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
@@ -463,25 +502,11 @@ worker_steps = [
 
 # create worker images and add them to the list of arrow images
 worker_images = []
-for image in arrow_images:
+for image in images:
     # exec form is required for conda images becase of the bash entrypoint
     cmd = [worker_command] if image.variant == 'conda' else worker_command
     steps = worker_steps + [CMD(cmd)]
     worker = DockerImage(image.name, base=image, tag='worker', steps=steps)
     worker_images.append(worker)
 
-arrow_images.extend(worker_images)
-
-# docker images for testing ursabot itself
-ursabot_images = ImageCollection([
-    DockerImage(
-        name='ursabot',
-        base='python:3.7',
-        arch='amd64',
-        os='debian',
-        tag='worker',
-        org='ursalab',
-        title='Ursabot Python 3.7',
-        steps=worker_steps + [CMD(worker_command)]
-    )
-])
+images.extend(worker_images)

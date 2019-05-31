@@ -5,7 +5,7 @@ from pathlib import Path
 
 from dockermap.api import DockerClientWrapper
 
-from .docker import arrow_images, ursabot_images
+from .docker import images
 
 
 logging.basicConfig()
@@ -48,46 +48,32 @@ def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
     if docker_username is not None:
         client.login(username=docker_username, password=docker_password)
 
+    filters = toolz.valfilter(lambda x: x is not None, kwargs)
+    docker_images = images.filter(**filters)
+
     ctx.obj['client'] = client
-    ctx.obj['filters'] = toolz.valfilter(lambda x: x is not None, kwargs)
+    ctx.obj['images'] = docker_images
 
 
 @docker.command()
-@click.argument('project')
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
 @click.pass_context
-def build(ctx, project, push):
-    if project == 'arrow':
-        images = arrow_images
-    elif project == 'ursabot':
-        images = ursabot_images
-    else:
-        raise ValueError(f'Uknown project: `{project}`')
-
-    filters = ctx.obj['filters']
-    images = images.filter(**filters)
-
+def build(ctx, push):
     client = ctx.obj['client']
-    images.build(client=client)
+    images = ctx.obj['images']
 
+    images.build(client=client)
     if push:
         images.push(client=client)
 
 
 @docker.command()
-@click.argument('project')
 @click.option('--directory', '-d', default='images',
               help='Path to the directory where the images should be written')
 @click.pass_context
-def write_dockerfiles(ctx, project, directory):
-    if project == 'arrow':
-        images = arrow_images
-    elif project == 'ursabot':
-        images = ursabot_images
-    else:
-        raise ValueError(f'Uknown project: `{project}`')
-
+def write_dockerfiles(ctx, directory):
+    images = ctx.obj['images']
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
 

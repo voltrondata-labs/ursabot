@@ -57,7 +57,7 @@ group = partial(click.group, cls=Group)
 @click.pass_context
 def ursabot(ctx):
     """Ursabot"""
-    ctx.obj = dict()
+    ctx.ensure_object(dict)
 
 
 @ursabot.command()

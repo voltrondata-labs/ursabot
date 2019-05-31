@@ -1,0 +1,9 @@
+click
+github3.py
+jinja2
+jira
+pygit2
+python-gnupg
+ruamel.yaml
+setuptools_scm
+toolz
