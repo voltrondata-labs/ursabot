@@ -71,10 +71,10 @@ def build():
 
 
 @ursabot.command()
-def benchmark(props):
+def benchmark():
     """Trigger all benchmarks registered for this pull request."""
     # each command must return a dictionary which are set as build properties
-    return {'command': 'build'}
+    return {'command': 'benchmark'}
 
 
 @ursabot.group()
