@@ -112,7 +112,7 @@ class TestUrsabotHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 0
 
     @ensure_deferred
-    async def check_issue_comment_with_command(self, command):
+    async def check_issue_comment_with_command(self, command, props=None):
         # handle_issue_comment queries the pull request
         request_json = self.load_fixture('pull-request-26')
         self.http.expect('get', '/repos/ursa-labs/ursabot/pulls/26',
@@ -138,13 +138,41 @@ class TestUrsabotHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 1
         for change in self.hook.master.data.updates.changesAdded:
             assert change['properties']['event'] == 'issue_comment'
-            assert change['properties']['command'] == command
             assert change['properties']['github.title'] == expected_title
+            for k, v in props.items():
+                assert change['properties'][k] == v
 
     @ensure_deferred
     async def test_issue_comment_build_command(self):
-        await self.check_issue_comment_with_command('build')
+        await self.check_issue_comment_with_command(
+            'build',
+            {'command': 'build'}
+        )
 
     @ensure_deferred
     async def test_issue_comment_benchmark_command(self):
-        await self.check_issue_comment_with_command('benchmark')
+        await self.check_issue_comment_with_command(
+            'benchmark',
+            {'command': 'benchmark'}
+        )
+
+    @ensure_deferred
+    async def test_issue_comment_crosssbow_test_command(self):
+        await self.check_issue_comment_with_command(
+            'crossbow test docker',
+            {
+                'command': 'crossbow',
+                'crossbow_args': ['submit', '-c', 'tests.yml', '-g', 'docker']
+            }
+        )
+
+    @ensure_deferred
+    async def test_issue_comment_crosssbow_package_command(self):
+        await self.check_issue_comment_with_command(
+            'crossbow package wheel conda',
+            {
+                'command': 'crossbow',
+                'crossbow_args': ['submit', '-c', 'tasks.yml', '-g', 'wheel',
+                                  '-g', 'conda']
+            }
+        )
