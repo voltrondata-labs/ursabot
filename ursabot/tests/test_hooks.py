@@ -9,8 +9,8 @@ from buildbot.test.unit.test_www_hooks_github import (
     _prepare_request, _prepare_github_change_hook)
 
 from ursabot.utils import ensure_deferred
-from ursabot.hooks import GithubHook
-from ursabot.commands import ursabot_comment_handler
+from ursabot.hooks import UrsabotHook
+from ursabot.commands import CommandError, ursabot as ursabot_command
 
 
 class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
@@ -22,16 +22,13 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
         self.setUpTestReactor()
 
         assert self.klass is not None
-        self.hook = _prepare_github_change_hook(self, **{
-            'class': self.klass,
-            'comment_handler': ursabot_comment_handler
-        })
+        self.hook = _prepare_github_change_hook(self, **{'class': self.klass})
         self.master = self.hook.master
         self.http = await FakeHTTPClientService.getFakeService(
             self.master,
             self,
             'https://api.github.com',
-            headers={'User-Agent': 'Buildbot'},
+            headers={'User-Agent': 'ursabot'},
             debug=False,
             verify=False
         )
@@ -55,9 +52,9 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
             return json.load(fp)
 
 
-class TestGithubHook(ChangeHookTestCase):
+class TestUrsabotHook(ChangeHookTestCase):
 
-    klass = GithubHook
+    klass = UrsabotHook
 
     @ensure_deferred
     async def test_ping(self):
@@ -84,9 +81,14 @@ class TestGithubHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 0
 
     @ensure_deferred
-    async def test_issue_comment_with_empty_command(self):
-        # responds to the comment
-        request_json = {'body': 'Unknown command ""'}
+    async def test_issue_comment_with_empty_command_reponds_with_usage(self):
+        # responds to the comment with the usage
+        try:
+            ursabot_command('')
+        except CommandError as e:
+            usage = e.message
+
+        request_json = {'body': usage}
         response_json = ''
         self.http.expect('post', '/repos/ursa-labs/ursabot/issues/26/comments',
                          json=request_json, content_json=response_json)
@@ -115,7 +117,7 @@ class TestGithubHook(ChangeHookTestCase):
         request_json = self.load_fixture('pull-request-26')
         self.http.expect('get', '/repos/ursa-labs/ursabot/pulls/26',
                          content_json=request_json)
-        # tigger handle_pull_request which fetches the commit
+        # trigger handle_pull_request which fetches the commit
         request_json = self.load_fixture('pull-request-26-commit')
         commit = '2705da2b616b98fa6010a25813c5a7a27456f71d'
         self.http.expect('get', f'/repos/ursa-labs/ursabot/commits/{commit}',

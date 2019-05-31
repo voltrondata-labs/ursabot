@@ -1,6 +1,6 @@
 import pytest
 
-from ursabot.commands import CommandError, ursabot_comment_handler
+from ursabot.commands import CommandError, ursabot
 
 
 @pytest.mark.parametrize(('command', 'expected_props'), [
@@ -8,7 +8,7 @@ from ursabot.commands import CommandError, ursabot_comment_handler
     ('benchmark', {'command': 'benchmark'})
 ])
 def test_ursabot_commands(command, expected_props):
-    props = ursabot_comment_handler(command)
+    props = ursabot(command)
     assert props == expected_props
 
 
@@ -20,7 +20,7 @@ def test_ursabot_commands(command, expected_props):
      ['submit', '-c', 'tests.yml', '-g', 'docker', '-g', 'cpp-python'])
 ])
 def test_crossbow_commands(command, expected_args):
-    props = ursabot_comment_handler(command)
+    props = ursabot(command)
     expected = {'command': 'crossbow', 'crossbow_args': expected_args}
     assert props == expected
 
@@ -35,5 +35,16 @@ def test_crossbow_commands(command, expected_args):
 ])
 def test_wrong_commands(command, expected_msg):
     with pytest.raises(CommandError) as excinfo:
-        ursabot_comment_handler(command)
+        ursabot(command)
     assert excinfo.value.message == expected_msg
+
+
+@pytest.mark.parametrize('command', [
+    '',
+    '--help'
+])
+def test_help(command):
+    with pytest.raises(CommandError) as excinfo:
+        ursabot(command)
+    prefix = 'Usage: @ursabot [OPTIONS] COMMAND [ARGS]...'
+    assert excinfo.value.message.startswith(prefix)

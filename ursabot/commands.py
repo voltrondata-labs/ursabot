@@ -1,8 +1,7 @@
 import shlex
-# from functools import partial
+from functools import partial
 
 import click
-import toolz
 
 
 class CommandError(Exception):
@@ -11,52 +10,50 @@ class CommandError(Exception):
         self.message = message
 
 
-#
-# class _CallableMixin:
-#
-#     def __call__(self, message):
-#         args = shlex.split(message)
-#         print(args)
-#         try:
-#             with self.make_context(None, args) as ctx:
-#                 result = self.invoke(ctx)
-#         except click.UsageError as e:
-#             raise CommandError(e.format_message())
-#
-#
-# class Command(_CallableMixin, click.Command):
-#     pass
-#
-#     # def show_help(ctx, param, value):
-#     #     if value and not ctx.resilient_parsing:
-#     #         echo(ctx.get_help(), color=ctx.color)
-#     #         ctx.exit()
-#     #     return Option(help_options, is_flag=True,
-#     #                   is_eager=True, expose_value=False,
-#     #                   callback=show_help,
-#     #                   help='Show this message and exit.')
-#
-#
-# class Group(_CallableMixin, click.Group):
-#
-#     def command(self, *args, cls=None, **kwargs):
-#         cls = cls or self.__class__
-#         return super().command(*args, cls=cls, **kwargs)
-#
-#     def group(self, *args, cls=None, **kwargs):
-#         cls = cls or self.__class__
-#         return super().group(*args, cls=cls, **kwargs)
-#
-#
-# command = partial(click.command, cls=Command)
-# group = partial(click.group, cls=Group)
-group = click.group
+class _CommandMixin:
+
+    def get_help_option(self, ctx):
+        def show_help(ctx, param, value):
+            if value and not ctx.resilient_parsing:
+                raise click.UsageError(ctx.get_help())
+        option = super().get_help_option(ctx)
+        option.callback = show_help
+        return option
+
+    def __call__(self, message):
+        args = shlex.split(message)
+        try:
+            with self.make_context(self.name, args=args) as ctx:
+                return self.invoke(ctx)
+        except click.ClickException as e:
+            raise CommandError(e.format_message())
 
 
-merge = toolz.merge
+class Command(_CommandMixin, click.Command):
+    pass
 
 
-@group()
+class Group(_CommandMixin, click.Group):
+
+    def command(self, *args, **kwargs):
+        kwargs.setdefault('cls', Command)
+        return super().command(*args, **kwargs)
+
+    def group(self, *args, **kwargs):
+        kwargs.setdefault('cls', Group)
+        return super().group(*args, **kwargs)
+
+    def parse_args(self, ctx, args):
+        if not args and self.no_args_is_help and not ctx.resilient_parsing:
+            raise click.UsageError(ctx.get_help())
+        return super().parse_args(ctx, args)
+
+
+command = partial(click.command, cls=Command)
+group = partial(click.group, cls=Group)
+
+
+@group(name='@ursabot')
 @click.pass_context
 def ursabot(ctx):
     """Ursabot"""
@@ -112,12 +109,3 @@ def package(props, groups):
     for group in groups:
         args.extend(['-g', group])
     return {'crossbow_args': args, **props}
-
-
-def ursabot_comment_handler(message):
-    """Implements the API required for GithubHook"""
-    args = shlex.split(message)
-    try:
-        return ursabot(args=args, prog_name='ursabot', standalone_mode=False)
-    except click.UsageError as e:
-        raise CommandError(e.format_message())
