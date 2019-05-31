@@ -41,10 +41,21 @@ def test_wrong_commands(command, expected_msg):
 
 @pytest.mark.parametrize('command', [
     '',
-    '--help'
+    '--help',
 ])
-def test_help(command):
+def test_ursabot_help(command):
     with pytest.raises(CommandError) as excinfo:
         ursabot(command)
     prefix = 'Usage: @ursabot [OPTIONS] COMMAND [ARGS]...'
+    assert excinfo.value.message.startswith(prefix)
+
+
+@pytest.mark.parametrize('command', [
+    'crossbow',
+    'crossbow --help',
+])
+def test_ursabot_crossbow_help(command):
+    with pytest.raises(CommandError) as excinfo:
+        ursabot(command)
+    prefix = 'Usage: @ursabot crossbow [OPTIONS] COMMAND [ARGS]...'
     assert excinfo.value.message.startswith(prefix)
