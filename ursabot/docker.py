@@ -378,27 +378,45 @@ for arch in ['amd64', 'arm64v8']:
 for arch in ['amd64']:
     basetitle = f'{arch.upper()} Conda'
 
-    cpp = DockerImage(
-        name='cpp',
+    base = DockerImage(
+        name='base',
         base=f'{arch}/ubuntu:18.04',
         arch=arch,
         os='ubuntu-18.04',
         variant='conda',
         org='ursalab',
-        title=f'{basetitle} C++',
+        title=basetitle,
         steps=[
             RUN(apt('wget')),
             # install miniconda
             ENV(PATH='/opt/conda/bin:$PATH'),
             ADD(docker_assets / 'install_conda.sh'),
             RUN('/install_conda.sh', arch, '/opt/conda'),
+            # run conda activate
+            SHELL(['/bin/bash', '-l', '-c']),
+            ENTRYPOINT(['/bin/bash', '-l', '-c']),
+        ]
+    )
+
+    crossbow = DockerImage(
+        name='crossbow',
+        base=base,
+        title=f'{basetitle} Crossbow',
+        steps=[
+            # install crossbow dependencies
+            ADD(docker_assets / 'conda-crossbow.txt'),
+            RUN(conda('git', 'twisted', files=['conda-crossbow.txt'])),
+        ]
+    )
+    cpp = DockerImage(
+        name='cpp',
+        base=base,
+        title=f'{basetitle} C++',
+        steps=[
             # install cpp dependencies
             ADD(docker_assets / 'conda-linux.txt'),
             ADD(docker_assets / 'conda-cpp.txt'),
             RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
-            # run conda activate
-            SHELL(['/bin/bash', '-l', '-c']),
-            ENTRYPOINT(['/bin/bash', '-l', '-c']),
         ]
     )
     cpp_benchmark = DockerImage(
@@ -409,7 +427,7 @@ for arch in ['amd64']:
             RUN(conda('benchmark', 'click', 'pandas'))
         ]
     )
-    images.extend([cpp, cpp_benchmark])
+    images.extend([crossbow, cpp, cpp_benchmark])
 
     for python_version in ['2.7', '3.6', '3.7']:
         python = DockerImage(
@@ -463,32 +481,7 @@ ursabot = DockerImage(
         RUN(pip(files=['requirements-ursabot.txt']))
     ]
 )
-
-# CROSSBOW
-crossbow = DockerImage(
-    name='crossbow',
-    arch='amd64',
-    base='ubuntu:18.04',
-    os='ubuntu-18.04',
-    variant='conda',
-    org='ursalab',
-    title=f'Crossbow Conda Python 3.7',
-    steps=[
-        RUN(apt('wget')),
-        # install miniconda
-        ENV(PATH='/opt/conda/bin:$PATH'),
-        ADD(docker_assets / 'install_conda.sh'),
-        RUN('/install_conda.sh', arch, '/opt/conda'),
-        # install crossbow dependencies
-        ADD(docker_assets / 'conda-crossbow.txt'),
-        RUN(conda('twisted', files=['conda-crossbow.txt'])),
-        # run conda activate
-        SHELL(['/bin/bash', '-l', '-c']),
-        ENTRYPOINT(['/bin/bash', '-l', '-c']),
-    ]
-)
-
-images.extend([ursabot, crossbow])
+images.append(ursabot)
 
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
