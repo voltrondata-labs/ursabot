@@ -91,4 +91,6 @@ database_url = 'sqlite:///ursabot.sqlite'
 # [[workers]]
 # name = ...
 # arch = 'arm64v8' or 'amd64'
-# docker = { host = 'tcp://host:port', hostconfig = {} }
+# docker.host = 'tcp://host:port'
+# docker.masterFQDN = '...'
+# docker.hostconfig = {}
