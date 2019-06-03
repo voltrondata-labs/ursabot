@@ -90,7 +90,7 @@ def test(props, groups):
 
     See groups defined in arrow/dev/tasks/tests.yml
     """
-    args = ['submit', '-c', 'tests.yml']
+    args = ['-c', 'tests.yml']
     for group in groups:
         args.extend(['-g', group])
     return {'crossbow_args': args, **props}
@@ -105,7 +105,7 @@ def package(props, groups):
 
     See groups defined in arrow/dev/tasks/tasks.yml
     """
-    args = ['submit', '-c', 'tasks.yml']
+    args = ['-c', 'tasks.yml']
     for group in groups:
         args.extend(['-g', group])
     return {'crossbow_args': args, **props}

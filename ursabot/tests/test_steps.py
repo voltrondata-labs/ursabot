@@ -2,6 +2,7 @@ import pytest
 from pathlib import Path
 
 from twisted.trial import unittest
+from buildbot.plugins import util
 from buildbot.process.results import SUCCESS
 from buildbot.test.fake import logfile
 from buildbot.process import remotetransfer, buildstep
@@ -57,15 +58,19 @@ class TestShellCommand(BuildStepTestCase):
         with pytest.raises(ValueError, match=msg):
             ShellCommand()
 
-        msg = 'Args must be an instance of list or tuple'
-        with pytest.raises(ValueError, match=msg):
-            ShellCommand('something')
+        cmd = ShellCommand(command='something')
+        assert cmd.command == util.FlattenList(['something'])
 
-        cmd = ShellCommand(['echo', '1'])
-        assert cmd.command == ('echo', '1')
+        cmd = ShellCommand(command='something', args=['arg1', 'arg2'])
+        assert cmd.command == util.FlattenList(['something', ['arg1', 'arg2']])
 
-        cmd = MyDockerCommand(['--help'])
-        assert cmd.command == ('my-docker-binary', '--help')
+        cmd = ShellCommand(command=['echo', '1'])
+        assert cmd.command == util.FlattenList([('echo', '1')])
+
+        cmd = MyDockerCommand(args=['--help'])
+        assert cmd.command == util.FlattenList([
+            ['my-docker-binary'], ['--help']
+        ])
 
     @ensure_deferred
     async def test_echo(self):

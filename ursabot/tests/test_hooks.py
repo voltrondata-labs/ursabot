@@ -162,7 +162,7 @@ class TestUrsabotHook(ChangeHookTestCase):
             'crossbow test docker',
             {
                 'command': 'crossbow',
-                'crossbow_args': ['submit', '-c', 'tests.yml', '-g', 'docker']
+                'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
             }
         )
 
@@ -172,7 +172,7 @@ class TestUrsabotHook(ChangeHookTestCase):
             'crossbow package wheel conda',
             {
                 'command': 'crossbow',
-                'crossbow_args': ['submit', '-c', 'tasks.yml', '-g', 'wheel',
-                                  '-g', 'conda']
+                'crossbow_args': ['-c', 'tasks.yml', '-g', 'wheel', '-g',
+                                  'conda']
             }
         )

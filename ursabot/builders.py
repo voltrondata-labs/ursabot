@@ -11,7 +11,7 @@ from codenamize import codenamize
 from .docker import DockerImage, images
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery)
+                    Archery, Crossbow)
 from .utils import startswith, slugify
 
 
@@ -345,11 +345,28 @@ class UrsabotTest(DockerBuilder):
 class CrossbowTrigger(DockerBuilder):
     tags = ['crossbow']
     steps = [
-        # TODO(kszucs):
-        # checkout arrow
-        # checkout crossbow
-        # pass github token as a secret
-        # Crossbow step with arguments from `crossbow_args` property
+        GitHub(
+            name='Clone Arrow',
+            repourl=util.Property('repository'),
+            workdir='arrow',
+            submodules=False,
+            mode='full'
+        ),
+        GitHub(
+            name='Clone Crossbow',
+            repourl='https://github.com/ursa-labs/crossbow',
+            branch='master',
+            mode='full'
+        ),
+        Crossbow(
+            args=util.FlattenList(['submit', '--output=job.yml',
+                                   util.Property('crossbow_args')]),
+            workdir='arrow/dev/tasks',
+            env={
+                # TODO(kszucs): pass github token as a secret
+                'CROSSBOW_GITHUB_TOKEN': 'secret'
+            }
+        )
         # write crossbow's output to a file, similarly like archery
         # add a comment reporter with a crossbow formatter
     ]

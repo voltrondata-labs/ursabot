@@ -13,11 +13,11 @@ def test_ursabot_commands(command, expected_props):
 
 
 @pytest.mark.parametrize(('command', 'expected_args'), [
-    ('crossbow test docker', ['submit', '-c', 'tests.yml', '-g', 'docker']),
+    ('crossbow test docker', ['-c', 'tests.yml', '-g', 'docker']),
     ('crossbow test integration docker',
-     ['submit', '-c', 'tests.yml', '-g', 'integration', '-g', 'docker']),
+     ['-c', 'tests.yml', '-g', 'integration', '-g', 'docker']),
     ('crossbow test docker cpp-python',
-     ['submit', '-c', 'tests.yml', '-g', 'docker', '-g', 'cpp-python'])
+     ['-c', 'tests.yml', '-g', 'docker', '-g', 'cpp-python'])
 ])
 def test_crossbow_commands(command, expected_args):
     props = ursabot(command)

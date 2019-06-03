@@ -481,7 +481,7 @@ crossbow = DockerImage(
         RUN('/install_conda.sh', arch, '/opt/conda'),
         # install crossbow dependencies
         ADD(docker_assets / 'conda-crossbow.txt'),
-        RUN(conda(files=['conda-crossbow.txt'])),
+        RUN(conda('twisted', files=['conda-crossbow.txt'])),
         # run conda activate
         SHELL(['/bin/bash', '-l', '-c']),
         ENTRYPOINT(['/bin/bash', '-l', '-c']),
