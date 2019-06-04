@@ -28,6 +28,7 @@ setup(
         'codenamize',
         'docker',
         'docker-map',
+        'ruamel.yaml',
         'tabulate',
         'toml',
         'toolz',

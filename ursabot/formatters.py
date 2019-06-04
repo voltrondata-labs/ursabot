@@ -3,6 +3,7 @@ import textwrap
 
 import toolz
 from tabulate import tabulate
+from ruamel.yaml import YAML
 from buildbot.util.logger import Logger
 from buildbot.reporters import utils
 from buildbot.process.results import Results, FAILURE, EXCEPTION, SUCCESS
@@ -219,12 +220,12 @@ class MarkdownFormatter(Formatter):
 
 class BenchmarkCommentFormatter(MarkdownFormatter):
 
-    def _render_table(self, lines):
+    def _render_table(self, jsonlines):
         """Renders the json content of a result log
 
         As a plaintext table embedded in a diff markdown snippet.
         """
-        rows = [json.loads(line.strip()) for line in lines if line]
+        rows = [json.loads(line.strip()) for line in jsonlines if line]
 
         columns = ['benchmark', 'baseline', 'contender', 'change']
         formatted = tabulate(toolz.pluck(columns, rows),
@@ -259,4 +260,40 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
             raise
 
         context = '\n\n'.join(tables.values())
+        return dict(status='has been succeeded', context=context)
+
+
+class CrossbowCommentFormatter(MarkdownFormatter):
+
+    def __init__(self, *args, crossbow_repo, **kwargs):
+        # TODO(kszucs): format validation
+        self.crossbow_repo = crossbow_repo
+        self.yaml_parser = YAML()
+        super().__init__(*args, **kwargs)
+
+    def _render_message(self, yaml_lines):
+        yaml_content = '\n'.join(yaml_lines)
+        job = self.yaml_parser.load(yaml_content)
+
+        url = 'https://github.com/{repo}/branches/all?query={branch}'
+        msg = f'Submitted crossbow builds: [{{repo}} @ {{branch}}]({url})'
+
+        return msg.format(repo=self.crossbow_repo, branch=job['branch'])
+
+    def render_success(self, build, master):
+        # extract logs named as `result`
+        results = {}
+        for step, log_lines in self.extract_logs(build, logname='result'):
+            if step['results'] == SUCCESS:
+                results[step['stepid']] = (line for _, line in log_lines)
+
+        try:
+            # decode yaml objects and render the results as a github links
+            # pointing to the pushed crossbow branches
+            messages = toolz.valmap(self._render_message, results)
+        except Exception as e:
+            log.error(e)
+            raise
+
+        context = '\n\n'.join(messages.values())
         return dict(status='has been succeeded', context=context)

@@ -349,26 +349,36 @@ class CrossbowTrigger(DockerBuilder):
             name='Clone Arrow',
             repourl=util.Property('repository'),
             workdir='arrow',
-            submodules=False,
             mode='full'
         ),
         GitHub(
             name='Clone Crossbow',
+            # TODO(kszucs): read it from the comment and set as a property
             repourl='https://github.com/ursa-labs/crossbow',
+            workdir='crossbow',
             branch='master',
-            mode='full'
+            mode='full',
+            # quite misleasing option, but it prevents checking out the branch
+            # set in the sourcestamp by the pull request, which refers to arrow
+            alwaysUseLatest=True
         ),
         Crossbow(
-            args=util.FlattenList(['submit', '--output=job.yml',
-                                   util.Property('crossbow_args')]),
+            args=util.FlattenList([
+                'submit',
+                '--output', 'job.yml',
+                '--job-prefix', 'ursabot',
+                '--arrow-remote', util.Property('repository'),
+                util.Property('crossbow_args', [])
+            ]),
             workdir='arrow/dev/tasks',
             env={
                 # TODO(kszucs): pass github token as a secret
-                'CROSSBOW_GITHUB_TOKEN': 'secret'
-            }
+                'CROSSBOW_GITHUB_TOKEN': '<token>',
+                'GIT_COMMITTER_NAME': 'ursabot',
+                'GIT_COMMITTER_EMAIL': 'ursabot@ci.ursalabs.org'
+            },
+            result_file='job.yml'
         )
-        # write crossbow's output to a file, similarly like archery
-        # add a comment reporter with a crossbow formatter
     ]
     images = images.filter(
         name='crossbow',
