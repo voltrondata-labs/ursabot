@@ -1,6 +1,9 @@
 url = 'https://ci.ursalabs.org/'
 webui_port = 8010
 
+[secrets]
+enabled = true
+
 [projects]
 
   [projects.ursabot]

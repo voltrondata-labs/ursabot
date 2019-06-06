@@ -3,8 +3,8 @@ url = 'http://localhost:8100/'
 webui_port = 8100
 database_url = 'sqlite:///ursabot.sqlite'
 
-[github]
-token = "invalid_token"
+[secrets]
+enabled = true
 
 [projects]
 

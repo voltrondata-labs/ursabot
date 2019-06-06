@@ -112,7 +112,7 @@ class DockerBuilder(Builder):
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
 
     @classmethod
-    def builders_for(cls, workers, images=None):
+    def builders_for(cls, workers, images=None, env=None):
         images = images or cls.images
         workers_by_arch = workers.groupby('arch')
 
@@ -120,7 +120,7 @@ class DockerBuilder(Builder):
         for image in images:
             if image.arch in workers_by_arch:
                 workers = workers_by_arch[image.arch]
-                builder = cls(image=image, workers=workers)
+                builder = cls(image=image, workers=workers, env=env)
                 builders.append(builder)
             else:
                 warnings.warn(
@@ -364,19 +364,14 @@ class CrossbowTrigger(DockerBuilder):
         ),
         Crossbow(
             args=util.FlattenList([
+                '--github-token', util.Secret('ursabot/github_token'),
                 'submit',
                 '--output', 'job.yml',
                 '--job-prefix', 'ursabot',
                 '--arrow-remote', util.Property('repository'),
-                util.Property('crossbow_args', [])
+                util.Property('crossbow_args', ['wheel-linux-cp27m'])
             ]),
             workdir='arrow/dev/tasks',
-            env={
-                # TODO(kszucs): pass github token as a secret
-                'CROSSBOW_GITHUB_TOKEN': '<token>',
-                'GIT_COMMITTER_NAME': 'ursabot',
-                'GIT_COMMITTER_EMAIL': 'ursabot@ci.ursalabs.org'
-            },
             result_file='job.yml'
         )
     ]
