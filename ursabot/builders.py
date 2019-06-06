@@ -369,7 +369,7 @@ class CrossbowTrigger(DockerBuilder):
                 '--output', 'job.yml',
                 '--job-prefix', 'ursabot',
                 '--arrow-remote', util.Property('repository'),
-                util.Property('crossbow_args', ['wheel-linux-cp27m'])
+                util.Property('crossbow_args', [])
             ]),
             workdir='arrow/dev/tasks',
             result_file='job.yml'
