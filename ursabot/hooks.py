@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 from buildbot.util.logger import Logger
 from buildbot.www.hooks.github import GitHubEventHandler
 from buildbot.util.httpclientservice import HTTPClientService
+from buildbot.process.properties import Properties
 
 from .utils import ensure_deferred
 from .commands import CommandError, ursabot as ursabot_command
@@ -74,14 +75,18 @@ class GithubHook(GitHubEventHandler):
             kwargs['github_property_whitelist'] = ['github.title']
         super().__init__(*args, **kwargs)
 
-    def _client(self, headers=None):
+    async def _client(self, headers=None):
         headers = headers or {}
         headers.setdefault('User-Agent', self.botname)
+
         if self._token:
-            headers['Authorization'] = 'token ' + self._token
+            props = Properties()
+            props.master = self.master
+            token = await props.render(self._token)
+            headers['Authorization'] = 'token ' + token
 
         # TODO(kszucs): initialize it once?
-        return HTTPClientService.getService(
+        return await HTTPClientService.getService(
             self.master,
             self.github_api_endpoint,
             headers=headers,
