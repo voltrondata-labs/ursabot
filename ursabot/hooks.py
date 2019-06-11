@@ -132,14 +132,19 @@ class GithubHook(GitHubEventHandler):
         issue = payload['issue']
         comment = payload['comment']
 
-        async def respond(comment):
+        async def respond(comment, preformatted=False):
             if comment in {'+1', '-1'}:
                 url = f"{repo['url']}/comments/{comment['id']}/reactions"
                 accept = 'application/vnd.github.squirrel-girl-preview+json'
-                await self._post(url, data={'content': comment},
+                await self._post(url,
+                                 data={'content': comment},
                                  headers={'Accept': accept})
             else:
-                await self._post(issue['comments_url'], {'body': comment})
+                if preformatted:
+                    body = f'```\n{comment}\n```'
+                else:
+                    body = comment
+                await self._post(issue['comments_url'], {'body': body})
 
         if payload['sender']['login'] == self.botname:
             # don't respond to itself
@@ -161,7 +166,7 @@ class GithubHook(GitHubEventHandler):
             command = comment['body'].split(mention)[-1].lower().strip()
             properties = self.comment_handler(command)
         except CommandError as e:
-            await respond(e.message)
+            await respond(e.message, preformatted=True)
             return [], 'git'
         except Exception as e:
             log.error(e)

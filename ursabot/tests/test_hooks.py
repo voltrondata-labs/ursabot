@@ -105,7 +105,7 @@ class TestUrsabotHook(ChangeHookTestCase):
         except CommandError as e:
             usage = e.message
 
-        request_json = {'body': usage}
+        request_json = {'body': f'```\n{usage}\n```'}
         response_json = ''
         self.http.expect('post', '/repos/ursa-labs/ursabot/issues/26/comments',
                          json=request_json, content_json=response_json)
@@ -129,7 +129,8 @@ class TestUrsabotHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 0
 
     @ensure_deferred
-    async def check_issue_comment_with_command(self, command, props=None):
+    async def check_issue_comment_with_command(self, command,
+                                               expected_props=None):
         # handle_issue_comment queries the pull request
         request_json = self.load_fixture('pull-request-26')
         self.http.expect('get', '/repos/ursa-labs/ursabot/pulls/26',
@@ -154,30 +155,31 @@ class TestUrsabotHook(ChangeHookTestCase):
 
         assert len(self.hook.master.data.updates.changesAdded) == 1
         for change in self.hook.master.data.updates.changesAdded:
+            assert change['category'] == 'comment'
             assert change['properties']['event'] == 'issue_comment'
             assert change['properties']['github.title'] == expected_title
-            for k, v in props.items():
+            for k, v in expected_props.items():
                 assert change['properties'][k] == v
 
     @ensure_deferred
     async def test_issue_comment_build_command(self):
         await self.check_issue_comment_with_command(
-            'build',
-            {'command': 'build'}
+            command='build',
+            expected_props={'command': 'build'}
         )
 
     @ensure_deferred
     async def test_issue_comment_benchmark_command(self):
         await self.check_issue_comment_with_command(
-            'benchmark',
-            {'command': 'benchmark'}
+            command='benchmark',
+            expected_props={'command': 'benchmark'}
         )
 
     @ensure_deferred
     async def test_issue_comment_crosssbow_test_command(self):
         await self.check_issue_comment_with_command(
-            'crossbow test docker',
-            {
+            command='crossbow test docker',
+            expected_props={
                 'command': 'crossbow',
                 'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
             }
@@ -186,8 +188,8 @@ class TestUrsabotHook(ChangeHookTestCase):
     @ensure_deferred
     async def test_issue_comment_crosssbow_package_command(self):
         await self.check_issue_comment_with_command(
-            'crossbow package wheel conda',
-            {
+            command='crossbow package wheel conda',
+            expected_props={
                 'command': 'crossbow',
                 'crossbow_args': ['-c', 'tasks.yml', '-g', 'wheel', '-g',
                                   'conda']
