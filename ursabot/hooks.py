@@ -63,6 +63,7 @@ class GithubHook(GitHubEventHandler):
     # there is no easy way to pass additional arguments for this object,
     # so configure and store them as class attributes
     botname = 'ursabot'
+    use_reactions = False
     comment_handler = None
 
     def __init__(self, *args, github_property_whitelist=None, **kwargs):
@@ -132,14 +133,20 @@ class GithubHook(GitHubEventHandler):
         issue = payload['issue']
         comment = payload['comment']
 
-        async def respond(comment):
-            if comment in {'+1', '-1'}:
-                url = f"{repo['url']}/comments/{comment['id']}/reactions"
+        async def respond(body, preformatted=False):
+            if body in {'+1', '-1'}:
+                reactions_url = (
+                    f"{repo['url']}/issues/comments/{comment['id']}/reactions"
+                )
                 accept = 'application/vnd.github.squirrel-girl-preview+json'
-                await self._post(url, data={'content': comment},
-                                 headers={'Accept': accept})
+                return await self._post(reactions_url,
+                                        data={'content': body},
+                                        headers={'Accept': accept})
             else:
-                await self._post(issue['comments_url'], {'body': comment})
+                if preformatted:
+                    body = f'```\n{body}\n```'
+                return await self._post(issue['comments_url'],
+                                        data={'body': body})
 
         if payload['sender']['login'] == self.botname:
             # don't respond to itself
@@ -161,7 +168,7 @@ class GithubHook(GitHubEventHandler):
             command = comment['body'].split(mention)[-1].lower().strip()
             properties = self.comment_handler(command)
         except CommandError as e:
-            await respond(e.message)
+            await respond(e.message, preformatted=True)
             return [], 'git'
         except Exception as e:
             log.error(e)
@@ -192,8 +199,12 @@ class GithubHook(GitHubEventHandler):
             log.error(e)
             await respond("I've failed to start builds for this PR")
         else:
-            # await respond('+1')
-            await respond("I've successfully started builds for this PR")
+            n = len(changes)
+            log.info(f'Successfully added {n} changes for command {command}')
+            if self.use_reactions:
+                await respond('+1')
+            else:
+                await respond("I've successfully started builds for this PR")
         finally:
             return changes, 'git'
 
@@ -205,4 +216,5 @@ class GithubHook(GitHubEventHandler):
 
 class UrsabotHook(GithubHook):
 
+    use_reactions = True
     comment_handler = staticmethod(ursabot_command)

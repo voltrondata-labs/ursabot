@@ -21,7 +21,7 @@ enabled = true
   [github.event_hook]
   # disable poller change sources for projects with event_hook set up
   enabled = true
-  debug = true
+  debug = false
 
   [github.auth]
   enabled = true
