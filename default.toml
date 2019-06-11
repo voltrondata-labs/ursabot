@@ -75,12 +75,6 @@ token = '%(secret:ursabot/github_token)s'
 # global flags for reporters, to enable/disable per project add/remove to/from
 # the projects' reporters list
 
-  [reporters.github_status]
-  debug = true
-
-  [reporters.github_review]
-  debug = true
-
   [reporters.zulip_status]
   organization = 'ursalabs'
   bot = 'ursabot-bot@ursalabs.zulipchat.com'
