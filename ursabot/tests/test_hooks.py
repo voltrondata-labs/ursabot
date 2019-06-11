@@ -142,10 +142,14 @@ class TestUrsabotHook(ChangeHookTestCase):
                          content_json=request_json)
 
         # then responds to the comment
-        request_json = {'body': "I've successfully started builds for this PR"}
+        request_url = '/repos/ursa-labs/ursabot/comments/480248726/reactions'
+        request_json = {'content': '+1'}
         response_json = ''
-        self.http.expect('post', '/repos/ursa-labs/ursabot/issues/26/comments',
-                         json=request_json, content_json=response_json)
+        self.http.updateHeaders({
+            'Accept': 'application/vnd.github.squirrel-girl-preview+json'
+        })
+        self.http.expect('post', request_url, json=request_json,
+                         content_json=response_json)
 
         payload = self.load_fixture('issue-comment-build-command')
         payload['comment']['body'] = f'@ursabot {command}'

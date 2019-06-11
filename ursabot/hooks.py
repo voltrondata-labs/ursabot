@@ -132,19 +132,17 @@ class GithubHook(GitHubEventHandler):
         issue = payload['issue']
         comment = payload['comment']
 
-        async def respond(comment, preformatted=False):
-            if comment in {'+1', '-1'}:
+        async def respond(body, preformatted=False):
+            if body in {'+1', '-1'}:
                 url = f"{repo['url']}/comments/{comment['id']}/reactions"
                 accept = 'application/vnd.github.squirrel-girl-preview+json'
-                await self._post(url,
-                                 data={'content': comment},
-                                 headers={'Accept': accept})
+                return await self._post(url, data={'content': body},
+                                        headers={'Accept': accept})
             else:
                 if preformatted:
-                    body = f'```\n{comment}\n```'
-                else:
-                    body = comment
-                await self._post(issue['comments_url'], {'body': body})
+                    body = f'```\n{body}\n```'
+                return await self._post(issue['comments_url'],
+                                        data={'body': body})
 
         if payload['sender']['login'] == self.botname:
             # don't respond to itself
@@ -197,8 +195,9 @@ class GithubHook(GitHubEventHandler):
             log.error(e)
             await respond("I've failed to start builds for this PR")
         else:
-            # await respond('+1')
-            await respond("I've successfully started builds for this PR")
+            n = len(changes)
+            log.info(f'Successfully added {n} changes for command {command}')
+            await respond('+1')  # send a github reaction
         finally:
             return changes, 'git'
 
