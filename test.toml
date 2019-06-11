@@ -4,7 +4,7 @@ webui_port = 8100
 database_url = 'sqlite:///ursabot.sqlite'
 
 [secrets]
-enabled = true
+enabled = false
 
 [projects]
 
