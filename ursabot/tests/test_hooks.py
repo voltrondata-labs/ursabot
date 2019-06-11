@@ -2,15 +2,26 @@ import json
 from pathlib import Path
 from twisted.trial import unittest
 
+from buildbot.plugins import util
 from buildbot.test.util.misc import TestReactorMixin
+from buildbot.test.fake.web import fakeMasterForHooks
+from buildbot.www.change_hook import ChangeHookResource
+from buildbot.test.unit.test_www_hooks_github import _prepare_request
 from buildbot.test.fake.httpclientservice import \
     HTTPClientService as FakeHTTPClientService
-from buildbot.test.unit.test_www_hooks_github import (
-    _prepare_request, _prepare_github_change_hook)
 
 from ursabot.utils import ensure_deferred
 from ursabot.hooks import UrsabotHook
 from ursabot.commands import CommandError, ursabot as ursabot_command
+
+
+def _prepare_github_change_hook(testcase, **params):
+    return ChangeHookResource(
+        dialects={
+            'github': params
+        },
+        master=fakeMasterForHooks(testcase)
+    )
 
 
 class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
@@ -22,13 +33,19 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
         self.setUpTestReactor()
 
         assert self.klass is not None
-        self.hook = _prepare_github_change_hook(self, **{'class': self.klass})
+        self.hook = _prepare_github_change_hook(self, **{
+            'class': self.klass,
+            'token': util.Interpolate('test-token')
+        })
         self.master = self.hook.master
         self.http = await FakeHTTPClientService.getFakeService(
             self.master,
             self,
             'https://api.github.com',
-            headers={'User-Agent': 'ursabot'},
+            headers={
+                'User-Agent': 'ursabot',
+                'Authorization': 'token test-token'
+            },
             debug=False,
             verify=False
         )
