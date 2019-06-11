@@ -135,9 +135,12 @@ class GithubHook(GitHubEventHandler):
 
         async def respond(body, preformatted=False):
             if body in {'+1', '-1'}:
-                url = f"{repo['url']}/comments/{comment['id']}/reactions"
+                reactions_url = (
+                    f"{repo['url']}/issues/comments/{comment['id']}/reactions"
+                )
                 accept = 'application/vnd.github.squirrel-girl-preview+json'
-                return await self._post(url, data={'content': body},
+                return await self._post(reactions_url,
+                                        data={'content': body},
                                         headers={'Accept': accept})
             else:
                 if preformatted:

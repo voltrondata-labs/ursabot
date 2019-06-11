@@ -26,6 +26,7 @@ directory = '~/.ursalabs-pass'
 [github]
 # have to provide repo:status scope for the token and write access to the
 # for the repositories in order to support github status_push below
+# recommented scopes: public_repo, repo:status
 token = '%(secret:ursabot/github_token)s'
 
   [github.auth]
