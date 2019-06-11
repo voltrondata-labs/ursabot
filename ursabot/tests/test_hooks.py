@@ -37,6 +37,7 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
             'class': self.klass,
             'token': util.Interpolate('test-token')
         })
+
         self.master = self.hook.master
         self.http = await FakeHTTPClientService.getFakeService(
             self.master,
@@ -69,9 +70,15 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
             return json.load(fp)
 
 
+# XXX: hack for testing ursabot hook with comment reactions insted, patching is
+# messed up in the original test suite
+class NoReactionsUrsabotHook(UrsabotHook):
+    use_reactions = False
+
+
 class TestUrsabotHook(ChangeHookTestCase):
 
-    klass = UrsabotHook
+    klass = NoReactionsUrsabotHook
 
     @ensure_deferred
     async def test_ping(self):
@@ -142,12 +149,9 @@ class TestUrsabotHook(ChangeHookTestCase):
                          content_json=request_json)
 
         # then responds to the comment
-        request_url = '/repos/ursa-labs/ursabot/comments/480248726/reactions'
-        request_json = {'content': '+1'}
+        request_url = '/repos/ursa-labs/ursabot/issues/26/comments'
+        request_json = {'body': "I've successfully started builds for this PR"}
         response_json = ''
-        self.http.updateHeaders({
-            'Accept': 'application/vnd.github.squirrel-girl-preview+json'
-        })
         self.http.expect('post', request_url, json=request_json,
                          content_json=response_json)
 

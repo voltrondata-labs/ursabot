@@ -63,6 +63,7 @@ class GithubHook(GitHubEventHandler):
     # there is no easy way to pass additional arguments for this object,
     # so configure and store them as class attributes
     botname = 'ursabot'
+    use_reactions = False
     comment_handler = None
 
     def __init__(self, *args, github_property_whitelist=None, **kwargs):
@@ -197,7 +198,10 @@ class GithubHook(GitHubEventHandler):
         else:
             n = len(changes)
             log.info(f'Successfully added {n} changes for command {command}')
-            await respond('+1')  # send a github reaction
+            if self.use_reactions:
+                await respond('+1')
+            else:
+                await respond("I've successfully started builds for this PR")
         finally:
             return changes, 'git'
 
@@ -209,4 +213,5 @@ class GithubHook(GitHubEventHandler):
 
 class UrsabotHook(GithubHook):
 
+    use_reactions = True
     comment_handler = staticmethod(ursabot_command)
