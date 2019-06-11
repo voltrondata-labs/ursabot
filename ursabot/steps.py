@@ -1,9 +1,10 @@
 from twisted.internet import threads
 
-from buildbot.plugins import steps
+from buildbot.plugins import steps, util
 from buildbot.process import buildstep
 from buildbot.process.results import SUCCESS, FAILURE
 from buildbot.steps.worker import CompositeStepMixin
+from buildbot.interfaces import IRenderable
 
 from .utils import ensure_deferred
 
@@ -69,7 +70,9 @@ class ShellMixin(buildstep.ShellMixin):
 
         # follow the semantics of the parent method, but don't flatten
         # command = self.command + kwargs.pop('command', tuple())
-        command = tuple(kwargs.pop('command'))
+        command = kwargs.pop('command')
+        if not isinstance(command, (tuple, list)):
+            raise ValueError('Command must be an instance of list or tuple')
 
         if self.shell:
             # render the command and prepend with the shell
@@ -85,19 +88,12 @@ class ShellCommand(ShellMixin, buildstep.BuildStep):
     name = 'Shell'
 
     def __init__(self, args=tuple(), command=tuple(), **kwargs):
-        # command should be validated during the construction
-        if not isinstance(command, (tuple, list)):
-            raise ValueError('Command must be an instance of list or tuple')
-        if not isinstance(args, (tuple, list)):
-            raise ValueError('Args must be an instance of list or tuple')
+        command, args = command or self.command, args or self.args
 
-        # appends to the class' command to allow creating command's like
-        # SetupPy via subclassing ShellCommand
-        command = tuple(command or self.command) + tuple(args or self.args)
-        if not command:
+        if not IRenderable.providedBy(command) and not command:
             raise ValueError('No command was provided')
 
-        kwargs['command'] = command
+        kwargs['command'] = util.FlattenList([command, args])
         kwargs = self.setupShellMixin(kwargs)
         super().__init__(**kwargs)
 
@@ -180,6 +176,8 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
         return SUCCESS
 
 
+# TODO(kszucs): this function is executed on the master's side, to execute
+# remote functions use cloudpickle
 class PythonFunction(buildstep.BuildStep):
     """Executes arbitrary python function."""
 
@@ -241,4 +239,10 @@ GitHub = steps.GitHub
 class Archery(ResultLogMixin, ShellCommand):
     name = 'Archery'
     command = ['archery']
+    env = dict(LC_ALL='C.UTF-8', LANG='C.UTF-8')  # required for click
+
+
+class Crossbow(ResultLogMixin, ShellCommand):
+    name = 'Crossbow'
+    command = ['python', 'crossbow.py']
     env = dict(LC_ALL='C.UTF-8', LANG='C.UTF-8')  # required for click

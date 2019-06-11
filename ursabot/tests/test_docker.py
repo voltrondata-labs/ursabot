@@ -3,7 +3,7 @@ from textwrap import dedent
 import pytest
 from dockermap.api import DockerFile, DockerClientWrapper
 
-from ursabot.docker import DockerImage, ImageCollection, arrow_images
+from ursabot.docker import DockerImage, ImageCollection, images
 from ursabot.docker import RUN, CMD, apk, apt, pip, conda
 
 
@@ -115,7 +115,7 @@ def test_image_collection_build(collection):
 
 
 def test_arrow_images():
-    dockerfiles = [img.dockerfile for img in arrow_images]
+    dockerfiles = [img.dockerfile for img in images]
     for df in dockerfiles:
         assert isinstance(df, DockerFile)
 

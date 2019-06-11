@@ -9,7 +9,8 @@ from buildbot.test.unit.test_www_hooks_github import (
     _prepare_request, _prepare_github_change_hook)
 
 from ursabot.utils import ensure_deferred
-from ursabot.hooks import GithubHook
+from ursabot.hooks import UrsabotHook
+from ursabot.commands import CommandError, ursabot as ursabot_command
 
 
 class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
@@ -27,7 +28,7 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
             self.master,
             self,
             'https://api.github.com',
-            headers={'User-Agent': 'Buildbot'},
+            headers={'User-Agent': 'ursabot'},
             debug=False,
             verify=False
         )
@@ -51,9 +52,9 @@ class ChangeHookTestCase(unittest.TestCase, TestReactorMixin):
             return json.load(fp)
 
 
-class TestGithubHook(ChangeHookTestCase):
+class TestUrsabotHook(ChangeHookTestCase):
 
-    klass = GithubHook
+    klass = UrsabotHook
 
     @ensure_deferred
     async def test_ping(self):
@@ -68,6 +69,7 @@ class TestGithubHook(ChangeHookTestCase):
 
     @ensure_deferred
     async def test_issue_comment_by_ursabot(self):
+        # don't respond to itself, it prevents recursive comment storms!
         payload = self.load_fixture('issue-comment-by-ursabot')
         await self.trigger('issue_comment', payload=payload)
         assert len(self.hook.master.data.updates.changesAdded) == 0
@@ -79,9 +81,14 @@ class TestGithubHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 0
 
     @ensure_deferred
-    async def test_issue_comment_with_empty_command(self):
-        # responds to the comment
-        request_json = {'body': 'Unknown command ""'}
+    async def test_issue_comment_with_empty_command_reponds_with_usage(self):
+        # responds to the comment with the usage
+        try:
+            ursabot_command('')
+        except CommandError as e:
+            usage = e.message
+
+        request_json = {'body': usage}
         response_json = ''
         self.http.expect('post', '/repos/ursa-labs/ursabot/issues/26/comments',
                          json=request_json, content_json=response_json)
@@ -105,12 +112,12 @@ class TestGithubHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 0
 
     @ensure_deferred
-    async def check_issue_comment_with_command(self, command):
+    async def check_issue_comment_with_command(self, command, props=None):
         # handle_issue_comment queries the pull request
         request_json = self.load_fixture('pull-request-26')
         self.http.expect('get', '/repos/ursa-labs/ursabot/pulls/26',
                          content_json=request_json)
-        # tigger handle_pull_request which fetches the commit
+        # trigger handle_pull_request which fetches the commit
         request_json = self.load_fixture('pull-request-26-commit')
         commit = '2705da2b616b98fa6010a25813c5a7a27456f71d'
         self.http.expect('get', f'/repos/ursa-labs/ursabot/commits/{commit}',
@@ -131,13 +138,41 @@ class TestGithubHook(ChangeHookTestCase):
         assert len(self.hook.master.data.updates.changesAdded) == 1
         for change in self.hook.master.data.updates.changesAdded:
             assert change['properties']['event'] == 'issue_comment'
-            assert change['properties']['command'] == command
             assert change['properties']['github.title'] == expected_title
+            for k, v in props.items():
+                assert change['properties'][k] == v
 
     @ensure_deferred
     async def test_issue_comment_build_command(self):
-        await self.check_issue_comment_with_command('build')
+        await self.check_issue_comment_with_command(
+            'build',
+            {'command': 'build'}
+        )
 
     @ensure_deferred
     async def test_issue_comment_benchmark_command(self):
-        await self.check_issue_comment_with_command('benchmark')
+        await self.check_issue_comment_with_command(
+            'benchmark',
+            {'command': 'benchmark'}
+        )
+
+    @ensure_deferred
+    async def test_issue_comment_crosssbow_test_command(self):
+        await self.check_issue_comment_with_command(
+            'crossbow test docker',
+            {
+                'command': 'crossbow',
+                'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
+            }
+        )
+
+    @ensure_deferred
+    async def test_issue_comment_crosssbow_package_command(self):
+        await self.check_issue_comment_with_command(
+            'crossbow package wheel conda',
+            {
+                'command': 'crossbow',
+                'crossbow_args': ['-c', 'tasks.yml', '-g', 'wheel', '-g',
+                                  'conda']
+            }
+        )

@@ -1,0 +1,19 @@
+!Job
+target: !Target
+  head: f766a1d615dd1b7ee706d05102e579195951a61c
+  email: unkown
+  branch: refs/pull/4435/merge
+  remote: https://github.com/apache/arrow
+  version: 0.13.0.dev306
+  no_rc_version: 0.13.0.dev306
+tasks:
+  wheel-osx-cp37m: !Task
+    platform: osx
+    template: python-wheels/travis.osx.yml
+    artifacts:
+    - pyarrow-0.13.0.dev306-cp37-cp37m-macosx_10_6_intel.whl
+    params:
+      python_version: 3.7
+    branch: ursabot-1-wheel-osx-cp37m
+    commit: f75ca41dc759ea0b28c93ba4230dc450978394c2
+branch: ursabot-1

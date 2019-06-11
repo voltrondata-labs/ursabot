@@ -8,10 +8,11 @@ from buildbot import interfaces
 from buildbot.plugins import util
 from codenamize import codenamize
 
-from .docker import DockerImage, arrow_images, ursabot_images
+from .docker import DockerImage, images
+from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery)
+                    Archery, Crossbow)
 from .utils import startswith, slugify
 
 
@@ -112,7 +113,27 @@ class DockerBuilder(Builder):
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
 
     @classmethod
-    def builders_for(cls, workers, images=None):
+    def builders_for(cls, workers, images=tuple(), **kwargs):
+        """Instantiates builders based on the available workers
+
+        The workers and images are matched based on their architecture.
+
+        Parameters
+        ----------
+        workers : List[DockerLatentWorker]
+            Worker instances the builders may run on.
+        images : List[DockerImage], default []
+            Docker images the builder's steps may run in.
+            Pass None to use class' images property.
+
+        Returns
+        -------
+        docker_builder : List[DockerBuilder]
+            Builder instances.
+        """
+        assert all(isinstance(i, DockerImage) for i in images)
+        assert all(isinstance(w, DockerLatentWorker) for w in workers)
+
         images = images or cls.images
         workers_by_arch = workers.groupby('arch')
 
@@ -120,7 +141,7 @@ class DockerBuilder(Builder):
         for image in images:
             if image.arch in workers_by_arch:
                 workers = workers_by_arch[image.arch]
-                builder = cls(image=image, workers=workers)
+                builder = cls(image=image, workers=workers, **kwargs)
                 builders.append(builder)
             else:
                 warnings.warn(
@@ -324,11 +345,7 @@ class UrsabotTest(DockerBuilder):
             repourl=util.Property('repository'),
             mode='full'
         ),
-        # --no-binary buildbot is required because buildbot doesn't bundle its
-        # tests to binary wheels, but ursabot's test suite depends on
-        # buildbot's so install it from source
-        Pip(['install', '--no-binary', 'buildbot',
-             'pytest', 'flake8', 'mock', '-e', '.']),
+        Pip(['install', '-e', '.']),
         PyTest(args=['-m', 'not docker', 'ursabot']),
         ShellCommand(
             command=['flake8', 'ursabot'],
@@ -340,7 +357,49 @@ class UrsabotTest(DockerBuilder):
             name='Checkconfig'
         )
     ]
-    images = ursabot_images.filter(tag='worker')
+    images = images.filter(
+        name='ursabot',
+        tag='worker'
+    )
+
+
+class CrossbowTrigger(DockerBuilder):
+    tags = ['crossbow']
+    steps = [
+        GitHub(
+            name='Clone Arrow',
+            repourl=util.Property('repository'),
+            workdir='arrow',
+            mode='full'
+        ),
+        GitHub(
+            name='Clone Crossbow',
+            # TODO(kszucs): read it from the comment and set as a property
+            repourl='https://github.com/ursa-labs/crossbow',
+            workdir='crossbow',
+            branch='master',
+            mode='full',
+            # quite misleasing option, but it prevents checking out the branch
+            # set in the sourcestamp by the pull request, which refers to arrow
+            alwaysUseLatest=True
+        ),
+        Crossbow(
+            args=util.FlattenList([
+                '--github-token', util.Secret('ursabot/github_token'),
+                'submit',
+                '--output', 'job.yml',
+                '--job-prefix', 'ursabot',
+                '--arrow-remote', util.Property('repository'),
+                util.Property('crossbow_args', [])
+            ]),
+            workdir='arrow/dev/tasks',
+            result_file='job.yml'
+        )
+    ]
+    images = images.filter(
+        name='crossbow',
+        tag='worker'
+    )
 
 
 # TODO(kszucs): properly implement it
@@ -366,14 +425,14 @@ class ArrowCppTest(DockerBuilder):
         cpp_test
     ]
     images = (
-        arrow_images.filter(
+        images.filter(
             name='cpp',
             arch='amd64',
             os=startswith('ubuntu') | startswith('alpine'),
             variant=None,  # plain linux images, not conda
             tag='worker'
         ) +
-        arrow_images.filter(
+        images.filter(
             name='cpp',
             arch='arm64v8',
             os='ubuntu-18.04',
@@ -391,7 +450,7 @@ class ArrowCppCudaTest(ArrowCppTest):
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
-    images = arrow_images.filter(
+    images = images.filter(
         name='cpp',
         arch='amd64',
         variant='cuda',
@@ -413,7 +472,7 @@ class ArrowCppBenchmark(DockerBuilder):
                       '--output=diff.json'],
                 result_file='diff.json')
     ]
-    images = arrow_images.filter(
+    images = images.filter(
         name='cpp-benchmark',
         os=startswith('ubuntu'),
         arch='amd64',  # until ARROW-5382: SSE on ARM NEON gets resolved
@@ -440,14 +499,14 @@ class ArrowPythonTest(DockerBuilder):
         python_test
     ]
     images = (
-        arrow_images.filter(
+        images.filter(
             name=startswith('python'),
             arch='amd64',
             os=startswith('ubuntu') | startswith('alpine'),
             variant=None,  # plain linux images, not conda
             tag='worker'
         ) +
-        arrow_images.filter(
+        images.filter(
             name=startswith('python'),
             arch='arm64v8',
             os='ubuntu-18.04',
@@ -481,7 +540,7 @@ class ArrowCppCondaTest(DockerBuilder):
         cpp_compile,
         cpp_test
     ]
-    images = arrow_images.filter(
+    images = images.filter(
         name='cpp',
         variant='conda',
         tag='worker'
@@ -515,7 +574,7 @@ class ArrowPythonCondaTest(DockerBuilder):
         python_install,
         python_test
     ]
-    images = arrow_images.filter(
+    images = images.filter(
         name=startswith('python'),
         variant='conda',
         tag='worker'

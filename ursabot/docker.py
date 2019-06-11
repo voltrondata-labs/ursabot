@@ -24,11 +24,71 @@ class DockerFile(DockerFile):
 
 
 class DockerImage:
-    """Docker image abstraction for image hierarchies with strict naming"""
+    """Docker image abstraction for image hierarchies with strict naming
+
+    Parameters
+    ----------
+    name : str
+        Short name, identifier of the image. Prefer short names, because the
+        generated repository name will end with the image's name.
+    base : Union[str, DockerImage]
+        Either a string used to defined root nodes in the image hierarchy or
+        another DockerImage instance. In the former case `arch` and `os`
+        arguments must be passed explicitly, whereas in the latter case these
+        properties are inherited from the base (parent) image.
+    title : str, default None
+        A more human friendly title for the image.
+    org : str, default None
+        Docker organization the image should belong to.
+    tag : str, default 'latest'
+        Docker tag for the image.
+    arch : 'amd64' or 'arm64v8', default None
+        Docker architecture of the image. Currently only 'amd64' and 'arm64v8'
+        values are supported.
+    os : str, default None
+        Operating system of the image. Examples: 'ubuntu-18.04', 'alpine-3.9'.
+    steps : List[Callable[[dockermap.api.DockerFile], None]], default []
+        List of steps defined in docker-ish DSL. Use functions like ADD, RUN,
+        ENV, WORKDIR, USER, CMD, ENTRYPOINT, SHELL.
+
+    Examples
+    --------
+    In [1]: from ursabot.docker import DockerImage, RUN, CMD, conda
+
+    In [2]: miniconda = DockerImage(
+       ...:     'conda',
+       ...:     base='continuumio/miniconda3',
+       ...:     arch='amd64',
+       ...:     os='debian-9'
+       ...: )
+
+    In [3]: jupyter = DockerImage(
+       ...:     'jupyter',
+       ...:     base=miniconda,
+       ...:     steps=[
+       ...:         RUN(conda('jupyter')),
+       ...:         CMD(['jupyter', 'notebook',
+       ...:             '--ip', '0.0.0.0',
+       ...:             '--no-browser',
+       ...:             '--allow-root'])
+       ...:     ]
+       ...: )
+
+    In [4]: miniconda
+    Out[4]: <DockerImage: amd64-debian-9-conda:latest at 4456735912>
+
+    In [5]: jupyter
+    Out[5]: <DockerImage: amd64-debian-9-jupyter:latest at 4456320976>
+
+    In [6]: miniconda.build()
+    Out[6]: <DockerImage: amd64-debian-9-conda:latest at 4456735912>
+
+    In [7]: jupyter.build()
+    Out[7]: <DockerImage: amd64-debian-9-jupyter:latest at 4456320976>
+    """
 
     def __init__(self, name, base, title=None, org=None, tag='latest',
-                 arch=None, os=None, variant=None, steps=tuple(),
-                 properties=None):
+                 arch=None, os=None, variant=None, steps=tuple()):
         if isinstance(base, DockerImage):
             if not title:
                 title = base.title
@@ -71,9 +131,6 @@ class DockerImage:
                 'each `step` must be a callable, use `run` function'
             )
 
-        if not isinstance(properties, (type(None), dict)):
-            raise TypeError(f'`properties` argument must be a dictionary')
-
         self.name = name
         self.title = title
         self.base = base
@@ -83,7 +140,6 @@ class DockerImage:
         self.os = os
         self.variant = variant
         self.steps = tuple(steps)
-        self.properties = properties
 
     def __str__(self):
         return self.fqn
@@ -129,8 +185,8 @@ class DockerImage:
     def build(self, client=None, **kwargs):
         """Build the docker images
 
-        Params
-        ------
+        Parameters
+        ----------
         client : dockermap.api.DockerClientWrapper, default None
             Docker client to build the images with. For example it can be
             used to build images on another host.
@@ -311,7 +367,7 @@ python_steps = [
 # Note the python has a special treatment, because buildbot requires it.
 # So all of the following images must have a python interpreter and pip
 # pre-installed.
-arrow_images = ImageCollection()
+images = ImageCollection()
 
 for arch in ['amd64', 'arm64v8']:
     # UBUNTU
@@ -336,7 +392,7 @@ for arch in ['amd64', 'arm64v8']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        arrow_images.extend([cpp, python])
+        images.extend([cpp, python])
 
         if ubuntu_version in {'18.04'}:
             cpp_benchmark = DockerImage(
@@ -348,7 +404,7 @@ for arch in ['amd64', 'arm64v8']:
                     RUN(pip('click', 'pandas'))
                 ]
             )
-            arrow_images.append(cpp_benchmark)
+            images.append(cpp_benchmark)
 
     # ALPINE
     for alpine_version in ['3.9']:
@@ -372,33 +428,51 @@ for arch in ['amd64', 'arm64v8']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        arrow_images.extend([cpp, python])
+        images.extend([cpp, python])
 
 # CONDA
 for arch in ['amd64']:
     basetitle = f'{arch.upper()} Conda'
 
-    cpp = DockerImage(
-        name='cpp',
+    base = DockerImage(
+        name='base',
         base=f'{arch}/ubuntu:18.04',
         arch=arch,
         os='ubuntu-18.04',
         variant='conda',
         org='ursalab',
-        title=f'{basetitle} C++',
+        title=basetitle,
         steps=[
             RUN(apt('wget')),
             # install miniconda
             ENV(PATH='/opt/conda/bin:$PATH'),
             ADD(docker_assets / 'install_conda.sh'),
             RUN('/install_conda.sh', arch, '/opt/conda'),
+            # run conda activate
+            SHELL(['/bin/bash', '-l', '-c']),
+            ENTRYPOINT(['/bin/bash', '-l', '-c']),
+        ]
+    )
+
+    crossbow = DockerImage(
+        name='crossbow',
+        base=base,
+        title=f'{basetitle} Crossbow',
+        steps=[
+            # install crossbow dependencies
+            ADD(docker_assets / 'conda-crossbow.txt'),
+            RUN(conda('git', 'twisted', files=['conda-crossbow.txt'])),
+        ]
+    )
+    cpp = DockerImage(
+        name='cpp',
+        base=base,
+        title=f'{basetitle} C++',
+        steps=[
             # install cpp dependencies
             ADD(docker_assets / 'conda-linux.txt'),
             ADD(docker_assets / 'conda-cpp.txt'),
             RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
-            # run conda activate
-            SHELL(['/bin/bash', '-l', '-c']),
-            ENTRYPOINT(['/bin/bash', '-l', '-c']),
         ]
     )
     cpp_benchmark = DockerImage(
@@ -409,7 +483,7 @@ for arch in ['amd64']:
             RUN(conda('benchmark', 'click', 'pandas'))
         ]
     )
-    arrow_images.extend([cpp, cpp_benchmark])
+    images.extend([crossbow, cpp, cpp_benchmark])
 
     for python_version in ['2.7', '3.6', '3.7']:
         python = DockerImage(
@@ -422,7 +496,7 @@ for arch in ['amd64']:
                           files=['conda-python.txt']))
             ]
         )
-        arrow_images.append(python)
+        images.append(python)
 
 # CUDA
 for arch in ['amd64']:
@@ -448,8 +522,22 @@ for arch in ['amd64']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        arrow_images.extend([cpp, python])
+        images.extend([cpp, python])
 
+# URSABOT
+ursabot = DockerImage(
+    name='ursabot',
+    base='python:3.7',
+    arch='amd64',
+    os='debian',
+    org='ursalab',
+    title='Ursabot Python 3.7',
+    steps=[
+        ADD(docker_assets / 'requirements-ursabot.txt'),
+        RUN(pip(files=['requirements-ursabot.txt']))
+    ]
+)
+images.append(ursabot)
 
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
@@ -463,25 +551,11 @@ worker_steps = [
 
 # create worker images and add them to the list of arrow images
 worker_images = []
-for image in arrow_images:
+for image in images:
     # exec form is required for conda images becase of the bash entrypoint
     cmd = [worker_command] if image.variant == 'conda' else worker_command
     steps = worker_steps + [CMD(cmd)]
     worker = DockerImage(image.name, base=image, tag='worker', steps=steps)
     worker_images.append(worker)
 
-arrow_images.extend(worker_images)
-
-# docker images for testing ursabot itself
-ursabot_images = ImageCollection([
-    DockerImage(
-        name='ursabot',
-        base='python:3.7',
-        arch='amd64',
-        os='debian',
-        tag='worker',
-        org='ursalab',
-        title='Ursabot Python 3.7',
-        steps=worker_steps + [CMD(worker_command)]
-    )
-])
+images.extend(worker_images)

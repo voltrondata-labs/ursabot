@@ -18,7 +18,7 @@ class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
 
     def __init__(self, *args, project, repository, button_name=None,
                  label=None, **kwargs):
-        """Improves the default form of ForceScheduler."""
+        """Improves the default form of ForceScheduler"""
         codebase = util.CodebaseParameter(
             codebase='',
             label='',
@@ -30,7 +30,8 @@ class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
                                         required=True),
             # required, otherwise status push reporter fails with a
             # non-descriptive exception
-            revision=util.StringParameter(name='revision', required=True)
+            revision=util.StringParameter(name='revision', default='HEAD',
+                                          required=True)
         )
         kwargs['buttonName'] = button_name or f'Build {project}'
         kwargs['label'] = label or f'Manual {project} build'

@@ -120,7 +120,8 @@ dmypy.json
 *.pid
 local.py
 
-# Ursabot configuration files
+# Ursabot's local configuration files
+local.toml
 .secrets.*
 
 # Ursabot testing database

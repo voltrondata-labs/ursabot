@@ -92,22 +92,27 @@ class Config(dict):
     __getattr__ = dict.__getitem__
 
     @classmethod
-    def load(cls, *files):
-        paths = list(map(pathlib.Path, files))
+    def from_path(cls, path):
+        path = pathlib.Path(path)
 
-        configs = []
-        for path in paths:
-            if path.suffix == '.json':
-                loads = json.loads
-            elif path.suffix == '.toml':
-                loads = toml.loads
-            else:
-                raise ValueError(f'Unsupported extension: `{path.suffix}`')
+        if path.suffix == '.json':
+            loads = json.loads
+        elif path.suffix == '.toml':
+            loads = toml.loads
+        else:
+            raise ValueError(f'Unsupported extension: `{path.suffix}`')
 
-            # loading .secrets.ext files is optional
-            if not path.exists() and 'secret' in path.name:
+        return cls(loads(path.read_text()))
+
+    @classmethod
+    def load(cls, *paths, optionals=tuple()):
+        configs = [cls.from_path(path) for path in paths]
+
+        for path in optionals:
+            try:
+                configs.append(cls.from_path(path))
+            except FileNotFoundError:
                 continue
-            configs.append(loads(path.read_text()))
 
         return cls.merge(configs)
 

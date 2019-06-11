@@ -17,17 +17,23 @@ worker_port = 9989
 webui_port = 4100
 database_url = 'sqlite:///ursabot.sqlite'
 
+[secrets]
+# setup secret providers, currently on SecretInPass supported
+enabled = false
+directory = '~/.ursalabs-pass'
+# passphrase = optional, prefer gpg-agent instead
+
 [github]
 # have to provide repo:status scope for the token and write access to the
 # for the repositories in order to support github status_push below
-# token = ...
+token = '%(secret:ursabot/github_token)s'
 
   [github.auth]
   # github organizations whos members are admins
   # additional user whom admin access should be granted
   enabled = false
-  # client_id = ...
-  # client_secret = ...
+  client_id = '%(secret:ursabot/github_client_id)s'
+  client_secret = '%(secret:ursabot/github_client_secret)s'
   # admin = {
   #   orgs = [...]
   #   users = [...]
@@ -35,9 +41,9 @@ database_url = 'sqlite:///ursabot.sqlite'
 
   [github.event_hook]
   # Secret must be provided during the hook definition on github.
+  debug = true
   enabled = false
-  # debug = true
-  # secret = ...
+  secret = '%(secret:ursabot/github_hook_secret)s'
 
 [schedulers]
 
@@ -78,7 +84,7 @@ database_url = 'sqlite:///ursabot.sqlite'
   organization = 'ursalabs'
   bot = 'ursabot-bot@ursalabs.zulipchat.com'
   stream = 'ursabot'
-  # apikey = ...
+  apikey = '%(secret:ursabot/zulip_api_key)s'
 
 [changes]
 
@@ -89,6 +95,13 @@ database_url = 'sqlite:///ursabot.sqlite'
   # password = ...
 
 # [[workers]]
-# name = ...
+# name = 'local'
 # arch = 'arm64v8' or 'amd64'
-# docker = { host = 'tcp://host:port', hostconfig = {} }
+# docker.host = 'tcp://host:port' or 'unix://var/run/docker.sock'
+# docker.masterFQDN = '...'
+# docker.autopull = true
+# docker.alwayspull = true
+# # for testing on docker on mac explicitly defined the following reserved host
+# docker.masterFQDN = 'host.docker.internal'
+# docker.hostconfig.network_mode = 'host'
+# docker.hostconfig.cpuset_cpus = '2,3'

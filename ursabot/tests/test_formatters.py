@@ -9,7 +9,8 @@ from buildbot.test.fake import fakedb, fakemaster
 from buildbot.test.util.misc import TestReactorMixin
 
 from ursabot.formatters import (Formatter, MarkdownFormatter,
-                                BenchmarkCommentFormatter)
+                                BenchmarkCommentFormatter,
+                                CrossbowCommentFormatter)
 from ursabot.utils import ensure_deferred
 
 
@@ -18,6 +19,10 @@ class TestFormatterBase(TestReactorMixin, unittest.TestCase):
     BUILD_ID = 21
     BUILD_URL = 'http://localhost:8080/#builders/80/builds/1'
     REVISION = '989ec01feb96c2563f39b1751bcc29822c8db4b8'
+
+    def load_fixture(self, name):
+        path = Path(__file__).parent / 'fixtures' / f'{name}'
+        return path.read_text()
 
     def setUp(self):
         self.setUpTestReactor()
@@ -242,10 +247,6 @@ class TestMarkdownFormatter(TestFormatterBase):
 
 class TestBenchmarkCommentFormatter(TestFormatterBase):
 
-    def load_fixture(self, name):
-        path = Path(__file__).parent / 'fixtures' / f'{name}'
-        return path.read_text()
-
     def setupFormatter(self):
         return BenchmarkCommentFormatter()
 
@@ -328,4 +329,42 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         '''
         content = await self.render(previous=SUCCESS, current=SUCCESS,
                                     buildsetid=98)
+        assert content == textwrap.dedent(expected).strip()
+
+
+class TestCrossbowCommentFormatter(TestFormatterBase):
+
+    def setupFormatter(self):
+        return CrossbowCommentFormatter(crossbow_repo='ursa-labs/crossbow')
+
+    def setupDb(self, current, previous):
+        super().setupDb(current, previous)
+
+        job = self.load_fixture('crossbow-job.yaml')
+
+        self.db.insertTestData([
+            fakedb.Step(id=50, buildid=21, number=0, name='compile'),
+            fakedb.Step(id=51, buildid=21, number=1, name='benchmark',
+                        results=current),
+            fakedb.Log(id=60, stepid=51, name='result', slug='result',
+                       type='t', num_lines=len(job)),
+            fakedb.LogChunk(logid=60, first_line=0, last_line=len(job),
+                            compressed=0, content=job)
+        ])
+
+    @ensure_deferred
+    async def test_success(self):
+        status = 'has been succeeded.'
+        repo = 'ursa-labs/crossbow'
+        branch = 'ursabot-1'
+        link = f'https://github.com/{repo}/branches/all?query={branch}'
+        expected = f'''
+        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
+
+        Revision: {self.REVISION}
+
+        Submitted crossbow builds: [{repo} @ {branch}]({link})
+        '''
+        content = await self.render(previous=SUCCESS, current=SUCCESS,
+                                    buildsetid=99)
         assert content == textwrap.dedent(expected).strip()

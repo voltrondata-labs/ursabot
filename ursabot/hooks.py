@@ -5,12 +5,10 @@ from buildbot.www.hooks.github import GitHubEventHandler
 from buildbot.util.httpclientservice import HTTPClientService
 
 from .utils import ensure_deferred
+from .commands import CommandError, ursabot as ursabot_command
 
 
 log = Logger()
-
-# TODO(kszucs): make it configurable
-BOTNAME = 'ursabot'
 
 
 class GithubHook(GitHubEventHandler):
@@ -61,8 +59,13 @@ class GithubHook(GitHubEventHandler):
         )
     """
 
-    def __init__(self, *args, **kwargs):
-        if not kwargs.get('github_property_whitelist'):
+    # there is no easy way to pass additional arguments for this object,
+    # so configure and store them as class attributes
+    botname = 'ursabot'
+    comment_handler = None
+
+    def __init__(self, *args, github_property_whitelist=None, **kwargs):
+        if not github_property_whitelist:
             # handle_pull_request calls self.extractProperties with
             # payload['pull_request'], so in order to set a title property
             # to the pull_request's title, 'github.title' must be passed to
@@ -71,8 +74,9 @@ class GithubHook(GitHubEventHandler):
             kwargs['github_property_whitelist'] = ['github.title']
         super().__init__(*args, **kwargs)
 
-    def _client(self):
-        headers = {'User-Agent': 'Buildbot'}
+    def _client(self, headers=None):
+        headers = headers or {}
+        headers.setdefault('User-Agent', self.botname)
         if self._token:
             headers['Authorization'] = 'token ' + self._token
 
@@ -85,60 +89,83 @@ class GithubHook(GitHubEventHandler):
             verify=self.verify
         )
 
-    async def _get(self, url):
+    async def _get(self, url, headers=None):
         url = urlparse(url)
-        client = await self._client()
+        client = await self._client(headers=headers)
         response = await client.get(url.path)
         result = await response.json()
         return result
 
-    async def _post(self, url, data):
+    async def _post(self, url, data, headers=None):
         url = urlparse(url)
-        client = await self._client()
+        client = await self._client(headers=headers)
         response = await client.post(url.path, json=data)
         result = await response.json()
         log.info(f'POST to {url} with the following result: {result}')
         return result
 
-    def _parse_command(self, message):
-        # TODO(kszucs): make it more sophisticated
-        mention = f'@{BOTNAME}'
-        if mention in message:
-            return message.split(mention)[-1].lower().strip()
-        return None
+    @ensure_deferred
+    async def _get_commit_msg(self, repo, sha):
+        # used by handle_pull_request
+        url = '/repos/{}/commits/{}'.format(repo, sha)
+        result = await self._get(url)
+        commit = result.get('commit', {})
+        return commit.get('message', 'No message field')
 
     @ensure_deferred
     async def handle_issue_comment(self, payload, event):
-        issue = payload['issue']
-        comments_url = issue['comments_url']
-        command = self._parse_command(payload['comment']['body'])
+        # no comment handler is configured, so omit issue/pr comments
+        if self.comment_handler is None:
+            return [], 'git'
 
         # only allow users of apache org to submit commands, for more see
         # https://developer.github.com/v4/enum/commentauthorassociation/
         allowed_roles = {'OWNER', 'MEMBER', 'CONTRIBUTOR'}
 
-        if payload['sender']['login'] == BOTNAME:
+        mention = f'@{self.botname}'
+        repo = payload['repository']
+        issue = payload['issue']
+        comment = payload['comment']
+
+        async def respond(comment):
+            if comment in {'+1', '-1'}:
+                url = f"{repo['url']}/comments/{comment['id']}/reactions"
+                accept = 'application/vnd.github.squirrel-girl-preview+json'
+                await self._post(url, data={'content': comment},
+                                 headers={'Accept': accept})
+            else:
+                await self._post(issue['comments_url'], {'body': comment})
+
+        if payload['sender']['login'] == self.botname:
             # don't respond to itself
             return [], 'git'
         elif payload['action'] not in {'created', 'edited'}:
             # don't respond to comment deletion
             return [], 'git'
-        elif payload['comment']['author_association'] not in allowed_roles:
+        elif comment['author_association'] not in allowed_roles:
             # don't respond to comments from non-authorized users
             return [], 'git'
-        elif command is None:
+        elif not comment['body'].lstrip().startswith(mention):
             # ursabot is not mentioned, nothing to do
             return [], 'git'
-        elif command in ('build', 'benchmark'):
-            if 'pull_request' not in issue:
-                message = 'Ursabot only listens to pull request comments!'
-                await self._post(comments_url, {'body': message})
-                return [], 'git'
-        else:
-            message = f'Unknown command "{command}"'
-            await self._post(comments_url, {'body': message})
+        elif 'pull_request' not in issue:
+            await respond('Ursabot only listens to pull request comments!')
             return [], 'git'
 
+        try:
+            command = comment['body'].split(mention)[-1].lower().strip()
+            properties = self.comment_handler(command)
+        except CommandError as e:
+            await respond(e.message)
+            return [], 'git'
+        except Exception as e:
+            log.error(e)
+            return [], 'git'
+        else:
+            if not properties:
+                raise ValueError('`comment_parser` must return properties')
+
+        changes = []
         try:
             pull_request = await self._get(issue['pull_request']['url'])
             # handle_pull_request contains pull request specific logic
@@ -149,26 +176,28 @@ class GithubHook(GitHubEventHandler):
                 'pull_request': pull_request,
                 'number': pull_request['number'],
             }, event)
-        except Exception as e:
-            message = "I've failed to start builds for this PR"
-            await self._post(comments_url, {'body': message})
-            raise e
-
-        # TODO(kszucs): consider not responding
-        message = "I've successfully started builds for this PR"
-        await self._post(comments_url, {'body': message})
-
-        for change in changes:
             # `event: issue_comment` will be available between the properties,
             # but We still need a way to determine which builders to run, so
             # pass the command property as well and flag the change category as
             # `comment` instead of `pull`
-            change['category'] = 'comment'
-            change['properties']['command'] = command
-
-        return changes, 'git'
+            for change in changes:
+                change['category'] = 'comment'
+                change['properties'].update(properties)
+        except Exception as e:
+            log.error(e)
+            await respond("I've failed to start builds for this PR")
+        else:
+            # await respond('+1')
+            await respond("I've successfully started builds for this PR")
+        finally:
+            return changes, 'git'
 
     # TODO(kszucs): ursabot might listen on:
     # - handle_commit_comment
     # - handle_pull_request_review
     # - handle_pull_request_review_comment
+
+
+class UrsabotHook(GithubHook):
+
+    comment_handler = staticmethod(ursabot_command)
