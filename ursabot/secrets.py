@@ -11,9 +11,8 @@ log = Logger()
 
 
 class SecretInPass(passwordstore.SecretInPass):
-    """
-    secret is stored in a password store
-    """
+    """Secret stored in a password store"""
+
     name = 'SecretInPass'
 
     def checkConfig(self, passphrase=None, dirname=None):

@@ -24,11 +24,71 @@ class DockerFile(DockerFile):
 
 
 class DockerImage:
-    """Docker image abstraction for image hierarchies with strict naming"""
+    """Docker image abstraction for image hierarchies with strict naming
+
+    Parameters
+    ----------
+    name : str
+        Short name, identifier of the image. Prefer short names, because the
+        generated repository name will end with the image's name.
+    base : Union[str, DockerImage]
+        Either a string used to defined root nodes in the image hierarchy or
+        another DockerImage instance. In the former case `arch` and `os`
+        arguments must be passed explicitly, whereas in the latter case these
+        properties are inherited from the base (parent) image.
+    title : str, default None
+        A more human friendly title for the image.
+    org : str, default None
+        Docker organization the image should belong to.
+    tag : str, default 'latest'
+        Docker tag for the image.
+    arch : 'amd64' or 'arm64v8', default None
+        Docker architecture of the image. Currently only 'amd64' and 'arm64v8'
+        values are supported.
+    os : str, default None
+        Operating system of the image. Examples: 'ubuntu-18.04', 'alpine-3.9'.
+    steps : List[Callable[[dockermap.api.DockerFile], None]], default []
+        List of steps defined in docker-ish DSL. Use functions like ADD, RUN,
+        ENV, WORKDIR, USER, CMD, ENTRYPOINT, SHELL.
+
+    Examples
+    --------
+    In [1]: from ursabot.docker import DockerImage, RUN, CMD, conda
+
+    In [2]: miniconda = DockerImage(
+       ...:     'conda',
+       ...:     base='continuumio/miniconda3',
+       ...:     arch='amd64',
+       ...:     os='debian-9'
+       ...: )
+
+    In [3]: jupyter = DockerImage(
+       ...:     'jupyter',
+       ...:     base=miniconda,
+       ...:     steps=[
+       ...:         RUN(conda('jupyter')),
+       ...:         CMD(['jupyter', 'notebook',
+       ...:             '--ip', '0.0.0.0',
+       ...:             '--no-browser',
+       ...:             '--allow-root'])
+       ...:     ]
+       ...: )
+
+    In [4]: miniconda
+    Out[4]: <DockerImage: amd64-debian-9-conda:latest at 4456735912>
+
+    In [5]: jupyter
+    Out[5]: <DockerImage: amd64-debian-9-jupyter:latest at 4456320976>
+
+    In [6]: miniconda.build()
+    Out[6]: <DockerImage: amd64-debian-9-conda:latest at 4456735912>
+
+    In [7]: jupyter.build()
+    Out[7]: <DockerImage: amd64-debian-9-jupyter:latest at 4456320976>
+    """
 
     def __init__(self, name, base, title=None, org=None, tag='latest',
-                 arch=None, os=None, variant=None, steps=tuple(),
-                 properties=None):
+                 arch=None, os=None, variant=None, steps=tuple()):
         if isinstance(base, DockerImage):
             if not title:
                 title = base.title
@@ -71,9 +131,6 @@ class DockerImage:
                 'each `step` must be a callable, use `run` function'
             )
 
-        if not isinstance(properties, (type(None), dict)):
-            raise TypeError(f'`properties` argument must be a dictionary')
-
         self.name = name
         self.title = title
         self.base = base
@@ -83,7 +140,6 @@ class DockerImage:
         self.os = os
         self.variant = variant
         self.steps = tuple(steps)
-        self.properties = properties
 
     def __str__(self):
         return self.fqn
@@ -129,8 +185,8 @@ class DockerImage:
     def build(self, client=None, **kwargs):
         """Build the docker images
 
-        Params
-        ------
+        Parameters
+        ----------
         client : dockermap.api.DockerClientWrapper, default None
             Docker client to build the images with. For example it can be
             used to build images on another host.

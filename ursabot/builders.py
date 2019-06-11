@@ -9,6 +9,7 @@ from buildbot.plugins import util
 from codenamize import codenamize
 
 from .docker import DockerImage, images
+from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
                     Archery, Crossbow)
@@ -112,7 +113,27 @@ class DockerBuilder(Builder):
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
 
     @classmethod
-    def builders_for(cls, workers, images=None, env=None):
+    def builders_for(cls, workers, images=tuple(), **kwargs):
+        """Instantiates builders based on the available workers
+
+        The workers and images are matched based on their architecture.
+
+        Parameters
+        ----------
+        workers : List[DockerLatentWorker]
+            Worker instances the builders may run on.
+        images : List[DockerImage], default []
+            Docker images the builder's steps may run in.
+            Pass None to use class' images property.
+
+        Returns
+        -------
+        docker_builder : List[DockerBuilder]
+            Builder instances.
+        """
+        assert all(isinstance(i, DockerImage) for i in images)
+        assert all(isinstance(w, DockerLatentWorker) for w in workers)
+
         images = images or cls.images
         workers_by_arch = workers.groupby('arch')
 
@@ -120,7 +141,7 @@ class DockerBuilder(Builder):
         for image in images:
             if image.arch in workers_by_arch:
                 workers = workers_by_arch[image.arch]
-                builder = cls(image=image, workers=workers, env=env)
+                builder = cls(image=image, workers=workers, **kwargs)
                 builders.append(builder)
             else:
                 warnings.warn(

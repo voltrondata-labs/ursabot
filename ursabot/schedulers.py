@@ -18,7 +18,7 @@ class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
 
     def __init__(self, *args, project, repository, button_name=None,
                  label=None, **kwargs):
-        """Improves the default form of ForceScheduler."""
+        """Improves the default form of ForceScheduler"""
         codebase = util.CodebaseParameter(
             codebase='',
             label='',

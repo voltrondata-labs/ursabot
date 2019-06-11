@@ -41,6 +41,7 @@ def ursabot(ctx, verbose):
 @click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_context
 def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
+    """Subcommand to build docker images for the docker builders"""
     if ctx.obj['verbose']:
         logging.getLogger('dockermap').setLevel(logging.INFO)
 
@@ -56,10 +57,20 @@ def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
 
 
 @docker.command()
+@click.pass_context
+def list_images(ctx):
+    """List the docker images"""
+    images = ctx.obj['images']
+    for image in images:
+        click.echo(image)
+
+
+@docker.command()
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
 @click.pass_context
 def build(ctx, push):
+    """Build docker images"""
     client = ctx.obj['client']
     images = ctx.obj['images']
 
@@ -73,6 +84,7 @@ def build(ctx, push):
               help='Path to the directory where the images should be written')
 @click.pass_context
 def write_dockerfiles(ctx, directory):
+    """Write the corresponding Dockerfile for the images"""
     images = ctx.obj['images']
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
