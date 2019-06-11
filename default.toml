@@ -95,8 +95,13 @@ token = '%(secret:ursabot/github_token)s'
   # password = ...
 
 # [[workers]]
-# name = ...
+# name = 'local'
 # arch = 'arm64v8' or 'amd64'
-# docker.host = 'tcp://host:port'
+# docker.host = 'tcp://host:port' or 'unix://var/run/docker.sock'
 # docker.masterFQDN = '...'
-# docker.hostconfig = {}
+# docker.autopull = true
+# docker.alwayspull = true
+# # for testing on docker on mac explicitly defined the following reserved host
+# docker.masterFQDN = 'host.docker.internal'
+# docker.hostconfig.network_mode = 'host'
+# docker.hostconfig.cpuset_cpus = '2,3'
