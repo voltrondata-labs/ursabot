@@ -145,12 +145,24 @@ the neccessary information.
 
 ### via CLI
 
-TODO
+Buildbot supports submitting local patches directly to the cluster and
+triggering specific builders. The `TryScheduler` is a really handy way to test
+local changes without polluting the git history:
 
+```bash
+buildbot try \
+  --connect=pb \
+  --master=... \
+  --username=... \
+  --passwd=... \
+  --get-builder-names
+```
+
+If someone wants to use this feature then please raise an issue, because it requires custom credentials.
 
 ## Running Ursabot
 
-First install it:
+Intallation requires at least Python 3.6:
 
 ```bash
 pip install -e ursabot
@@ -424,8 +436,11 @@ $ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p
 
 ### Adding new workers to the cluster
 
-TODO
-
+Adding docker latent workers requires a worker entry in the configuration.
+Name, architecture and a docker host (accessable by the buildmaster) are
+required, see an example in [default.toml](default.toml).
+Adding non-docker workers are also possible, but must register them in the
+[master.cfg](master.cfg).
 
 ## Developing Ursabot
 
@@ -441,20 +456,6 @@ pytest -v ursabot
 
 Install [pre-commit](https://pre-commit.com/) then to setup the git
 [hooks](.pre-commit-config.yaml) run `pre-commit install`.
-
-
-## FAQ
-
-- How is ursabot deployed? What happens if Wes’s server melts down and we have
-  to stand it up somewhere else?
-- Does ursabot run builds automatically on every commit?
-  From a previous discussion, buildbot has a GitHubPullrequestPoller, and
-  "The current poller is configured for a poll every 2 minutes. It polls the
-  master branch and every pull requests"
-
-    - If so, how is build status reported back to GitHub?
-
-- How is crossbow configured? Where does it run from? On what schedule?
 
 
 ## Possible further improvements
