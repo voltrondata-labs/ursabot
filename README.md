@@ -3,22 +3,25 @@
 # Ursa Labs' buildbot configuration for Apache Arrow
 
 Ursabot is a continous integration application based on the
-[buildbot](http://buildbot.net/) framework. The primary focus of ursabot is to
+[buildbot][buildbot-docs] framework. The primary focus of ursabot is to
 execute various builds benchmark and packaging tasks for
-[Apache Arrow](https://arrow.apache.org/).
+[Apache Arrow][arrow-url].
+
+
+## Arrow's build system
 
 Arrow is used on a wide range of platforms, it has libraries in many languages,
 and these all have multiple build options and compiler flags. We want to ensure
-that patches don’t break a build--preferably before merging them--and we want
-to ensure that we don’t regress. While we use Travis-CI and Appveyor for some
-build testing, we can’t test on all platforms there, and there is some
-inefficiency because it is difficult to express build stage dependencies and
-collect build artifacts (for example, of the C++ library for use in
-Python/R/etc.).
+that patches don't break a build -- preferably before merging them -- and we
+want to ensure that we don't regress.
+While we use Travis-CI and Appveyor for some build testing, we can't test on
+all platforms there, and there is some inefficiency because it is difficult to
+express build stage dependencies and collect build artifacts (for example, of
+the C++ library for use in Python/R/etc.).
 
 Similarly, we want to prevent performance regressions and aim to prevent
 merging patches that degrade performance, and in order to do this, we need to
-run benchmarks. These benchmarks can’t reliably be run on public CI
+run benchmarks. These benchmarks can't reliably be run on public CI
 infrastructure because they need dedicated, consistent hardware in order to
 return comparable results.
 
@@ -30,7 +33,7 @@ implemented.
 
 ### Goals
 
-- Prevent “breaking the build”. For a given patch, run all tests and
+- Prevent "breaking the build". For a given patch, run all tests and
   integrations, with all relevant build configurations and on all necessary
   platforms, that might be affected by the patch.
 - Prevent performance regressions
@@ -51,143 +54,109 @@ implemented.
 - Dev time: whatever we invest of ourselves in building this system takes away
   from time we’d spend adding value to the Arrow project itself. To the extent
   that investing in this system saves developer time elsewhere, it is
-  worthwhile, but again, there are diminishing returns.
+  worthwhile.
 
 
-### Implementation
-
-We have a three-tiered system:
-
-- Use Travis-CI and Appveyor for a minimal set of language/build configurations
-  that run on every commit and pull request on GitHub.
-- Use a custom CI server, ci.ursalabs.org, for additional builds on demand.
-
-    - A GitHub integration allows them to be triggered by commenting on a pull
-      request.
-    - The same GitHub integration can be used for triggering benchmark runs on
-      demand.
-
-- Other build checks, particularly those that produce built artifacts
-  (binaries), are run nightly.
-
-Some, though not all, of these can be run locally.
-
-Allowing PR reviewers to request additional checks on demand within the review
-process makes it easier for us to apply extra scrutiny at review time while
-also conserving CI bandwidth by using human expertise to know which checks are
-needed. Comprehensive, automatic nightly checks allow us to catch quickly any
-regressions that our human expertise missed so that we can fix them right away.
-(Call it “continual integration” rather than “continuous integration”.)
-
-Key components of this system:
-
-- ci.ursalabs.org, a server in Wes’s house where we run many of these builds.
-- ursabot, a customized instance of the Buildbot CI system, running on
-  ci.ursalabs.org. Access its UI at https://ci.ursalabs.org/.
-  Ursabot currently only has Python and C++ builds specified.
-- archery, a command-line tool for running and comparing benchmarks.
-- crossbow, [PLEASE FILL IN; see also https://issues.apache.org/jira/browse/ARROW-3571]
-
-
-## How-to guide
-
-### How to request ursabot builds on a PR
-
-Add a comment on the pull request: @ursabot build. The ursabot GitHub user will
-respond that it has started a build for you. Unfortunately, it does not
-currently report back on the build status, or even the id of the build, so
-you’ll have to search around the buildbot UI for it.
-
-You can also initiate a build for a specific architecture/configuration in the
-buildbot UI. Navigate to Builds > Builders, select a builder, and click
-"Build apache/arrow" at the top right. There, you can specify a branch and/or
-commit to build.
-
-### How to add a new build job to ursabot
-
-Define a Builder in buildbot as a subclass of DockerBuilder here. A builder has
-two components: steps, a sequence of shell commands; and images, docker images
-with the dependencies pre-installed to execute the steps.
-
-The first thing to do is determine whether there already is a docker image
-available to use, or whether you need to create one.
-
-### How to add a docker image?
-
-TBD
-
-### How to define steps?
-
-TBD
-
-### How to run and test an ursabot build locally
-
-TBD
-
-### How to request benchmarking on a PR
-
-Add a comment on the pull request: @ursabot benchmark. The ursabot GitHub user
-will respond that it has started a build for you. (Does this one report back
-the benchmark results on the PR?)
-
-### How to run benchmarks locally
-
-TBD write clear how-to guide; for now, read the docstrings in
-https://github.com/apache/arrow/blob/master/dev/archery/archery/cli.py
-
-### How to add another build to crossbow
-
-TBD
-
-### How to use crossbow build artifacts
-
-TBD
-
-## FAQ
-
-- How is ursabot deployed? What happens if Wes’s server melts down and we have
-  to stand it up somewhere else?
-- Does ursabot run builds automatically on every commit?
-  From a previous discussion, buildbot has a GitHubPullrequestPoller, and
-  "The current poller is configured for a poll every 2 minutes. It polls the
-  master branch and every pull requests"
-
-    - If so, how is build status reported back to GitHub?
-
-- How is crossbow configured? Where does it run from? On what schedule?
-
-## Out of scope
+### Out of scope
 
 These have been discussed and would be valuable, but they are definitely
 "nice to haves" and should be deferred until the primary goals are met.
 
 - Database for storing benchmark results
+- Central station for hosting the build artifacts
 - Dashboard showing build health across all platforms and configurations
-- Hosted build artifacts
 
 
-## Installation
+## Implementation
+
+Currently We have a three-tiered system.
+
+- Use Travis-CI and Appveyor for a set of language/build configurations that
+  run on every commit and pull request on GitHub. The configuration files are
+  maintained in the [arrow][arrow-repo] repository.
+- [Crossbow][crossbow-readme] for binary
+  packaging and nightly tests. Crossbow provides a command line interface to
+  programatically trigger Travis and Appveyor builds by creating git branches
+  in [ursalabs/crossbow][crossbow-repo] repository.
+  It is maintained within [arrow][arrow-repo], for more see its
+  [guide][crossbow-readme].
+- [Ursabot][ursabot-repo] implemented on top of [buildbot][buildbot-docs] CI
+  framework, hosted at [ci.ursalabs.org][ursabot-url] on Ursalabs' servers.
+  It provides:
+
+    - A set of builds testing the C++ implementation and Python bindings on
+      multiple operating systems and architectures (most of these are executed
+      automatically on each commit and pull request).
+    - On-demand builds requested by commenting on a pull request.
+    - On-demand benchmarks requested by commenting on a pull request, the
+      benchmark results are reported as github comments. The recently developed
+      [Archery][archery-readme] command-line tool is responsible for running
+      and comparing the benchmarks.
+    - Special builds for triggering other systems' builds, like
+      [crossbow][crossbow-readme]'s packaging tasks by commenting on a pull
+      request.
+
+ <!-- Comprehensive, automatic nightly checks allow us to catch quickly any
+regressions that our human expertise missed so that we can fix them right away.
+(Call it "continual integration" rather than "continuous integration".) -->
+
+
+## Driving Ursabot
+
+Allowing PR reviewers to request additional checks on demand within the review
+process makes it easier for us to apply extra scrutiny at review time while
+also conserving CI bandwidth by using human expertise to know which checks are
+needed.
+
+### via Comments
+
+Ursabot receives github events through a webhook. It listens on pull request
+comments mentioning @ursabot. It follows the semantics of a command line
+interface, to see the available commands add a comment on the pull request: `@ursabot --help`.
+
+The @ursabot GitHub user will respond or [react][github-reactions] that it has
+started a build for you. Unfortunately, it does not currently report back
+on the build status. The reporters are already implemented. They will be
+enabled once the proper github integration permissions are set for the
+[apache/arrow][arrow-repo] repository. Until that you have to search around the
+[buildbot UI][ursabot-url] for it. The command parser is implemented in [commands.py](commands.py).
+
+Currently available commands:
+
+  - `@ursabot build`: Triggers all the ursabot tests. These tests are run
+    automatically, but this is a convinient way to force a re-build.
+  - `@ursabot benchmark`: Triggers C++ benchmarks and sends back the results as
+    a github comment and highlights the regressions.
+  - `@ursabot crossbow test cpp-python`: Triggers the `cpp-python` test group
+    defined in [test.yml][crossbow-tests] and responds with a URL pointing to submitted crossbow branches at the github UI showing the build statuses.
+  - `@ursabot crossbow package wheel conda`: Triggers the `wheel` and `conda`
+    crossbow packaging groups defined in [tasks.yml][crossbow-tasks].
+
+Note that the commands won't trigger any builds if the commit message contains
+a skip pattern, like `[skip ci]` or `[ci skip]`.
+
+### via the Web UI
+
+You can also initiate a build for a specific architecture/configuration in the
+[buildbot UI][ursabot-url]. Navigate to [Builds > Builders][ursabot-builders],
+select a builder, and click `Build apache/arrow` buttin at the top right. This triggers the force schedulers where you can specify a branch and/or commit to
+build. In the future specialized builders will have different fields to provide
+the neccessary information.
+
+### via CLI
+
+TODO
+
+
+## Running Ursabot
+
+First install it:
 
 ```bash
 pip install -e ursabot
 ```
 
-## Configuration
-
-The buildbot configuration is implemented in `master.cfg`, however to turn
-services on and off more easily, add workers without touching any python
-files, and provide credentials without committing to git there is another
-static configuration layer constructed by `default.toml`, `test.toml`
-and `prod.toml` files.
-These files are loaded as plain dictionaries and merged upon each other
-depending on the `URSABOT_ENV` variable. The merge order is:
-
-> default.toml <- $URSABOT_ENV.toml <- .secrets.toml [optional]
-
-For the available configuration keys see `default.toml`.
-
-
-## Running a local instance of ursabot
+Define the configuration environment (prod|test) and start the service:
 
 ```bash
 $ export USABOT_ENV=test  # this is the default
@@ -196,7 +165,28 @@ $ tail -f ursabot/twisted.log
 ```
 
 
-## Adding a new build
+## Configuring Ursabot
+
+The buildbot configuration is implemented in `master.cfg`, however to turn
+services on and off more easily, add workers without touching any python
+file, and provide credentials without committing to git there is another
+static configuration layer constructed by `default.toml`, `test.toml`
+and `prod.toml` files.
+These files are loaded as plain dictionaries and merged upon each other
+depending on the `URSABOT_ENV` variable. The merge order is:
+
+1. [`default.toml`](default.toml)
+2. `$URSABOT_ENV.toml` like [`test.toml`](test.toml) or [`prod.toml`](prod.toml)
+3. `local.toml` [optional]
+4. `.secrets.toml` [optional]
+
+For the available configuration keys see [`default.toml`](default.toml).
+The preferred secret handling method is to setup a secret provider like
+`SecretInPass`, see the `secrets` configuration key in
+[`default.toml`](default.toml).
+
+
+### Adding a new build(er)s
 
 The closest abstraction to the traditional yaml based CI configs in ursabot are
 the Builders. In the simplest case a builder is defined by a sequence of steps
@@ -314,7 +304,7 @@ BuildmasterConfig = {
 ```
 
 
-## Docker build tool
+## Define docker images
 
 Arrow supports multiple platforms, has a wide variety of features thus a lot of
 dependencies. Installing them in each build would be time and resource
@@ -328,27 +318,47 @@ from ursabot.docker import DockerImage, ImageCollection
 from ursabot.docker import RUN, ENV, CMD, ADD, apt, conda
 
 
-images = ImageCollection()
+miniconda = DockerImage(
+    name='conda',
+    base='continuumio/miniconda3',
+    arch='amd64',
+    os='debian-9'
+)
+pandas = DockerImage(
+    name='pandas',
+    base=miniconda,
+    steps=[
+        RUN(conda('pandas'))
+    ]
+)
+pyarrow = DockerImage(
+    name='pyarrow',
+    base=miniconda,
+    steps=[
+        RUN(conda('pyarrow'))
+    ]
+)
 
-miniconda = DockerImage('conda', base='continuumio/miniconda3',
-                        arch='amd64', os='debian-9')
-pandas = DockerImage('pandas', base=miniconda, steps=[
-    RUN(conda('pandas'))
-])
-pyarrow = DockerImage('pyarrow', base=miniconda, steps=[
-    RUN(conda('pyarrow'))
-])
-images.extend([miniconda, pandas, pyarrow])
+images = ImageCollection([miniconda, pandas, pyarrow])
 
 # create a docker image for each of the previous ones running jupyter notebook
 jupyter_steps = [
     RUN(conda('jupyter')),
-    CMD(['jupyter', 'notebook', '--ip', '0.0.0.0', '--no-browser',
-         '--allow-root'])
+    CMD([
+        'jupyter', 'notebook',
+        '--ip', '0.0.0.0',
+        '--no-browser',
+        '--allow-root'
+    ])
 ]
-images.extend([
-    DockerImage(name=img.name, base=img, tag='jupyter', steps=jupyter_steps)
-    for img in images
+images.extend(
+    DockerImage(
+        name=image.name,
+        base=image,
+        tag='jupyter',
+        steps=jupyter_steps
+    )
+    for image in images
 ])
 
 # build all of the images in topological order
@@ -387,6 +397,9 @@ ursabot --verbose \
 
 ### Adding a new dependency to the docker images
 
+Most of the dependency requirements are factored out to easily editable text
+files under the [docker](docker) directory.
+
 For plain (non-conda) docker images append the appropiate package to
 [pkgs-alpine.txt](docker/pkgs-alpine.txt) and
 [pkgs-ubuntu.txt](docker/pkgs-ubuntu.txt).
@@ -409,11 +422,15 @@ $ ursabot -v docker -dh tcp://amd64-host:2375 -a amd64 build -p
 $ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p
 ```
 
+### Adding new workers to the cluster
 
-## Development
+TODO
 
-Buildbot doesn't distribute its testing suite with binary wheels, so it must
-be installed from source.
+
+## Developing Ursabot
+
+Buildbot doesn't distribute its testing suite with binary wheels, so in order
+to run the unit tests buildbot must be installed from source:
 
 ```bash
 pip install --no-binary buildbot -e .
@@ -424,3 +441,42 @@ pytest -v ursabot
 
 Install [pre-commit](https://pre-commit.com/) then to setup the git
 [hooks](.pre-commit-config.yaml) run `pre-commit install`.
+
+
+## FAQ
+
+- How is ursabot deployed? What happens if Wes’s server melts down and we have
+  to stand it up somewhere else?
+- Does ursabot run builds automatically on every commit?
+  From a previous discussion, buildbot has a GitHubPullrequestPoller, and
+  "The current poller is configured for a poll every 2 minutes. It polls the
+  master branch and every pull requests"
+
+    - If so, how is build status reported back to GitHub?
+
+- How is crossbow configured? Where does it run from? On what schedule?
+
+
+## Possible further improvements
+
+- Project abstraction to reduce the complexity of [master.cfg](master.cfg)
+- Multi-master setup for scaling
+- Setup WAMP/Crossbar to restart the buildmaster without cancelling the running
+  builds
+- Windows containers and workers (docker in virtualized nodes)
+- Enable CUDA docker runtime (builder is already added)
+- Crossbow poller to report back crossbow task statuses
+
+
+[arrow-repo]: https://github.com/apache/arrow
+[arrow-url]: https://arrow.apache.org
+[archery-readme]: https://github.com/apache/arrow/tree/master/dev/archery
+[crossbow-readme]: https://github.com/apache/arrow/tree/master/dev/tasks
+[crossbow-repo]: https://github.com/ursa-labs/crossbow
+[crossbow-tests]: https://github.com/apache/arrow/blob/master/dev/tasks/tests.yml#L55
+[crossbow-tasks]: https://github.com/apache/arrow/blob/master/dev/tasks/tasks.yml#L21
+[ursabot-repo]: https://github.com/ursa-labs/ursabot
+[ursabot-url]: https://ci.ursalabs.org
+[ursabot-builders]: https://ci.ursalabs.org/#/builders
+[buildbot-docs]: https://docs.buildbot.net
+[github-reactions]: https://help.github.com/en/articles/about-conversations-on-github#reacting-to-ideas-in-comments
