@@ -5,6 +5,8 @@ import pathlib
 import toolz
 import functools
 import operator
+
+from ruamel.yaml import YAML
 from twisted.internet import defer
 
 
@@ -99,6 +101,8 @@ class Config(dict):
             loads = json.loads
         elif path.suffix == '.toml':
             loads = toml.loads
+        elif path.suffix in ['.yml', '.yaml']:
+            loads = YAML().load
         else:
             raise ValueError(f'Unsupported extension: `{path.suffix}`')
 

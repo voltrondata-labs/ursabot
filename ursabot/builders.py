@@ -13,7 +13,7 @@ from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
                     Archery, Crossbow)
-from .utils import startswith, slugify
+from .utils import Collection, startswith, slugify
 
 
 class BuildFactory(util.BuildFactory):
@@ -137,7 +137,7 @@ class DockerBuilder(Builder):
         images = images or cls.images
         workers_by_arch = workers.groupby('arch')
 
-        builders = []
+        builders = Collection()
         for image in images:
             if image.arch in workers_by_arch:
                 workers = workers_by_arch[image.arch]
@@ -428,7 +428,7 @@ class ArrowCppTest(DockerBuilder):
         images.filter(
             name='cpp',
             arch='amd64',
-            os=startswith('ubuntu') | startswith('alpine'),
+            os=startswith('ubuntu'),
             variant=None,  # plain linux images, not conda
             tag='worker'
         ) +
@@ -502,7 +502,7 @@ class ArrowPythonTest(DockerBuilder):
         images.filter(
             name=startswith('python'),
             arch='amd64',
-            os=startswith('ubuntu') | startswith('alpine'),
+            os=startswith('ubuntu'),
             variant=None,  # plain linux images, not conda
             tag='worker'
         ) +
