@@ -165,7 +165,7 @@ pip install -e ursabot
 Define the configuration environment (prod|test) and start the service:
 
 ```bash
-$ export USABOT_ENV=test  # this is the default
+$ export URSABOT_ENV=test  # this is the default
 $ buildbot restart ursabot
 $ tail -f ursabot/twisted.log
 ```
