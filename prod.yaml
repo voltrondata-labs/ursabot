@@ -31,6 +31,9 @@ ursabot:
 
 arrow:
   reporters:
+    github_status:
+      enabled: false
+      token: '%(secret:kszucs/github_status_token)s'
     github_comment:
       enabled: true
     zulip_status:
