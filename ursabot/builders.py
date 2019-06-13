@@ -149,6 +149,7 @@ class DockerBuilder(Builder):
                     f'`{image.arch}`, omitting image `{image}`'
                 )
 
+        # TODO(kszucs): return collection
         return builders
 
 

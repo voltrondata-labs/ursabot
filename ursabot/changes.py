@@ -1,4 +1,6 @@
+from buildbot import config
 from buildbot.util import NotABranch
+from buildbot.plugins import changes
 from buildbot.changes import filter
 
 
@@ -40,3 +42,18 @@ class ChangeFilter(filter.ChangeFilter):
             return (default, value, None, name)
         else:
             return (value, None, None, name)
+
+
+GitPoller = changes.GitPoller
+
+
+class GitHubPullrequestPoller(changes.GitHubPullrequestPoller):
+
+    def __init__(self, project, name=None, **kwargs):
+        try:
+            owner, repo = project.split('/')
+        except ValueError:
+            raise config.error(f'`project` must be in `owner/repo` format '
+                               f'instead of {project}')
+        name = name or f'GitHubPullrequestPoller: {project}'
+        super().__init__(owner, repo, name=name, **kwargs)

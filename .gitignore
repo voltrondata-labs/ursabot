@@ -118,10 +118,9 @@ dmypy.json
 # Buildbot specific
 *.log
 *.pid
-local.py
 
 # Ursabot's local configuration files
-local.toml
+local.yaml
 .secrets.*
 
 # Ursabot testing database
