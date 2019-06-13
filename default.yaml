@@ -69,7 +69,7 @@ ursabot:
     # trigger builds of code they have not yet committed.
     try:
       port: 4010
-      userpass:
+      userpass: []
   reporters:
     github_status:
       enabled: false
@@ -89,7 +89,7 @@ arrow:
     # trigger builds of code they have not yet committed.
     try:
       port: 4011
-      userpass:
+      userpass: []
   reporters:
     github_status:
       enabled: false
