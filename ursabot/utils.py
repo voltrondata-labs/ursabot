@@ -2,12 +2,18 @@ import re
 import json
 import toml
 import pathlib
-import toolz
+import itertools
 import functools
 import operator
 
+import toolz
 from ruamel.yaml import YAML
 from twisted.internet import defer
+from buildbot.util.logger import Logger
+from buildbot.util.httpclientservice import HTTPClientService
+
+
+log = Logger()
 
 
 def ensure_deferred(f):
@@ -131,3 +137,74 @@ class Config(dict):
             return [cls.merge([a]) for a in toolz.last(args)]
         else:
             return toolz.last(args)
+
+
+class GithubClientService(HTTPClientService):
+
+    PREFER_TREQ = True
+
+    def __init__(self, *args, tokens, rotate_at=1000, max_retries=5, **kwargs):
+        assert rotate_at < 5000
+        self._tokens = itertools.cycle(tokens)
+        self._rotate_at = rotate_at
+        self._max_retries = max_retries
+        super().__init__(*args, **kwargs)
+
+    def startService(self):
+        self._set_token(next(self._tokens))
+        return super().startService()
+
+    def _set_token(self, token):
+        if self._headers is None:
+            self._headers = {}
+        self._headers['Authorization']: f'token {token}'
+
+    async def _rotate_tokens(self):
+        # try each token, query its rate limit
+        # if none of them works log and sleep
+        for _, token in zip(len(self._tokens), self._tokens):
+            remaining = await self.remaining_rate_limit(token)
+            if remaining > self._rotate_at:
+                return self._set_token(token)
+
+    async def _do_request(self, method, endpoint, **kwargs):
+        for attempt in range(self._max_retries):
+            response = await self._doRequest(method, endpoint, **kwargs)
+            remaining = response.headers.get('X-RateLimit-Remaining')
+
+            if response.code == 403:
+                # signals exceeded rate limit or forbidden access, force rotate
+                log.info(f'Failed to fetch endpoint {endpoint} because of '
+                         'exceeded rate limit and/or forbidden access. '
+                         'Retrying with the next token.')
+                await self._rotate_tokens()
+                continue
+
+            if remaining is not None and remaining <= self._rotate_at:
+                log.info('Remaining rate limit has reached the rotation '
+                         'limit, switching to the next token.')
+                await self._rotate_tokens()
+
+            return response
+
+    def get(self, endpoint, **kwargs):
+        return self._do_request('get', endpoint, **kwargs)
+
+    def put(self, endpoint, **kwargs):
+        return self._do_request('put', endpoint, **kwargs)
+
+    def delete(self, endpoint, **kwargs):
+        return self._do_request('delete', endpoint, **kwargs)
+
+    def post(self, endpoint, **kwargs):
+        return self._do_request('post', endpoint, **kwargs)
+
+    async def remaining_rate_limit(self, token=None):
+        headers = {}
+        if token is not None:
+            headers['Authorization']: f'token {token}'
+
+        response = await self.get('/rate_limit', headers=headers)
+        data = await response.json()
+
+        return data['rate']['remaining']

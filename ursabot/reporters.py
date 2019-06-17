@@ -11,11 +11,12 @@ from buildbot.process.properties import Properties, Interpolate, renderer
 from buildbot.process.results import (Results, CANCELLED, EXCEPTION, FAILURE,
                                       RETRY, SKIPPED, SUCCESS, WARNINGS)
 
-from .utils import ensure_deferred
+from .utils import ensure_deferred, GithubClientService
 from .formatters import Formatter, MarkdownFormatter
 
 
 log = Logger()
+
 
 # `started` doesn't belong to results
 # a build is started if build[complete] is False
@@ -26,7 +27,8 @@ class HttpStatusPush(HttpStatusPushBase):
     """Makes possible to configure whether to send reports on started builds"""
 
     def __init__(self, baseURL, headers=None, auth=None, builders=None,
-                 verbose=False, report_on=None, dont_report_on=None, **kwargs):
+                 verbose=False, report_on=None, dont_report_on=None,
+                 debug=False, verify=None, **kwargs):
         headers = headers or {'User-Agent': 'Ursabot'}
 
         if builders is None:
@@ -44,7 +46,8 @@ class HttpStatusPush(HttpStatusPushBase):
 
         super().__init__(baseURL=baseURL, headers=headers, auth=auth,
                          report_on=report_on, dont_report_on=dont_report_on,
-                         builders=builder_names, verbose=verbose, **kwargs)
+                         builders=builder_names, verbose=verbose, debug=debug,
+                         verify=verify, **kwargs)
 
     def checkConfig(self, baseURL, headers, report_on, dont_report_on,
                     **kwargs):
@@ -74,19 +77,23 @@ class HttpStatusPush(HttpStatusPushBase):
         super().checkConfig(**kwargs)
 
     @ensure_deferred
-    async def reconfigService(self, baseURL, headers, auth, verbose, report_on,
-                              dont_report_on, **kwargs):
+    async def reconfigService(self, verbose, report_on, dont_report_on,
+                              **kwargs):
         await super().reconfigService(**kwargs)
+        await self.reconfigClient(**kwargs)
+        self.verbose = verbose
+        self.report_on = (report_on or _statuses) - (dont_report_on or set())
+
+    async def reconfigClient(self, baseURL, headers, auth, debug, verify,
+                             **kwargs):
         self._http = await HTTPClientService.getService(
             self.master,
             baseURL,
             auth=auth,
             headers=headers,
-            debug=self.debug,
-            verify=self.verify
+            debug=debug,
+            verify=verify
         )
-        self.verbose = verbose
-        self.report_on = (report_on or _statuses) - (dont_report_on or set())
 
     def filterBuilds(self, build):
         status = Results[build['results']] if build['complete'] else 'started'
@@ -139,7 +146,7 @@ class HttpStatusPush(HttpStatusPushBase):
             if not self.isStatus2XX(response.code):
                 content = await response.content()
                 e = Exception(
-                    f'Failed to execute github API call in {cls}.report() for '
+                    f'Failed to execute http API call in {cls}.report() for '
                     f'repository {repository}, builder {builder_name}, build '
                     f'number {build_number} with error code {response.code} '
                     f'and response "{content}"'
@@ -165,14 +172,14 @@ class GitHubReporter(HttpStatusPush):
         wantProperties=True
     )
 
-    def __init__(self, token, baseURL=None, formatter=None, **kwargs):
+    def __init__(self, tokens, baseURL=None, formatter=None, **kwargs):
         # support for self-hosted github enterprise
         if baseURL is None:
             baseURL = 'https://api.github.com'
         if baseURL.endswith('/'):
             baseURL = baseURL[:-1]
         formatter = formatter or Formatter()
-        super().__init__(token=token, baseURL=baseURL, formatter=formatter,
+        super().__init__(tokens=tokens, baseURL=baseURL, formatter=formatter,
                          **kwargs)
 
     def checkConfig(self, formatter=None, **kwargs):
@@ -182,11 +189,22 @@ class GitHubReporter(HttpStatusPush):
         super().checkConfig(**kwargs)
 
     @ensure_deferred
-    async def reconfigService(self, token, headers, formatter, **kwargs):
-        token = await self.renderSecrets(token)
-        headers['Authorization'] = f'token {token}'
-        await super().reconfigService(headers=headers, **kwargs)
+    async def reconfigService(self, formatter, **kwargs):
+        await super().reconfigService(**kwargs)
         self.formatter = formatter
+
+    async def reconfigClient(self, baseURL, headers, tokens, auth, debug,
+                             verify, **kwargs):
+        tokens = [await self.renderSecrets(token) for token in tokens]
+        self._http = await GithubClientService.getService(
+            self.master,
+            baseURL,
+            tokens=tokens,
+            auth=auth,
+            headers=headers,
+            debug=debug,
+            verify=verify
+        )
 
     def _extract_github_params(self, sourcestamp, branch=None):
         """Parses parameters required to by github"""

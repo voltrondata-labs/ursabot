@@ -13,6 +13,35 @@ from ursabot.reporters import (HttpStatusPush, ZulipStatusPush,
                                GitHubCommentPush)
 from ursabot.formatters import Formatter
 from ursabot.utils import ensure_deferred
+from ursabot.utils import GithubClientService as OriginalGithubClientService
+
+
+# XXX: it must be named same as the original one because of some dark magic
+# used for the service identification
+class GithubClientService(httpclientservice.HTTPClientService):
+
+    def __init__(self, base_url, tokens, **kwargs):
+        super().__init__(base_url, **kwargs)
+        self._tokens = tokens
+
+    @classmethod
+    def getFakeService(cls, master, case, *args, **kwargs):
+        ret = cls.getService(master, *args, **kwargs)
+
+        def assertNotCalled(self, *_args, **_kwargs):
+            case.fail('GithubClientService called with *{!r}, **{!r} '
+                      'while should be called *{!r} **{!r}'
+                      .format(_args, _kwargs, args, kwargs))
+
+        case.patch(OriginalGithubClientService, '__init__', assertNotCalled)
+
+        @ret.addCallback
+        def assertNoOutstanding(fake):
+            fake.case = case
+            case.addCleanup(fake.assertNoOutstanding)
+            return fake
+
+        return ret
 
 
 class HttpReporterTestCase(TestReactorMixin, unittest.TestCase,
@@ -26,28 +55,25 @@ class HttpReporterTestCase(TestReactorMixin, unittest.TestCase,
     @ensure_deferred
     async def setUp(self):
         self.setUpTestReactor()
-        # ignore config error if txrequests is not installed
-        # self.patch(config, '_errors', Mock())
-        self.master = fakemaster.make_master(
-            self,
-            wantData=True,
-            wantDb=True,
-            wantMq=True
-        )
-        self._http = await httpclientservice.HTTPClientService.getFakeService(
-            self.master,
-            self,
-            self.BASEURL,
-            auth=self.AUTH,
-            headers=self.HEADERS,
-            debug=None,
-            verify=None
-        )
+        self.master = fakemaster.make_master(self, wantData=True, wantDb=True,
+                                             wantMq=True)
+        self._http = await self.setupClient()
         await self.master.startService()
 
     def tearDown(self):
         if self.master.running:
             return self.master.stopService()
+
+    def setupClient(self):
+        return httpclientservice.HTTPClientService.getFakeService(
+            self.master,
+            self,
+            self.BASEURL,
+            auth=self.AUTH,
+            headers=self.HEADERS,
+            debug=False,
+            verify=None
+        )
 
     def setupReporter(self):
         raise NotImplementedError()
@@ -206,13 +232,23 @@ class DumbFormatter(Formatter):
 class GithubReporterTestCase(HttpReporterTestCase):
 
     BASEURL = 'https://api.github.com'
-    HEADERS = {
-        'User-Agent': 'Ursabot',
-        'Authorization': 'token xyz'
-    }
+    HEADERS = {'User-Agent': 'Ursabot'}
+    TOKENS = ['xyz']
+
+    def setupClient(self):
+        return GithubClientService.getFakeService(
+            self.master,
+            self,
+            self.BASEURL,
+            tokens=self.TOKENS,
+            auth=self.AUTH,
+            headers=self.HEADERS,
+            debug=False,
+            verify=None
+        )
 
     async def setupReporter(self):
-        reporter = self.Reporter(token='xyz', formatter=DumbFormatter())
+        reporter = self.Reporter(tokens=self.TOKENS, formatter=DumbFormatter())
         await reporter.setServiceParent(self.master)
         return reporter
 
