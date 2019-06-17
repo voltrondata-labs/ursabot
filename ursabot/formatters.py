@@ -265,9 +265,22 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
 
 class CrossbowCommentFormatter(MarkdownFormatter):
 
-    def __init__(self, *args, crossbow_repo, **kwargs):
+    travis_badge = (
+        '[![Build Status](https://travis-ci.org/{repo}.svg?branch={branch})]'
+        '(https://travis-ci.org/{repo}/branches)'
+    )
+    appveyor_badge = (
+        '[![Build Status](https://ci.appveyor.com/api/projects/status/github/'
+        '{repo_id}?branch={branch}&svg=true)]'
+        '(https://ci.appveyor.com/project/{repo}/history)'
+    )
+
+    def __init__(self, *args, crossbow_repo, appveyor_repo, appveyor_id,
+                 **kwargs):
         # TODO(kszucs): format validation
         self.crossbow_repo = crossbow_repo
+        self.appveyor_id = appveyor_id
+        self.appveyor_repo = appveyor_repo
         self.yaml_parser = YAML()
         super().__init__(*args, **kwargs)
 
@@ -276,7 +289,23 @@ class CrossbowCommentFormatter(MarkdownFormatter):
         job = self.yaml_parser.load(yaml_content)
 
         url = 'https://github.com/{repo}/branches/all?query={branch}'
-        msg = f'Submitted crossbow builds: [{{repo}} @ {{branch}}]({url})'
+        msg = f'Submitted crossbow builds: [{{repo}} @ {{branch}}]({url})\n'
+        msg += '\n|Task|Status|\n|----|------|'
+
+        for key, task in job['tasks'].items():
+            branch = task['branch']
+            if task['platform'] == 'win':
+                badge = self.appveyor_badge.format(
+                    repo=self.appveyor_repo,
+                    repo_id=self.appveyor_id,
+                    branch=branch
+                )
+            else:  # currently travis is used for both osx and linux builds
+                badge = self.travis_badge.format(
+                    repo=self.crossbow_repo,
+                    branch=branch
+                )
+            msg += f'\n|{key}|{badge}|'
 
         return msg.format(repo=self.crossbow_repo, branch=job['branch'])
 
