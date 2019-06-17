@@ -335,7 +335,11 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
 class TestCrossbowCommentFormatter(TestFormatterBase):
 
     def setupFormatter(self):
-        return CrossbowCommentFormatter(crossbow_repo='ursa-labs/crossbow')
+        return CrossbowCommentFormatter(
+            crossbow_repo='ursa-labs/crossbow',
+            appveyor_repo='kszucs/crossbow',
+            appveyor_id='3ytexy6k0pqbvp6c'
+        )
 
     def setupDb(self, current, previous):
         super().setupDb(current, previous)
@@ -354,17 +358,16 @@ class TestCrossbowCommentFormatter(TestFormatterBase):
 
     @ensure_deferred
     async def test_success(self):
-        status = 'has been succeeded.'
-        repo = 'ursa-labs/crossbow'
-        branch = 'ursabot-1'
-        link = f'https://github.com/{repo}/branches/all?query={branch}'
-        expected = f'''
-        [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
-
-        Revision: {self.REVISION}
-
-        Submitted crossbow builds: [{repo} @ {branch}]({link})
-        '''
+        expected_msg = self.load_fixture('crossbow-success-message.md').format(
+            repo='ursa-labs/crossbow',
+            appveyor_repo='kszucs/crossbow',
+            appveyor_id='3ytexy6k0pqbvp6c',
+            branch='ursabot-1',
+            status='has been succeeded.',
+            revision=self.REVISION,
+            build_id=self.BUILD_ID,
+            build_url=self.BUILD_URL
+        )
         content = await self.render(previous=SUCCESS, current=SUCCESS,
                                     buildsetid=99)
-        assert content == textwrap.dedent(expected).strip()
+        assert content == textwrap.dedent(expected_msg).strip()
