@@ -17,7 +17,14 @@ def test_ursabot_commands(command, expected_props):
     ('crossbow test integration docker',
      ['-c', 'tests.yml', '-g', 'integration', '-g', 'docker']),
     ('crossbow test docker cpp-python',
-     ['-c', 'tests.yml', '-g', 'docker', '-g', 'cpp-python'])
+     ['-c', 'tests.yml', '-g', 'docker', '-g', 'cpp-python']),
+    ('crossbow package wheel-osx-cp27m ubuntu-xenial',
+     ['-c', 'tasks.yml', 'wheel-osx-cp27m', 'ubuntu-xenial']),
+    ('crossbow package -g wheel -g conda',
+     ['-c', 'tasks.yml', '-g', 'wheel', '-g', 'conda']),
+    ('crossbow package -g wheel -g conda wheel-win-cp37m wheel-osx-cp27m',
+     ['-c', 'tasks.yml', '-g', 'wheel', '-g', 'conda', 'wheel-win-cp37m',
+      'wheel-osx-cp27m'])
 ])
 def test_crossbow_commands(command, expected_args):
     props = ursabot(command)
