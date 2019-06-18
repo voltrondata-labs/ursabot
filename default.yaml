@@ -73,7 +73,11 @@ ursabot:
   reporters:
     github_status:
       enabled: false
-      token: '%(secret:ursabot/github_token)s'
+      tokens:
+        # multiple tokens can be provided to increate the rate limit
+        # 5000 API requests can be made with a single token, but the rotator
+        # will switch after reaching 1000 remaining rate limit
+        - '%(secret:ursabot/github_token)s'
 
 arrow:
   # specific configurations for building arrow project itself, `name` must be
@@ -96,13 +100,19 @@ arrow:
       # github token used for pushing status changes, have to provide
       # repo:status scope for the token and must have write access to the
       # arrow repository (recommented scopes: public_repo, repo:status)
-      token: '%(secret:ursabot/github_token)s'
+      tokens:
+        # multiple tokens can be provided to increate the rate limit
+        # 5000 API requests can be made with a single token, but the rotator
+        # will switch after reaching 1000 remaining rate limit
+        - '%(secret:ursabot/github_token)s'
     github_review:
       enabled: false
-      token: '%(secret:ursabot/github_token)s'
+      tokens:
+        - '%(secret:ursabot/github_token)s'
     github_comment:
       enabled: false
-      token: '%(secret:ursabot/github_token)s'
+      tokens:
+        - '%(secret:ursabot/github_token)s'
     zulip_status:
       enabled: false
       bot:
