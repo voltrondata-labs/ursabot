@@ -275,12 +275,10 @@ class CrossbowCommentFormatter(MarkdownFormatter):
         '(https://ci.appveyor.com/project/{repo}/history)'
     )
 
-    def __init__(self, *args, crossbow_repo, appveyor_repo, appveyor_id,
-                 **kwargs):
+    def __init__(self, *args, crossbow_repo, appveyor_id, **kwargs):
         # TODO(kszucs): format validation
         self.crossbow_repo = crossbow_repo
         self.appveyor_id = appveyor_id
-        self.appveyor_repo = appveyor_repo
         self.yaml_parser = YAML()
         super().__init__(*args, **kwargs)
 
@@ -296,7 +294,7 @@ class CrossbowCommentFormatter(MarkdownFormatter):
             branch = task['branch']
             if task['platform'] == 'win':
                 badge = self.appveyor_badge.format(
-                    repo=self.appveyor_repo,
+                    repo=self.crossbow_repo,
                     repo_id=self.appveyor_id,
                     branch=branch
                 )
