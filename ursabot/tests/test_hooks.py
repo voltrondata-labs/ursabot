@@ -196,7 +196,7 @@ class TestUrsabotHook(ChangeHookTestCase):
     @ensure_deferred
     async def test_issue_comment_crosssbow_package_command(self):
         await self.check_issue_comment_with_command(
-            command='crossbow package wheel conda',
+            command='crossbow package -g wheel -g conda',
             expected_props={
                 'command': 'crossbow',
                 'crossbow_args': ['-c', 'tasks.yml', '-g', 'wheel', '-g',
