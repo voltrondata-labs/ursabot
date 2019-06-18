@@ -118,8 +118,10 @@ Currently available commands:
   - `@ursabot crossbow test cpp-python`: Triggers the `cpp-python` test group
     defined in [test.yml][crossbow-tests] and responds with a URL pointing to
     submitted crossbow branches at the github UI showing the build statuses.
-  - `@ursabot crossbow package wheel conda`: Triggers the `wheel` and `conda`
-    crossbow packaging groups defined in [tasks.yml][crossbow-tasks].
+  - `@ursabot crossbow package -g wheel -g conda`: Triggers the `wheel` and
+    `conda` crossbow packaging groups defined in [tasks.yml][crossbow-tasks].
+  - `@ursabot crossbow package wheel-win-cp35m wheel-win-cp36m`: Triggers only
+    two tasks passed explicitly.
 
 Note that the commands won't trigger any builds if the commit message contains
 a skip pattern, like `[skip ci]` or `[ci skip]`.
