@@ -4,14 +4,13 @@ import collections
 from buildbot import config
 from buildbot.util.logger import Logger
 from buildbot.util.giturlparse import giturlparse
-from buildbot.util.httpclientservice import HTTPClientService
 from buildbot.reporters.http import HttpStatusPushBase
 from buildbot.interfaces import IRenderable
 from buildbot.process.properties import Properties, Interpolate, renderer
 from buildbot.process.results import (Results, CANCELLED, EXCEPTION, FAILURE,
                                       RETRY, SKIPPED, SUCCESS, WARNINGS)
 
-from .utils import ensure_deferred, GithubClientService
+from .utils import ensure_deferred, HTTPClientService, GithubClientService
 from .formatters import Formatter, MarkdownFormatter
 
 

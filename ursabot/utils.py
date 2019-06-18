@@ -9,8 +9,8 @@ import operator
 import toolz
 from ruamel.yaml import YAML
 from twisted.internet import defer
+from buildbot.util import httpclientservice
 from buildbot.util.logger import Logger
-from buildbot.util.httpclientservice import HTTPClientService
 
 
 log = Logger()
@@ -26,7 +26,7 @@ def ensure_deferred(f):
 
 
 def slugify(s):
-    """Slugify CamelCase name"""
+    '''Slugify CamelCase name'''
     s = re.sub(r'[\W\-]+', '-', s)
     s = re.sub(r'([A-Z])', lambda m: '-' + m.group(1).lower(), s)
     s = s.strip('-')
@@ -139,16 +139,35 @@ class Config(dict):
             return toolz.last(args)
 
 
-class GithubClientService(HTTPClientService):
+class HTTPClientService(httpclientservice.HTTPClientService):
 
     PREFER_TREQ = True
 
-    def __init__(self, *args, tokens, rotate_at=1000, max_retries=5, **kwargs):
+    def _prepareRequest(self, ep, kwargs):
+        # XXX: originally the default headers and the headers received as an
+        # arguments were merged in the wrong order
+        default_headers = self._headers or {}
+        headers = kwargs.pop('headers', {})
+
+        url, kwargs = super()._prepareRequest(ep, kwargs)
+        kwargs['headers'] = {**default_headers, **headers}
+
+        return url, kwargs
+
+
+class GithubClientService(HTTPClientService):
+
+    def __init__(self, *args, tokens, rotate_at=1000, max_retries=5,
+                 headers=None, **kwargs):
         assert rotate_at < 5000
+        tokens = list(tokens)
         self._tokens = itertools.cycle(tokens)
+        self._n_tokens = len(tokens)
         self._rotate_at = rotate_at
         self._max_retries = max_retries
-        super().__init__(*args, **kwargs)
+        headers = headers or {}
+        headers.setdefault('User-Agent', 'Buildbot')
+        super().__init__(*args, headers=headers, **kwargs)
 
     def startService(self):
         self._set_token(next(self._tokens))
@@ -157,35 +176,52 @@ class GithubClientService(HTTPClientService):
     def _set_token(self, token):
         if self._headers is None:
             self._headers = {}
-        self._headers['Authorization']: f'token {token}'
+        self._headers['Authorization'] = f'token {token}'
 
-    async def _rotate_tokens(self):
+    @ensure_deferred
+    async def rate_limit(self, token=None):
+        headers = {}
+        if token is not None:
+            headers['Authorization'] = f'token {token}'
+
+        response = await self._doRequest('get', '/rate_limit', headers=headers)
+        data = await response.json()
+
+        return data['rate']['remaining']
+
+    @ensure_deferred
+    async def rotate_tokens(self):
         # try each token, query its rate limit
         # if none of them works log and sleep
-        for _, token in zip(len(self._tokens), self._tokens):
-            remaining = await self.remaining_rate_limit(token)
+        for token in toolz.take(self._n_tokens, self._tokens):
+            remaining = await self.rate_limit(token)
+
             if remaining > self._rotate_at:
                 return self._set_token(token)
 
+    @ensure_deferred
     async def _do_request(self, method, endpoint, **kwargs):
         for attempt in range(self._max_retries):
             response = await self._doRequest(method, endpoint, **kwargs)
-            remaining = response.headers.get('X-RateLimit-Remaining')
 
             if response.code == 403:
                 # signals exceeded rate limit or forbidden access, force rotate
                 log.info(f'Failed to fetch endpoint {endpoint} because of '
                          'exceeded rate limit and/or forbidden access. '
                          'Retrying with the next token.')
-                await self._rotate_tokens()
+                await self.rotate_tokens()
                 continue
 
-            if remaining is not None and remaining <= self._rotate_at:
-                log.info('Remaining rate limit has reached the rotation '
-                         'limit, switching to the next token.')
-                await self._rotate_tokens()
+            if response.headers.hasHeader('X-RateLimit-Remaining'):
+                vals = response.headers.getRawHeaders('X-RateLimit-Remaining')
+                remaining = int(toolz.first(vals))
+                if remaining <= self._rotate_at:
+                    log.info('Remaining rate limit has reached the rotation '
+                             'limit, switching to the next token.')
+                    await self.rotate_tokens()
+            break
 
-            return response
+        return response
 
     def get(self, endpoint, **kwargs):
         return self._do_request('get', endpoint, **kwargs)
@@ -198,13 +234,3 @@ class GithubClientService(HTTPClientService):
 
     def post(self, endpoint, **kwargs):
         return self._do_request('post', endpoint, **kwargs)
-
-    async def remaining_rate_limit(self, token=None):
-        headers = {}
-        if token is not None:
-            headers['Authorization']: f'token {token}'
-
-        response = await self.get('/rate_limit', headers=headers)
-        data = await response.json()
-
-        return data['rate']['remaining']
