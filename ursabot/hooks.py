@@ -86,7 +86,8 @@ class GithubHook(GitHubEventHandler):
             token = await props.render(self._token)
             headers['Authorization'] = 'token ' + token
 
-        # TODO(kszucs): initialize it once?
+        # TODO(kszucs): use ursabot.utils.GithubClientService and initialize it
+        # as a service.
         return await HTTPClientService.getService(
             self.master,
             self.github_api_endpoint,
