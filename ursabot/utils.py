@@ -147,7 +147,7 @@ class HTTPClientService(httpclientservice.HTTPClientService):
         # XXX: originally the default headers and the headers received as an
         # arguments were merged in the wrong order
         default_headers = self._headers or {}
-        headers = kwargs.pop('headers', {})
+        headers = kwargs.pop('headers', None) or {}
 
         url, kwargs = super()._prepareRequest(ep, kwargs)
         kwargs['headers'] = {**default_headers, **headers}
