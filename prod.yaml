@@ -35,6 +35,7 @@ arrow:
       enabled: false
       tokens:
         - '%(secret:kszucs/github_status_token)s'
+        - '%(secret:pitrou/github_status_token)s'
     github_comment:
       enabled: true
       tokens:
