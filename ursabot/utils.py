@@ -203,23 +203,37 @@ class GithubClientService(HTTPClientService):
     async def _do_request(self, method, endpoint, **kwargs):
         for attempt in range(self._max_retries):
             response = await self._doRequest(method, endpoint, **kwargs)
+            headers, code = response.headers, response.code
 
-            if response.code == 403:
-                # signals exceeded rate limit or forbidden access, force rotate
+            if code // 100 == 4:
+                if code == 401:
+                    # Unauthorized: bad credentials
+                    reason = 'bad credentials (401)'
+                elif code == 403:
+                    # Forbidden: exceeded rate limit or forbidden access
+                    reason = 'exceeded rate limit or forbidden access (403)'
+                elif code == 404:
+                    # Requests that require authentication will return 404 Not
+                    # Found, instead of 403 Forbidden, in some places. This is
+                    # to prevent the accidental leakage of private repositories
+                    # to unauthorized users.
+                    reason = 'resource not found (404)'
+                else:
+                    reason = f'status code {code}'
+
                 log.info(f'Failed to fetch endpoint {endpoint} because of '
-                         'exceeded rate limit and/or forbidden access. '
-                         'Retrying with the next token.')
+                         f' {reason}. Retrying with the next token.')
                 await self.rotate_tokens()
-                continue
-
-            if response.headers.hasHeader('X-RateLimit-Remaining'):
-                vals = response.headers.getRawHeaders('X-RateLimit-Remaining')
-                remaining = int(toolz.first(vals))
-                if remaining <= self._rotate_at:
-                    log.info('Remaining rate limit has reached the rotation '
-                             'limit, switching to the next token.')
-                    await self.rotate_tokens()
-            break
+            else:
+                if headers.hasHeader('X-RateLimit-Remaining'):
+                    values = headers.getRawHeaders('X-RateLimit-Remaining')
+                    remaining = int(toolz.first(values))
+                    if remaining <= self._rotate_at:
+                        log.info('Remaining rate limit has reached the '
+                                 'rotation limit, switching to the next '
+                                 'token.')
+                        await self.rotate_tokens()
+                break
 
         return response
 
