@@ -32,7 +32,7 @@ ursabot:
 arrow:
   reporters:
     github_status:
-      enabled: false
+      enabled: true
       tokens:
         - '%(secret:kszucs/github_status_token)s'
         - '%(secret:pitrou/github_status_token)s'
