@@ -44,7 +44,8 @@ hooks:
     # secret must be provided during the hook definition on github
     secret: '%(secret:ursabot/github_hook_secret)s'
     # github token used for issuing additional API calls
-    token: '%(secret:ursabot/github_token)s'
+    tokens:
+      - '%(secret:ursabot/github_token)s'
 
 changes:
   pb:
