@@ -270,8 +270,8 @@ class CrossbowCommentFormatter(MarkdownFormatter):
         '(https://travis-ci.org/{repo}/branches)'
     )
     appveyor_badge = (
-        '[![Build Status](https://ci.appveyor.com/api/projects/status/github/'
-        '{repo_id}?branch={branch}&svg=true)]'
+        '[![Build Status](https://ci.appveyor.com/api/projects/status/'
+        '{repo_id}/branch/{branch}&svg=true)]'
         '(https://ci.appveyor.com/project/{repo}/history)'
     )
 
