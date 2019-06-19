@@ -4,7 +4,7 @@ from buildbot.config import ConfigErrors
 from buildbot.process.properties import Property, Interpolate, renderer
 from buildbot.process.results import SUCCESS, FAILURE, EXCEPTION, Results
 from buildbot.test.fake import fakemaster
-from buildbot.test.fake import httpclientservice
+from buildbot.test.fake.httpclientservice import HTTPClientService
 from buildbot.test.util.misc import TestReactorMixin
 from buildbot.test.util.reporter import ReporterTestMixin
 
@@ -13,35 +13,7 @@ from ursabot.reporters import (HttpStatusPush, ZulipStatusPush,
                                GitHubCommentPush)
 from ursabot.formatters import Formatter
 from ursabot.utils import ensure_deferred
-from ursabot.utils import GithubClientService as OriginalGithubClientService
-
-
-# XXX: it must be named same as the original one because of some dark magic
-# used for the service identification
-class GithubClientService(httpclientservice.HTTPClientService):
-
-    def __init__(self, base_url, tokens, **kwargs):
-        super().__init__(base_url, **kwargs)
-        self._tokens = tokens
-
-    @classmethod
-    def getFakeService(cls, master, case, *args, **kwargs):
-        ret = cls.getService(master, *args, **kwargs)
-
-        def assertNotCalled(self, *_args, **_kwargs):
-            case.fail('GithubClientService called with *{!r}, **{!r} '
-                      'while should be called *{!r} **{!r}'
-                      .format(_args, _kwargs, args, kwargs))
-
-        case.patch(OriginalGithubClientService, '__init__', assertNotCalled)
-
-        @ret.addCallback
-        def assertNoOutstanding(fake):
-            fake.case = case
-            case.addCleanup(fake.assertNoOutstanding)
-            return fake
-
-        return ret
+from ursabot.tests.mocks import GithubClientService
 
 
 class HttpReporterTestCase(TestReactorMixin, unittest.TestCase,
@@ -65,7 +37,7 @@ class HttpReporterTestCase(TestReactorMixin, unittest.TestCase,
             return self.master.stopService()
 
     def setupClient(self):
-        return httpclientservice.HTTPClientService.getFakeService(
+        return HTTPClientService.getFakeService(
             self.master,
             self,
             self.BASEURL,
