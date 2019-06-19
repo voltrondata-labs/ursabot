@@ -2,12 +2,18 @@ import re
 import json
 import toml
 import pathlib
-import toolz
+import itertools
 import functools
 import operator
 
+import toolz
 from ruamel.yaml import YAML
 from twisted.internet import defer
+from buildbot.util import httpclientservice
+from buildbot.util.logger import Logger
+
+
+log = Logger()
 
 
 def ensure_deferred(f):
@@ -20,7 +26,7 @@ def ensure_deferred(f):
 
 
 def slugify(s):
-    """Slugify CamelCase name"""
+    '''Slugify CamelCase name'''
     s = re.sub(r'[\W\-]+', '-', s)
     s = re.sub(r'([A-Z])', lambda m: '-' + m.group(1).lower(), s)
     s = s.strip('-')
@@ -131,3 +137,114 @@ class Config(dict):
             return [cls.merge([a]) for a in toolz.last(args)]
         else:
             return toolz.last(args)
+
+
+class HTTPClientService(httpclientservice.HTTPClientService):
+
+    PREFER_TREQ = True
+
+    def _prepareRequest(self, ep, kwargs):
+        # XXX: originally the default headers and the headers received as an
+        # arguments were merged in the wrong order
+        default_headers = self._headers or {}
+        headers = kwargs.pop('headers', {})
+
+        url, kwargs = super()._prepareRequest(ep, kwargs)
+        kwargs['headers'] = {**default_headers, **headers}
+
+        return url, kwargs
+
+
+class GithubClientService(HTTPClientService):
+
+    def __init__(self, *args, tokens, rotate_at=1000, max_retries=5,
+                 headers=None, **kwargs):
+        assert rotate_at < 5000
+        tokens = list(tokens)
+        self._tokens = itertools.cycle(tokens)
+        self._n_tokens = len(tokens)
+        self._rotate_at = rotate_at
+        self._max_retries = max_retries
+        headers = headers or {}
+        headers.setdefault('User-Agent', 'Buildbot')
+        super().__init__(*args, headers=headers, **kwargs)
+
+    def startService(self):
+        self._set_token(next(self._tokens))
+        return super().startService()
+
+    def _set_token(self, token):
+        if self._headers is None:
+            self._headers = {}
+        self._headers['Authorization'] = f'token {token}'
+
+    @ensure_deferred
+    async def rate_limit(self, token=None):
+        headers = {}
+        if token is not None:
+            headers['Authorization'] = f'token {token}'
+
+        response = await self._doRequest('get', '/rate_limit', headers=headers)
+        data = await response.json()
+
+        return data['rate']['remaining']
+
+    @ensure_deferred
+    async def rotate_tokens(self):
+        # try each token, query its rate limit
+        # if none of them works log and sleep
+        for token in toolz.take(self._n_tokens, self._tokens):
+            remaining = await self.rate_limit(token)
+
+            if remaining > self._rotate_at:
+                return self._set_token(token)
+
+    @ensure_deferred
+    async def _do_request(self, method, endpoint, **kwargs):
+        for attempt in range(self._max_retries):
+            response = await self._doRequest(method, endpoint, **kwargs)
+            headers, code = response.headers, response.code
+
+            if code // 100 == 4:
+                if code == 401:
+                    # Unauthorized: bad credentials
+                    reason = 'bad credentials (401)'
+                elif code == 403:
+                    # Forbidden: exceeded rate limit or forbidden access
+                    reason = 'exceeded rate limit or forbidden access (403)'
+                elif code == 404:
+                    # Requests that require authentication will return 404 Not
+                    # Found, instead of 403 Forbidden, in some places. This is
+                    # to prevent the accidental leakage of private repositories
+                    # to unauthorized users.
+                    reason = 'resource not found (404)'
+                else:
+                    reason = f'status code {code}'
+
+                log.info(f'Failed to fetch endpoint {endpoint} because of '
+                         f' {reason}. Retrying with the next token.')
+                await self.rotate_tokens()
+            else:
+                if headers.hasHeader('X-RateLimit-Remaining'):
+                    values = headers.getRawHeaders('X-RateLimit-Remaining')
+                    remaining = int(toolz.first(values))
+                    if remaining <= self._rotate_at:
+                        log.info('Remaining rate limit has reached the '
+                                 'rotation limit, switching to the next '
+                                 'token.')
+                        await self.rotate_tokens()
+                break
+
+        return response
+
+    def get(self, endpoint, **kwargs):
+        return self._do_request('get', endpoint, **kwargs)
+
+    def put(self, endpoint, **kwargs):
+        return self._do_request('put', endpoint, **kwargs)
+
+    def delete(self, endpoint, **kwargs):
+        return self._do_request('delete', endpoint, **kwargs)
+
+    def post(self, endpoint, **kwargs):
+        return self._do_request('post', endpoint, **kwargs)

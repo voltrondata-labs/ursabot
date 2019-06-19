@@ -2,10 +2,9 @@ from urllib.parse import urlparse
 
 from buildbot.util.logger import Logger
 from buildbot.www.hooks.github import GitHubEventHandler
-from buildbot.util.httpclientservice import HTTPClientService
 from buildbot.process.properties import Properties
 
-from .utils import ensure_deferred
+from .utils import ensure_deferred, GithubClientService
 from .commands import CommandError, ursabot as ursabot_command
 
 
@@ -62,11 +61,27 @@ class GithubHook(GitHubEventHandler):
 
     # there is no easy way to pass additional arguments for this object,
     # so configure and store them as class attributes
-    botname = 'ursabot'
+    botname = 'buildbot'
+    headers = {'User-Agent': 'Buildbot'}
     use_reactions = False
     comment_handler = None
 
-    def __init__(self, *args, github_property_whitelist=None, **kwargs):
+    def __init__(self, *args, tokens=None, token=None,
+                 github_property_whitelist=None, **kwargs):
+        # only `token` argument is passed to the event handler, a plugin is
+        # required to cleanly load other hook handlers with custom arguments
+        if tokens is None:
+            if token is None:
+                self._tokens = []
+            elif isinstance(token, (list, tuple)):
+                self._tokens = token
+            else:
+                self._tokens = [token]
+        elif isinstance(tokens, (list, tuple)):
+            self._tokens = tokens
+        else:
+            raise ValueError('token(s) argument must be a list or tuple')
+
         if not github_property_whitelist:
             # handle_pull_request calls self.extractProperties with
             # payload['pull_request'], so in order to set a title property
@@ -74,38 +89,43 @@ class GithubHook(GitHubEventHandler):
             # the property whitelist, for the exact implementation see
             # buildbot.changes.github.PullRequestMixin and handle_pull_request
             kwargs['github_property_whitelist'] = ['github.title']
+
+        # the http client service is initialized on the first use
+        self._http = None
+
         super().__init__(*args, **kwargs)
 
-    async def _client(self, headers=None):
-        headers = headers or {}
-        headers.setdefault('User-Agent', self.botname)
+    async def _client(self):
+        # return if the service has been already initialized
+        if self._http:
+            return self._http
 
-        if self._token:
-            props = Properties()
-            props.master = self.master
-            token = await props.render(self._token)
-            headers['Authorization'] = 'token ' + token
+        # render the secrets passed to tokens
+        props = Properties()
+        props.master = self.master
+        tokens = [await props.render(token) for token in self._tokens]
 
-        # TODO(kszucs): initialize it once?
-        return await HTTPClientService.getService(
+        self._http = await GithubClientService.getService(
             self.master,
             self.github_api_endpoint,
-            headers=headers,
+            tokens=tokens,
+            headers=self.headers,
             debug=self.debug,
             verify=self.verify
         )
+        return self._http
 
     async def _get(self, url, headers=None):
         url = urlparse(url)
-        client = await self._client(headers=headers)
-        response = await client.get(url.path)
+        client = await self._client()
+        response = await client.get(url.path, headers=headers)
         result = await response.json()
         return result
 
     async def _post(self, url, data, headers=None):
         url = urlparse(url)
-        client = await self._client(headers=headers)
-        response = await client.post(url.path, json=data)
+        client = await self._client()
+        response = await client.post(url.path, json=data, headers=headers)
         result = await response.json()
         log.info(f'POST to {url} with the following result: {result}')
         return result
@@ -216,5 +236,7 @@ class GithubHook(GitHubEventHandler):
 
 class UrsabotHook(GithubHook):
 
+    botname = 'ursabot'
+    headers = {'User-Agent': 'Ursabot'}
     use_reactions = True
     comment_handler = staticmethod(ursabot_command)

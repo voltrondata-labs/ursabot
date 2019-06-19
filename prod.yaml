@@ -33,9 +33,13 @@ arrow:
   reporters:
     github_status:
       enabled: false
-      token: '%(secret:kszucs/github_status_token)s'
+      tokens:
+        - '%(secret:kszucs/github_status_token)s'
+        - '%(secret:pitrou/github_status_token)s'
     github_comment:
       enabled: true
+      tokens:
+        - '%(secret:ursabot/github_token)s'
     zulip_status:
       enabled: true
       organization: 'ursalabs'

@@ -124,7 +124,9 @@ Currently available commands:
     two tasks passed explicitly.
 
 Note that the commands won't trigger any builds if the commit message contains
-a skip pattern, like `[skip ci]` or `[ci skip]`.
+a skip pattern, like `[skip ci]` or `[ci skip]`. In order to drive ursabot
+the user must have either 'OWNER', 'MEMBER' or 'CONTRIBUTOR
+[roles][github-author-association].
 
 ### via the Web UI
 
@@ -491,3 +493,4 @@ More closely Ursabot related:
 [ursabot-builders]: https://ci.ursalabs.org/#/builders
 [buildbot-docs]: https://docs.buildbot.net
 [github-reactions]: https://help.github.com/en/articles/about-conversations-on-github#reacting-to-ideas-in-comments
+[github-author-associations]: https://developer.github.com/v4/enum/commentauthorassociation/
