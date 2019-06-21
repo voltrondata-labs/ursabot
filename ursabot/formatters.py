@@ -266,11 +266,18 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
 class CrossbowCommentFormatter(MarkdownFormatter):
 
     travis_badge = (
-        '[![Build Status](https://travis-ci.org/{repo}.svg?branch={branch})]'
+        '[![TravisCI Status]'
+        '(https://travis-ci.org/{repo}.svg?branch={branch})]'
         '(https://travis-ci.org/{repo}/branches)'
     )
+    circle_badge = (
+        '[![CircleCI Status]'
+        '(https://circleci.com/gh/{repo}/tree/{branch}.svg?style=svg)]'
+        '(https://circleci.com/gh/{repo}/tree/{branch})'
+    )
     appveyor_badge = (
-        '[![Build Status](https://ci.appveyor.com/api/projects/status/'
+        '[![Appveyor Status]'
+        '(https://ci.appveyor.com/api/projects/status/'
         '{repo_id}/branch/{branch}&svg=true)]'
         '(https://ci.appveyor.com/project/{repo}/history)'
     )
@@ -292,17 +299,25 @@ class CrossbowCommentFormatter(MarkdownFormatter):
 
         for key, task in job['tasks'].items():
             branch = task['branch']
-            if task['platform'] == 'win':
+            if task['ci'] == 'appveyor':
                 badge = self.appveyor_badge.format(
                     repo=self.crossbow_repo,
                     repo_id=self.appveyor_id,
                     branch=branch
                 )
-            else:  # currently travis is used for both osx and linux builds
+            elif task['ci'] == 'travis':
                 badge = self.travis_badge.format(
                     repo=self.crossbow_repo,
                     branch=branch
                 )
+            elif task['ci'] == 'circle':
+                badge = self.circle_badge.format(
+                    repo=self.crossbow_repo,
+                    branch=branch
+                )
+            else:
+                badge = 'unsupported CI service `{}`'.format(task['ci'])
+
             msg += f'\n|{key}|{badge}|'
 
         return msg.format(repo=self.crossbow_repo, branch=job['branch'])
