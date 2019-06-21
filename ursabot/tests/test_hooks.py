@@ -185,7 +185,7 @@ class TestUrsabotHook(ChangeHookTestCase):
     @ensure_deferred
     async def test_issue_comment_crosssbow_test_command(self):
         await self.check_issue_comment_with_command(
-            command='crossbow test docker',
+            command='crossbow test -g docker',
             expected_props={
                 'command': 'crossbow',
                 'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
