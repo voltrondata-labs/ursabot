@@ -82,17 +82,22 @@ def crossbow(props):
 
 
 @crossbow.command()
-@click.argument('groups', nargs=-1,
-                type=click.Choice(['docker', 'integration', 'cpp-python']))
+@click.argument('task', nargs=-1, required=False)
+@click.option('--group', '-g', multiple=True,
+              type=click.Choice(['docker', 'integration', 'cpp-python']),
+              help='Submit task groups as defined in tests.yml')
 @click.pass_obj
-def test(props, groups):
+def test(props, task, group):
     """Submit crossbow testing tasks.
 
     See groups defined in arrow/dev/tasks/tests.yml
     """
     args = ['-c', 'tests.yml']
-    for group in groups:
-        args.extend(['-g', group])
+    for g in group:
+        args.extend(['-g', g])
+    for t in task:
+        args.append(t)
+
     return {'crossbow_args': args, **props}
 
 
@@ -100,7 +105,7 @@ def test(props, groups):
 @click.argument('task', nargs=-1, required=False)
 @click.option('--group', '-g', multiple=True,
               type=click.Choice(['conda', 'wheel', 'linux', 'gandiva']),
-              help='Submit task groups as defined in task.yml')
+              help='Submit task groups as defined in tasks.yml')
 @click.pass_obj
 def package(props, task, group):
     """Submit crossbow packaging tasks.

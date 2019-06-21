@@ -13,10 +13,10 @@ def test_ursabot_commands(command, expected_props):
 
 
 @pytest.mark.parametrize(('command', 'expected_args'), [
-    ('crossbow test docker', ['-c', 'tests.yml', '-g', 'docker']),
-    ('crossbow test integration docker',
+    ('crossbow test -g docker', ['-c', 'tests.yml', '-g', 'docker']),
+    ('crossbow test -g integration -g docker',
      ['-c', 'tests.yml', '-g', 'integration', '-g', 'docker']),
-    ('crossbow test docker cpp-python',
+    ('crossbow test -g docker -g cpp-python',
      ['-c', 'tests.yml', '-g', 'docker', '-g', 'cpp-python']),
     ('crossbow package wheel-osx-cp27m ubuntu-xenial',
      ['-c', 'tasks.yml', 'wheel-osx-cp27m', 'ubuntu-xenial']),
@@ -24,7 +24,12 @@ def test_ursabot_commands(command, expected_props):
      ['-c', 'tasks.yml', '-g', 'wheel', '-g', 'conda']),
     ('crossbow package -g wheel -g conda wheel-win-cp37m wheel-osx-cp27m',
      ['-c', 'tasks.yml', '-g', 'wheel', '-g', 'conda', 'wheel-win-cp37m',
-      'wheel-osx-cp27m'])
+      'wheel-osx-cp27m']),
+    ('crossbow test docker-python-3.6-nopandas docker-python-3.7-nopandas',
+     ['-c', 'tests.yml', 'docker-python-3.6-nopandas',
+      'docker-python-3.7-nopandas']),
+    ('crossbow test -g cpp-python docker-python-3.6-nopandas',
+     ['-c', 'tests.yml', '-g', 'cpp-python', 'docker-python-3.6-nopandas'])
 ])
 def test_crossbow_commands(command, expected_args):
     props = ursabot(command)
@@ -36,9 +41,9 @@ def test_crossbow_commands(command, expected_args):
     ('buil', 'No such command "buil".'),
     ('bench', 'No such command "bench".'),
     ('crossbow something', 'No such command "something".'),
-    ('crossbow test pkgs', 'Invalid value for "[[docker|integration|'
-                           'cpp-python]]...": invalid choice: pkgs. '
-                           '(choose from docker, integration, cpp-python)')
+    ('crossbow test -g pkgs', 'Invalid value for "--group" / "-g": '
+                              'invalid choice: pkgs. '
+                              '(choose from docker, integration, cpp-python)')
 ])
 def test_wrong_commands(command, expected_msg):
     with pytest.raises(CommandError) as excinfo:
