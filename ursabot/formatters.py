@@ -1,4 +1,5 @@
 import json
+import operator
 import textwrap
 
 import toolz
@@ -263,29 +264,47 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
         return dict(status='has been succeeded', context=context)
 
 
+# 2a3e076a-0cff-409a-87ab-3f3adb390ea7
 class CrossbowCommentFormatter(MarkdownFormatter):
 
-    travis_badge = (
-        '[![TravisCI Status]'
-        '(https://travis-ci.org/{repo}.svg?branch={branch})]'
-        '(https://travis-ci.org/{repo}/branches)'
-    )
-    circle_badge = (
-        '[![CircleCI Status]'
-        '(https://circleci.com/gh/{repo}/tree/{branch}.svg?style=svg)]'
-        '(https://circleci.com/gh/{repo}/tree/{branch})'
-    )
-    appveyor_badge = (
-        '[![Appveyor Status]'
-        '(https://ci.appveyor.com/api/projects/status/'
-        '{repo_id}/branch/{branch}&svg=true)]'
-        '(https://ci.appveyor.com/project/{repo}/history)'
-    )
+    _markdown_badge = '[![{title}]({badge})]({url})'
 
-    def __init__(self, *args, crossbow_repo, appveyor_id, **kwargs):
+    badges = {
+        'azure': _markdown_badge.format(
+            title='Azure',
+            url=(
+                'https://dev.azure.com/{repo}/_build/latest'
+                '?definitionId=1&branchName={branch}'
+            ),
+            badge=(
+                'https://dev.azure.com/{repo}/_apis/build/status/'
+                '{repo_dotted}?branchName={branch}'
+            )
+        ),
+        'travis': _markdown_badge.format(
+            title='TravisCI',
+            url='https://travis-ci.org/{repo}/branches',
+            badge='https://img.shields.io/travis/{repo}/{branch}.svg'
+        ),
+        'circle': _markdown_badge.format(
+            title='CircleCI',
+            url='https://circleci.com/gh/{repo}/tree/{branch}',
+            badge=(
+                'https://img.shields.io/circleci/build/github'
+                '/{repo}/{branch}.svg'
+            )
+        ),
+        'appveyor': _markdown_badge.format(
+            title='Appveyor',
+            url='https://ci.appveyor.com/project/{repo}/history',
+            badge='https://img.shields.io/appveyor/ci/{repo}/{branch}.svg'
+        )
+    }
+
+    def __init__(self, *args, crossbow_repo, azure_id=None, **kwargs):
         # TODO(kszucs): format validation
         self.crossbow_repo = crossbow_repo
-        self.appveyor_id = appveyor_id
+        self.azure_id = azure_id
         self.yaml_parser = YAML()
         super().__init__(*args, **kwargs)
 
@@ -297,25 +316,18 @@ class CrossbowCommentFormatter(MarkdownFormatter):
         msg = f'Submitted crossbow builds: [{{repo}} @ {{branch}}]({url})\n'
         msg += '\n|Task|Status|\n|----|------|'
 
-        for key, task in job['tasks'].items():
+        tasks = sorted(job['tasks'].items(), key=operator.itemgetter(0))
+        for key, task in tasks:
             branch = task['branch']
-            if task['ci'] == 'appveyor':
-                badge = self.appveyor_badge.format(
+
+            try:
+                template = self.badges[task['ci']]
+                badge = template.format(
                     repo=self.crossbow_repo,
-                    repo_id=self.appveyor_id,
+                    repo_dotted=self.crossbow_repo.replace('/', '.'),
                     branch=branch
                 )
-            elif task['ci'] == 'travis':
-                badge = self.travis_badge.format(
-                    repo=self.crossbow_repo,
-                    branch=branch
-                )
-            elif task['ci'] == 'circle':
-                badge = self.circle_badge.format(
-                    repo=self.crossbow_repo,
-                    branch=branch
-                )
-            else:
+            except KeyError:
                 badge = 'unsupported CI service `{}`'.format(task['ci'])
 
             msg += f'\n|{key}|{badge}|'
