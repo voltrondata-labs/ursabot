@@ -335,10 +335,7 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
 class TestCrossbowCommentFormatter(TestFormatterBase):
 
     def setupFormatter(self):
-        return CrossbowCommentFormatter(
-            crossbow_repo='ursa-labs/crossbow',
-            appveyor_id='3ytexy6k0pqbvp6c'
-        )
+        return CrossbowCommentFormatter(crossbow_repo='ursa-labs/crossbow')
 
     def setupDb(self, current, previous):
         super().setupDb(current, previous)
@@ -359,7 +356,6 @@ class TestCrossbowCommentFormatter(TestFormatterBase):
     async def test_success(self):
         expected_msg = self.load_fixture('crossbow-success-message.md').format(
             repo='ursa-labs/crossbow',
-            appveyor_id='3ytexy6k0pqbvp6c',
             branch='ursabot-1',
             status='has been succeeded.',
             revision=self.REVISION,
