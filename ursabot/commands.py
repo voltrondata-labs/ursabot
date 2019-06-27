@@ -68,14 +68,53 @@ def build():
 
 
 @ursabot.command()
-@click.argument('baseline', type=str, default=None, required=False)
+@click.argument('baseline', type=str, metavar='[<baseline>]', default=None,
+                required=False)
 @click.option('--suite-filter', metavar='<regex>', show_default=True,
               type=str, default=None, help='Regex filtering benchmark suites.')
 @click.option('--benchmark-filter', metavar='<regex>', show_default=True,
               type=str, default=None,
               help='Regex filtering benchmarks.')
 def benchmark(baseline, suite_filter, benchmark_filter):
-    """Trigger all benchmarks registered for this pull request."""
+    """Run the benchmark suite in comparison mode.
+
+    This command will run the benchmark suite for tip of the branch commit
+    against `<baseline>` (or master if not provided).
+
+    Examples:
+
+    \b
+    # Run the all the benchmarks
+    \b
+    @ursabot benchmark
+
+
+    \b
+    # Compare only benchmarks where the name matches the `^Sum` regex
+    \b
+    @ursabot benchmark --benchmark-filter=^Sum
+
+    \b
+    # Compare only benchmarks where the suite matches the `compute-` regex.
+    # A suite is the C++ binary.
+    \b
+    @ursabot benchmark --suite-filter=compute-
+
+    \b
+    # Sometimes a new optimization requires the addition of new benchmarks to
+    # quantify the performance increase. When doing this be sure to add the
+    # benchmark in a separate commit before introducing the optimization.
+    #
+    # Note that specifying the baseline is the only way to compare a new
+    # benchmark, otherwise the intersection of benchmarks with master will be
+    # empty (no comparison possible).
+    #
+    # Suppose that the "MyBenchmark" benchmark is introduced in HEAD~2 and the
+    # optimization is found in HEAD. The following command will show the
+    # difference with and without the optimization on said benchmark.
+    \b
+    @ursabot benchmark --benchmark-filter=MyBenchmark HEAD~2
+    """
     # each command must return a dictionary which are set as build properties
     props = {'command': 'benchmark'}
 
