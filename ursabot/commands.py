@@ -68,10 +68,32 @@ def build():
 
 
 @ursabot.command()
-def benchmark():
+@click.argument('baseline', type=str, default=None, required=False)
+@click.option('--suite-filter', metavar='<regex>', show_default=True,
+              type=str, default=None, help='Regex filtering benchmark suites.')
+@click.option('--benchmark-filter', metavar='<regex>', show_default=True,
+              type=str, default=None,
+              help='Regex filtering benchmarks.')
+def benchmark(baseline, suite_filter, benchmark_filter):
     """Trigger all benchmarks registered for this pull request."""
     # each command must return a dictionary which are set as build properties
-    return {'command': 'benchmark'}
+    props = {'command': 'benchmark'}
+
+    if baseline:
+        props['benchmark_baseline'] = baseline
+
+    opts = []
+    if suite_filter:
+        suite_filter = shlex.quote(suite_filter)
+        opts.append(f'--suite-filter={suite_filter}')
+    if benchmark_filter:
+        benchmark_filter = shlex.quote(benchmark_filter)
+        opts.append(f'--benchmark-filter={benchmark_filter}')
+
+    if opts:
+        props['benchmark_options'] = opts
+
+    return props
 
 
 @ursabot.group()
