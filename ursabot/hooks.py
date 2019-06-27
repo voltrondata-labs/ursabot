@@ -185,7 +185,7 @@ class GithubHook(GitHubEventHandler):
             return [], 'git'
 
         try:
-            command = comment['body'].split(mention)[-1].lower().strip()
+            command = comment['body'].split(mention)[-1].strip()
             properties = self.comment_handler(command)
         except CommandError as e:
             await respond(e.message, preformatted=True)
