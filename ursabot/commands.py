@@ -85,19 +85,15 @@ def benchmark(baseline, suite_filter, benchmark_filter):
 
     \b
     # Run the all the benchmarks
-    \b
     @ursabot benchmark
 
-
     \b
-    # Compare only benchmarks where the name matches the `^Sum` regex
-    \b
+    # Compare only benchmarks where the name matches the /^Sum/ regex
     @ursabot benchmark --benchmark-filter=^Sum
 
     \b
-    # Compare only benchmarks where the suite matches the `compute-` regex.
+    # Compare only benchmarks where the suite matches the /compute-/ regex.
     # A suite is the C++ binary.
-    \b
     @ursabot benchmark --suite-filter=compute-
 
     \b
@@ -109,10 +105,10 @@ def benchmark(baseline, suite_filter, benchmark_filter):
     # benchmark, otherwise the intersection of benchmarks with master will be
     # empty (no comparison possible).
     #
-    # Suppose that the "MyBenchmark" benchmark is introduced in HEAD~2 and the
-    # optimization is found in HEAD. The following command will show the
-    # difference with and without the optimization on said benchmark.
-    \b
+    # The following command compares the results of matching benchmarks,
+    # compiling against HEAD and the provided baseline commit (HEAD~2). You can
+    # use this to quantify the performance improvement of new optimizations or
+    # to check for regressions.
     @ursabot benchmark --benchmark-filter=MyBenchmark HEAD~2
     """
     # each command must return a dictionary which are set as build properties
