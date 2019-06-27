@@ -102,8 +102,8 @@ def benchmark(baseline, suite_filter, benchmark_filter):
     # benchmark in a separate commit before introducing the optimization.
     #
     # Note that specifying the baseline is the only way to compare using a new
-    # benchmark, otherwise the intersection of benchmarks with master will be
-    # empty (no comparison possible).
+    # benchmark, since master does not contain the new benchmark and no
+    # comparison is possible.
     #
     # The following command compares the results of matching benchmarks,
     # compiling against HEAD and the provided baseline commit, e.g. eaf8302.
