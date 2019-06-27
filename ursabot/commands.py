@@ -101,15 +101,15 @@ def benchmark(baseline, suite_filter, benchmark_filter):
     # quantify the performance increase. When doing this be sure to add the
     # benchmark in a separate commit before introducing the optimization.
     #
-    # Note that specifying the baseline is the only way to compare a new
+    # Note that specifying the baseline is the only way to compare using a new
     # benchmark, otherwise the intersection of benchmarks with master will be
     # empty (no comparison possible).
     #
     # The following command compares the results of matching benchmarks,
-    # compiling against HEAD and the provided baseline commit (HEAD~2). You can
-    # use this to quantify the performance improvement of new optimizations or
-    # to check for regressions.
-    @ursabot benchmark --benchmark-filter=MyBenchmark HEAD~2
+    # compiling against HEAD and the provided baseline commit, e.g. eaf8302.
+    # You can use this to quantify the performance improvement of new
+    # optimizations or to check for regressions.
+    @ursabot benchmark --benchmark-filter=MyBenchmark eaf8302
     """
     # each command must return a dictionary which are set as build properties
     props = {'command': 'benchmark'}
