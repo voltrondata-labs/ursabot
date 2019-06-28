@@ -68,10 +68,67 @@ def build():
 
 
 @ursabot.command()
-def benchmark():
-    """Trigger all benchmarks registered for this pull request."""
+@click.argument('baseline', type=str, metavar='[<baseline>]', default=None,
+                required=False)
+@click.option('--suite-filter', metavar='<regex>', show_default=True,
+              type=str, default=None, help='Regex filtering benchmark suites.')
+@click.option('--benchmark-filter', metavar='<regex>', show_default=True,
+              type=str, default=None,
+              help='Regex filtering benchmarks.')
+def benchmark(baseline, suite_filter, benchmark_filter):
+    """Run the benchmark suite in comparison mode.
+
+    This command will run the benchmark suite for tip of the branch commit
+    against `<baseline>` (or master if not provided).
+
+    Examples:
+
+    \b
+    # Run the all the benchmarks
+    @ursabot benchmark
+
+    \b
+    # Compare only benchmarks where the name matches the /^Sum/ regex
+    @ursabot benchmark --benchmark-filter=^Sum
+
+    \b
+    # Compare only benchmarks where the suite matches the /compute-/ regex.
+    # A suite is the C++ binary.
+    @ursabot benchmark --suite-filter=compute-
+
+    \b
+    # Sometimes a new optimization requires the addition of new benchmarks to
+    # quantify the performance increase. When doing this be sure to add the
+    # benchmark in a separate commit before introducing the optimization.
+    #
+    # Note that specifying the baseline is the only way to compare using a new
+    # benchmark, since master does not contain the new benchmark and no
+    # comparison is possible.
+    #
+    # The following command compares the results of matching benchmarks,
+    # compiling against HEAD and the provided baseline commit, e.g. eaf8302.
+    # You can use this to quantify the performance improvement of new
+    # optimizations or to check for regressions.
+    @ursabot benchmark --benchmark-filter=MyBenchmark eaf8302
+    """
     # each command must return a dictionary which are set as build properties
-    return {'command': 'benchmark'}
+    props = {'command': 'benchmark'}
+
+    if baseline:
+        props['benchmark_baseline'] = baseline
+
+    opts = []
+    if suite_filter:
+        suite_filter = shlex.quote(suite_filter)
+        opts.append(f'--suite-filter={suite_filter}')
+    if benchmark_filter:
+        benchmark_filter = shlex.quote(benchmark_filter)
+        opts.append(f'--benchmark-filter={benchmark_filter}')
+
+    if opts:
+        props['benchmark_options'] = opts
+
+    return props
 
 
 @ursabot.group()
