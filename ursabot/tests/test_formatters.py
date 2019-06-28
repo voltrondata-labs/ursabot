@@ -282,7 +282,7 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         Revision: {self.REVISION}
         '''
         content = await self.render(previous=SUCCESS, current=FAILURE)
-        assert content == textwrap.dedent(expected).strip()
+        assert textwrap.dedent(expected).strip() == content
 
     @ensure_deferred
     async def test_success(self):
@@ -293,19 +293,18 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         Revision: {self.REVISION}
 
         ```diff
-          ============================  ===========  ===========  ===========
-          benchmark                        baseline    contender       change
-          ============================  ===========  ===========  ===========
-          RegressionSumKernel/32768/50  1.92412e+10  1.92114e+10  -0.00155085
-        - RegressionSumKernel/32768/1   2.48232e+10  2.47718e+10   0.00206818
-          RegressionSumKernel/32768/10  2.19027e+10  2.19757e+10   0.00333234
-        - RegressionSumKernel/32768/0   2.7685e+10   2.78212e+10  -0.00491813
-          ============================  ===========  ===========  ===========
+          ===========================  ===========  ===========  =====================
+          benchmark                    baseline     contender    delta
+          ===========================  ===========  ===========  =====================
+        - RegressionSumKernel/32768/0  25.78 GiB/s  21.92 GiB/s  -3.89 GiB/s (-15.09%)
+          ===========================  ===========  ===========  =====================
+
+          3 result(s) not shown due to tiny delta
         ```
         '''
         content = await self.render(previous=SUCCESS, current=SUCCESS,
                                     buildsetid=99)
-        assert content == textwrap.dedent(expected).strip()
+        assert textwrap.dedent(expected).strip() == content
 
     @ensure_deferred
     async def test_empty_jsonlines(self):
@@ -317,19 +316,18 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         Revision: {self.REVISION}
 
         ```diff
-          ============================  ===========  ===========  ==========
-          benchmark                        baseline    contender      change
-          ============================  ===========  ===========  ==========
-          RegressionSumKernel/32768/10  1.32654e+10  1.33275e+10  0.00467565
-          RegressionSumKernel/32768/1   1.51819e+10  1.522e+10    0.00251084
-          RegressionSumKernel/32768/50  1.14718e+10  1.15116e+10  0.00346736
-          RegressionSumKernel/32768/0   1.8317e+10   1.85027e+10  0.010141
-          ============================  ===========  ===========  ==========
+          ===========================  ===========  ===========  ===================
+          benchmark                    baseline     contender    delta
+          ===========================  ===========  ===========  ===================
+        + RegressionSumKernel/32768/0  17.06 GiB/s  19.62 GiB/s  2.56 GiB/s (15.01%)
+          ===========================  ===========  ===========  ===================
+
+          3 result(s) not shown due to tiny delta
         ```
         '''
         content = await self.render(previous=SUCCESS, current=SUCCESS,
                                     buildsetid=98)
-        assert content == textwrap.dedent(expected).strip()
+        assert textwrap.dedent(expected).strip() == content
 
 
 class TestCrossbowCommentFormatter(TestFormatterBase):

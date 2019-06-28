@@ -28,6 +28,7 @@ setup(
         'codenamize',
         'docker',
         'docker-map',
+        'humanfriendly',
         'ruamel.yaml',
         'tabulate',
         'toml',

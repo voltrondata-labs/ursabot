@@ -2,6 +2,7 @@ import json
 import operator
 import textwrap
 
+import humanfriendly
 import toolz
 from tabulate import tabulate
 from ruamel.yaml import YAML
@@ -219,6 +220,48 @@ class MarkdownFormatter(Formatter):
         return dict(status='is retried', context='')
 
 
+def regression_sign(row, improvement_threshold=0.05):
+    print(row)
+    if row['regression']:
+        return '-'
+    elif abs(row['change']) > improvement_threshold:
+        return '+'
+    else:
+        return ' '
+
+
+def pretty_print_value(value, unit):
+    # humanfriendly can't cope with sign...
+    sign = '-' if value < 0.0 else ''
+    if unit == 'bytes_per_second':
+        value_fmt = humanfriendly.format_size(abs(value), binary=True)
+        return f'{sign}{value_fmt}/s'
+    elif unit in ['ns', 'ms', 's']:
+        value_fmt = format(value, '.2f')
+        return f'{value_fmt}{unit}'
+    else:
+        # ?
+        return f'{value}'
+
+
+def augment(row):
+
+    unit = row['unit']
+
+    change = row['change']
+    change_pct = format(change * 100.0, '.2f')
+
+    delta = row['baseline'] * row['change']
+    delta_fmt = pretty_print_value(delta, unit)
+
+    # pretty print values with units
+    row['delta'] = f'{delta_fmt} ({change_pct}%)'
+    row['baseline'] = pretty_print_value(row['baseline'], unit)
+    row['contender'] = pretty_print_value(row['contender'], unit)
+
+    return row
+
+
 class BenchmarkCommentFormatter(MarkdownFormatter):
 
     def _render_table(self, jsonlines):
@@ -228,18 +271,38 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
         """
         rows = [json.loads(line.strip()) for line in jsonlines if line]
 
-        columns = ['benchmark', 'baseline', 'contender', 'change']
+        # ignore if change is too low
+        total = len(rows)
+        rows = list(filter(lambda r: abs(r["change"]) > 0.005, rows))
+        ignored = total - len(rows)
+
+        rows = list(map(augment, rows))
+
+        columns = ['benchmark', 'baseline', 'contender', 'delta']
         formatted = tabulate(toolz.pluck(columns, rows),
                              headers=columns, tablefmt='rst')
 
-        diff = ['-' if row['regression'] else ' ' for row in rows]
+        # Mark every failure with `-` ensuring github's renderer highlight the
+        # line as red. This is done after the rendering because the header must
+        # also be adjusted.
+        diff = [regression_sign(row) for row in rows]
         # prepend and append because of header and footer
         diff = [' '] * 3 + diff + [' ']
 
         rows = map(' '.join, zip(diff, formatted.splitlines()))
         table = '\n'.join(rows)
 
-        return f'```diff\n{table}\n```'
+        result = f'```diff'
+
+        if total - ignored > 0:
+            result += f'\n{table}'
+
+        if ignored > 0:
+            result += f'\n\n  {ignored} result(s) not shown due to tiny delta'
+
+        result += '\n```'
+
+        return result
 
     def render_success(self, build, master):
         # extract logs named as `result`
