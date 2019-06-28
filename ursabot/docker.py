@@ -246,6 +246,15 @@ def ADD(*args, **kwargs):
     return methodcaller('add_file', *args, **kwargs)
 
 
+@wraps(DockerFile.add_file, ('__doc__',))
+def COPY(src, dst, from_image=None, **kwargs):
+    if from_image:
+        args = ['--from={}'.format(from_image), src, dst]
+        return methodcaller('prefix', 'COPY', args)
+    else:
+        return ADD(src, dst, **kwargs)
+
+
 @wraps(DockerFile.run, ('__doc__',))
 def RUN(*args):
     return methodcaller('run', *args)

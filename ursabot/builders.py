@@ -145,8 +145,9 @@ class DockerBuilder(Builder):
                 builders.append(builder)
             else:
                 warnings.warn(
-                    f'There are no docker workers available for architecture '
-                    f'`{image.arch}`, omitting image `{image}`'
+                    f'{cls.__name__}: there are no docker workers available '
+                    f'for architecture `{image.arch}`, omitting image '
+                    f'`{image}`'
                 )
 
         return builders
