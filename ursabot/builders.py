@@ -474,7 +474,10 @@ class ArrowCppBenchmark(DockerBuilder):
                 '--output=diff.json',
                 util.Property('benchmark_options', []),
                 'WORKSPACE',
-                util.Property('benchmark_baseline', 'master')]),
+                # buildbot GitHubCloneStep creates a local merge and thus
+                # changes the `master` reference. The benchmark command is
+                # interested in benchmarking against the origin/master instead.
+                util.Property('benchmark_baseline', 'origin/master')]),
                 result_file='diff.json')
     ]
     images = images.filter(
