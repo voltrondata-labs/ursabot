@@ -1,3 +1,15 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import textwrap
 import traceback
 from pathlib import Path
@@ -25,6 +37,9 @@ class TestFormatterBase(TestReactorMixin, unittest.TestCase):
         return path.read_text()
 
     def setUp(self):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
         self.setUpTestReactor()
         self.master = fakemaster.make_master(self, wantData=True, wantDb=True,
                                              wantMq=True)
@@ -33,6 +48,9 @@ class TestFormatterBase(TestReactorMixin, unittest.TestCase):
         raise NotImplementedError()
 
     def setupDb(self, results1, results2):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
         self.db = self.master.db
         self.db.insertTestData([
             fakedb.Master(id=92),
@@ -103,6 +121,9 @@ class TestFormatter(TestFormatterBase):
 class TestMarkdownFormatter(TestFormatterBase):
 
     def setupDb(self, current, previous, log1=None, log2=None):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
         super().setupDb(current, previous)
 
         self.db.insertTestData([
@@ -251,6 +272,9 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         return BenchmarkCommentFormatter()
 
     def setupDb(self, current, previous):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
         super().setupDb(current, previous)
 
         log1 = self.load_fixture('archery-benchmark-diff.jsonl')

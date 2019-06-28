@@ -1,3 +1,15 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import re
 import json
 import toml
@@ -16,13 +28,20 @@ from buildbot.util.logger import Logger
 log = Logger()
 
 
-def ensure_deferred(f):
-    @functools.wraps(f)
+def ensure_deferred(fn):
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        result = f(*args, **kwargs)
+        result = fn(*args, **kwargs)
         return defer.ensureDeferred(result)
 
     return wrapper
+
+
+def read_dependency_list(path):
+    """Parse plaintext files with comments as list of dependencies"""
+    path = pathlib.Path(path)
+    lines = (l.strip() for l in path.read_text().splitlines())
+    return [l for l in lines if not l.startswith('#')]
 
 
 def slugify(s):

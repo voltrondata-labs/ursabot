@@ -63,7 +63,14 @@ class ShellMixin(buildstep.ShellMixin):
     def makeRemoteShellCommand(self, **kwargs):
         import pipes  # only available on unix
 
-        def quote(e):  # copied from buildbot_worker.runprocess
+        # copied from buildbot_worker.runprocess
+        def quote(e):
+            """Quote shell arguments
+
+            License note:
+                Copied from buildbot_worker.runprocess in the original buildbot
+                implementation.
+            """
             if not e:
                 return '""'
             return pipes.quote(e)
@@ -76,7 +83,7 @@ class ShellMixin(buildstep.ShellMixin):
 
         if self.shell:
             # render the command and prepend with the shell
-            # TODO(kszucs) validate self.shell
+            # TODO(kszucs): validate self.shell
             command = ' '.join(map(quote, command))
             command = tuple(self.shell) + (command,)
 
@@ -112,8 +119,9 @@ class CMake(ShellMixin, steps.CMake):
     async def run(self):
         """Create and run CMake command
 
-        Copied from the original CMake implementation to handle None values as
-        missing ones.
+        License note:
+            Copied from the original buildbot implementation to handle None
+            values as missing ones.
         """
         command = [self.cmake]
 
@@ -151,6 +159,12 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
 
     @ensure_deferred
     async def run(self):
+        """Set build properties read from the worker's environment
+
+        License note:
+            Copied from the original buildbot implementation and ported as a
+            new-style buildstep.
+        """
         # on Windows, environment variables are case-insensitive, but we have
         # a case-sensitive dictionary in worker_environ.  Fortunately, that
         # dictionary is also folded to uppercase, so we can simply fold the

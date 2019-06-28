@@ -1,3 +1,15 @@
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import re
 import collections
 
@@ -102,10 +114,13 @@ class HttpStatusPush(HttpStatusPushBase):
 
     @ensure_deferred
     async def send(self, build):
-        # XXX: the whole method is reimplemented based on the parent
-        # GitHubStatusPush implementation, because We must propagate the build
-        # down to the renderer callbacks (endDescription, startDescription),
-        # otherwise there is no way to retrieve the build and its logs.
+        # License note:
+        #     It is a reimplementation based on the parent GitHubStatusPush
+        #     from the original buildbot implementation.
+        #
+        # We must propagate the build down to the renderer callbacks
+        # (endDescription, startDescription), otherwise there is no way to
+        # retrieve the build and its logs.
         #
         # Only `buildername` and `builnumber` properties are set, but
         # data.get(('builders', buildername, 'builds', buildnumber)) raises
@@ -206,8 +221,11 @@ class GitHubReporter(HttpStatusPush):
         )
 
     def _extract_github_params(self, sourcestamp, branch=None):
-        """Parses parameters required to by github"""
+        """Parses parameters required to by github
 
+        License note:
+            Contains copied parts from the original buildbot implementation.
+        """
         # branch is updated by the checkoutstep, required for PRs
         branch = branch or sourcestamp['branch']
         project = sourcestamp['project']
@@ -259,7 +277,11 @@ class GitHubStatusPush(GitHubReporter):
         self.context = context
 
     def _state_for(self, build):
-        # maps buildbot results to github statuses
+        """Maps buildbot results to github statuses
+
+        License note:
+            Contains copied parts from the original buildbot implementation.
+        """
         statuses = {
             SUCCESS: 'success',
             WARNINGS: 'success',
@@ -377,6 +399,8 @@ class GitHubCommentPush(GitHubReporter):
 
     @ensure_deferred
     async def report(self, build, sourcestamp, properties):
+        # License note:
+        #     Contains copied parts from the original buildbot implementation.
         params = self._extract_github_params(sourcestamp,
                                              branch=properties['branch'])
         payload = {
