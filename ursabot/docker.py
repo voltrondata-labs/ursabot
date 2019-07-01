@@ -47,6 +47,10 @@ class DockerImage:
         values are supported.
     os : str, default None
         Operating system of the image. Examples: 'ubuntu-18.04', 'alpine-3.9'.
+    runtime : str, default None
+        Docker runtime the image should be run with, e.g. nvidia for the CUDA
+        images. This property doesn't affect the image, only the running
+        container.
     steps : List[Callable[[dockermap.api.DockerFile], None]], default []
         List of steps defined in docker-ish DSL. Use functions like ADD, RUN,
         ENV, WORKDIR, USER, CMD, ENTRYPOINT, SHELL.
@@ -88,12 +92,15 @@ class DockerImage:
     """
 
     def __init__(self, name, base, title=None, org=None, tag='latest',
-                 arch=None, os=None, variant=None, steps=tuple()):
+                 arch=None, os=None, variant=None, runtime=None,
+                 steps=tuple()):
         if isinstance(base, DockerImage):
             if not title:
                 title = base.title
             if not org:
                 org = base.org
+            if not runtime:
+                runtime = base.runtime
             if os is not None and os != base.os:
                 raise ValueError(
                     f"Given os `{os}` is not equal with the base "
@@ -111,8 +118,8 @@ class DockerImage:
             )
 
         string_args = {'org': org, 'name': name, 'tag': tag, 'os': os,
-                       'title': title, 'variant': variant}
-        optional_args = {'org', 'title', 'variant'}
+                       'title': title, 'variant': variant, 'runtime': runtime}
+        optional_args = {'org', 'title', 'variant', 'runtime'}
         for k, v in string_args.items():
             if v is None and k in optional_args:
                 continue
@@ -139,6 +146,7 @@ class DockerImage:
         self.arch = arch
         self.os = os
         self.variant = variant
+        self.runtime = runtime
         self.steps = tuple(steps)
 
     def __str__(self):
@@ -519,6 +527,8 @@ for arch in ['amd64']:
             os=f'ubuntu-18.04',
             org='ursalab',
             variant='cuda',
+            # used to run containers with `docker run --runtime=nvidia`
+            runtime='nvidia',
             title=f'{basetitle} C++',
             steps=[
                 RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),

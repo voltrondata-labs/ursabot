@@ -110,6 +110,7 @@ class DockerBuilder(Builder):
         tags += list(image.platform)
         properties = properties or {}
         properties['docker_image'] = str(image)
+        properties['docker_runtime'] = image.runtime  # nvidia or None
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
 
     @classmethod

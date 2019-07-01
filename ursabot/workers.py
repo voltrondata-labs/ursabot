@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from buildbot import config
+from twisted.internet import threads
 from buildbot.util.logger import Logger
 from buildbot.interfaces import LatentWorkerCannotSubstantiate
 from buildbot.interfaces import LatentWorkerFailedToSubstantiate
@@ -15,33 +15,45 @@ log = Logger()
 
 class WorkerMixin:
 
-    def __init__(self, *args, arch, tags=tuple(), **kwargs):
+    def __init__(self, *args, arch=None, tags=tuple(), **kwargs):
         self.arch = arch
         self.tags = tuple(tags)
         super().__init__(*args, **kwargs)
 
 
 class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
+    # license note:
+    #    copied from the original implementation with minor modification
+    #    to pass runtime configuration to the containers
 
     def checkConfig(self, *args, runtime=None, **kwargs):
-        if runtime is not None and not isinstance(runtime, str):
-            config.error('Docker runtime must be a string, like `nvidia`')
         super().checkConfig(*args, **kwargs)
 
     @ensure_deferred
-    async def reconfigService(self, runtime=None, **kwargs):
+    async def reconfigService(self, *args, runtime=None, **kwargs):
         self.runtime = runtime
-        await super().reconfigService(**kwargs)
+        await super().reconfigService(*args, **kwargs)
 
-    def _thd_start_instance(self, image, dockerfile, volumes,
-                            custom_context, encoding, buildargs):
+    def renderWorkerProps(self, build):
+        return build.render(
+            (self.image, self.dockerfile, self.runtime, self.volumes)
+        )
+
+    @ensure_deferred
+    async def start_instance(self, build):
+        if self.instance is not None:
+            raise ValueError('instance active')
+        args = await self.renderWorkerPropsOnStart(build)
+        return await threads.deferToThread(self._thd_start_instance, *args)
+
+    def _thd_start_instance(self, image, dockerfile, runtime, volumes):
         docker_client = self._getDockerClient()
         container_name = self.getContainerName()
         # cleanup the old instances
         instances = docker_client.containers(
             all=1,
             filters=dict(name=container_name))
-        container_name = f'/{container_name}'
+        container_name = '/{0}'.format(container_name)
         for instance in instances:
             if container_name not in instance['Names']:
                 continue
@@ -55,23 +67,15 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         if image is not None:
             found = self._image_exists(docker_client, image)
         else:
-            worker_name, worker_id = self.workername, id(self)
+            worker_id = id(self)
+            worker_name = self.workername
             image = f'{worker_name}_{worker_id}_image'
         if (not found) and (dockerfile is not None):
             log.info(f'Image {image} not found, building it from scratch')
-            if (custom_context):
-                with open(dockerfile, 'rb') as fin:
-                    lines = docker_client.build(fileobj=fin,
-                                                custom_context=custom_context,
-                                                encoding=encoding, tag=image,
-                                                buildargs=buildargs)
-            else:
-                lines = docker_client.build(
-                    fileobj=BytesIO(dockerfile.encode('utf-8')),
-                    tag=image,
-                )
-
-            for line in lines:
+            for line in docker_client.build(
+                fileobj=BytesIO(dockerfile.encode('utf-8')),
+                tag=image
+            ):
                 for streamline in _handle_stream_line(line):
                     log.info(streamline)
 
@@ -94,12 +98,11 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             host_conf['init'] = True
         host_conf = docker_client.create_host_config(**host_conf)
 
-        # original implementation is extended with passing docker runtime
         instance = docker_client.create_container(
             image,
             self.command,
             name=self.getContainerName(),
-            runtime=self.runtime,
+            runtime=runtime,
             volumes=volumes,
             environment=self.createEnvironment(),
             host_config=host_conf
