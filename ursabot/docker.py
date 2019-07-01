@@ -517,7 +517,7 @@ for arch in ['amd64']:
 
 # CUDA
 for arch in ['amd64']:
-    for toolkit_version in ['10.1']:
+    for toolkit_version in ['9.1']:
         basetitle = f'{arch.upper()} Nvidia Cuda {toolkit_version}'
 
         cpp = DockerImage(
