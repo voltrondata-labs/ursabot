@@ -3,6 +3,10 @@
 #
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
+#
+# This file contains function or sections of code that are marked as being
+# derivative works of Buildbot. The above license only applies to code that
+# is not marked as such.
 
 from twisted.internet import threads
 
