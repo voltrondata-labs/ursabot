@@ -126,7 +126,7 @@ class DockerImage:
             if not isinstance(v, str):
                 raise TypeError(f'`{k}` argument must be an instance of str')
 
-        if arch not in {'amd64', 'arm64v8'}:
+        if arch not in {'amd64', 'arm64v8', 'arm32v7'}:
             raise ValueError(f'invalid architecture `{arch}`')
 
         if not isinstance(steps, (tuple, list)):
@@ -386,7 +386,7 @@ python_steps = [
 # pre-installed.
 images = ImageCollection()
 
-for arch in ['amd64', 'arm64v8']:
+for arch in ['amd64', 'arm64v8', 'arm32v7']:
     # UBUNTU
     for ubuntu_version in ['16.04', '18.04']:
         basetitle = f'{arch.upper()} Ubuntu {ubuntu_version}'
