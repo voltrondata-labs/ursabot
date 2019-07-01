@@ -90,6 +90,8 @@ workers:
 
   - name: 'dgx2-1'
     arch: 'amd64'
+    tags:
+      - cuda
     docker:
       host: 'tcp://ursa-dgx2:2375'
       hostconfig:
@@ -98,6 +100,8 @@ workers:
 
   - name: 'dgx2-2'
     arch: 'amd64'
+    tags:
+      - cuda
     docker:
       host: 'tcp://ursa-dgx2:2375'
       hostconfig:
@@ -106,6 +110,8 @@ workers:
 
   - name: 'dgx2-3'
     arch: 'amd64'
+    tags:
+      - cuda
     docker:
       host: 'tcp://ursa-dgx2:2375'
       hostconfig:
@@ -114,6 +120,8 @@ workers:
 
   - name: 'dgx2-4'
     arch: 'amd64'
+    tags:
+      - cuda
     docker:
       host: 'tcp://ursa-dgx2:2375'
       hostconfig:
@@ -122,6 +130,8 @@ workers:
 
   - name: 'dgx2-5'
     arch: 'amd64'
+    tags:
+      - cuda
     docker:
       host: 'tcp://ursa-dgx2:2375'
       hostconfig:
@@ -130,6 +140,8 @@ workers:
 
   - name: 'jetson1'
     arch: 'arm64v8'
+    tags:
+      - cuda
     max_builds: 1
     docker:
       host: 'tcp://ursa-jetson1:2375'

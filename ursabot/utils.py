@@ -62,11 +62,15 @@ class Filter:
 
 
 def startswith(prefix):
-    return Filter(lambda s: s.startswith(prefix))
+    return Filter(lambda value: value.startswith(prefix))
 
 
-def any_of(*args):
-    return Filter(lambda s: s in args)
+def any_of(*values):
+    return Filter(lambda value: value in values)
+
+
+def has(*needles):
+    return Filter(lambda haystack: set(needles).issubset(set(haystack)))
 
 
 class Collection(list):

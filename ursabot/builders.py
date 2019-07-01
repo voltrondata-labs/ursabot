@@ -110,6 +110,7 @@ class DockerBuilder(Builder):
         tags += list(image.platform)
         properties = properties or {}
         properties['docker_image'] = str(image)
+        properties['docker_runtime'] = image.runtime  # nvidia or None
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
 
     @classmethod
@@ -145,8 +146,9 @@ class DockerBuilder(Builder):
                 builders.append(builder)
             else:
                 warnings.warn(
-                    f'There are no docker workers available for architecture '
-                    f'`{image.arch}`, omitting image `{image}`'
+                    f'{cls.__name__}: there are no docker workers available '
+                    f'for architecture `{image.arch}`, omitting image '
+                    f'`{image}`'
                 )
 
         return builders
@@ -468,14 +470,17 @@ class ArrowCppBenchmark(DockerBuilder):
     steps = [
         checkout_arrow,
         Pip(['install', '-e', '.'], workdir='dev/archery'),
-        Archery(args=util.FlattenList([
+        Archery(
+            args=util.FlattenList([
                 'benchmark',
                 'diff',
                 '--output=diff.json',
                 util.Property('benchmark_options', []),
                 'WORKSPACE',
-                util.Property('benchmark_baseline', 'master')]),
-                result_file='diff.json')
+                util.Property('benchmark_baseline', 'master')
+            ]),
+            result_file='diff.json'
+        )
     ]
     images = images.filter(
         name='cpp-benchmark',
