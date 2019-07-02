@@ -1,3 +1,13 @@
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
+#
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
+#
+# This file contains function or sections of code that are marked as being
+# derivative works of Buildbot. The above license only applies to code that
+# is not marked as such.
+
 import re
 import collections
 
@@ -102,10 +112,13 @@ class HttpStatusPush(HttpStatusPushBase):
 
     @ensure_deferred
     async def send(self, build):
-        # XXX: the whole method is reimplemented based on the parent
-        # GitHubStatusPush implementation, because We must propagate the build
-        # down to the renderer callbacks (endDescription, startDescription),
-        # otherwise there is no way to retrieve the build and its logs.
+        # License note:
+        #     It is a reimplementation based on the parent GitHubStatusPush
+        #     from the original buildbot implementation.
+        #
+        # We must propagate the build down to the renderer callbacks
+        # (endDescription, startDescription), otherwise there is no way to
+        # retrieve the build and its logs.
         #
         # Only `buildername` and `builnumber` properties are set, but
         # data.get(('builders', buildername, 'builds', buildnumber)) raises
@@ -206,8 +219,11 @@ class GitHubReporter(HttpStatusPush):
         )
 
     def _extract_github_params(self, sourcestamp, branch=None):
-        """Parses parameters required to by github"""
+        """Parses parameters required to by github
 
+        License note:
+            Contains copied parts from the original buildbot implementation.
+        """
         # branch is updated by the checkoutstep, required for PRs
         branch = branch or sourcestamp['branch']
         project = sourcestamp['project']
@@ -259,7 +275,11 @@ class GitHubStatusPush(GitHubReporter):
         self.context = context
 
     def _state_for(self, build):
-        # maps buildbot results to github statuses
+        """Maps buildbot results to github statuses
+
+        License note:
+            Contains copied parts from the original buildbot implementation.
+        """
         statuses = {
             SUCCESS: 'success',
             WARNINGS: 'success',
@@ -377,6 +397,8 @@ class GitHubCommentPush(GitHubReporter):
 
     @ensure_deferred
     async def report(self, build, sourcestamp, properties):
+        # License note:
+        #     Contains copied parts from the original buildbot implementation.
         params = self._extract_github_params(sourcestamp,
                                              branch=properties['branch'])
         payload = {

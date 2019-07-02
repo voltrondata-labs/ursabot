@@ -1,3 +1,9 @@
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
+#
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
+
 from urllib.parse import urlparse
 
 from buildbot.util.logger import Logger
@@ -15,7 +21,7 @@ class GithubHook(GitHubEventHandler):
     """Converts github events to changes
 
     It extends the original implementation for push and pull request events
-    with a pull request comment event in order to drive buildbot with gihtub
+    with a pull request comment event in order to drive buildbot with github
     comments.
 
     Github hook creates 4 kinds of changes, distinguishable by their category
@@ -132,7 +138,14 @@ class GithubHook(GitHubEventHandler):
 
     @ensure_deferred
     async def _get_commit_msg(self, repo, sha):
-        # used by handle_pull_request
+        """Queries the commit message from the API
+
+        Used by handle_pull_request.
+
+        License note:
+           Copied from the original buildbot implementation with minor
+           modifications.
+        """
         url = '/repos/{}/commits/{}'.format(repo, sha)
         result = await self._get(url)
         commit = result.get('commit', {})

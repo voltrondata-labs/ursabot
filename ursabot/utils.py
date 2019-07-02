@@ -1,3 +1,9 @@
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
+#
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
+
 import re
 import json
 import toml
@@ -16,13 +22,20 @@ from buildbot.util.logger import Logger
 log = Logger()
 
 
-def ensure_deferred(f):
-    @functools.wraps(f)
+def ensure_deferred(fn):
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        result = f(*args, **kwargs)
+        result = fn(*args, **kwargs)
         return defer.ensureDeferred(result)
 
     return wrapper
+
+
+def read_dependency_list(path):
+    """Parse plaintext files with comments as list of dependencies"""
+    path = pathlib.Path(path)
+    lines = (l.strip() for l in path.read_text().splitlines())
+    return [l for l in lines if not l.startswith('#')]
 
 
 def slugify(s):

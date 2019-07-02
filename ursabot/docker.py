@@ -1,3 +1,9 @@
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
+#
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
+
 import json
 import logging
 from pathlib import Path
@@ -11,7 +17,7 @@ from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 from dockermap.build.dockerfile import format_command
 
-from .utils import Collection
+from .utils import Collection, read_dependency_list
 
 
 logger = logging.getLogger(__name__)
@@ -372,8 +378,8 @@ docker_assets = Path(__file__).parent.parent / 'docker'
 python_symlinks = {'/usr/local/bin/python': '/usr/bin/python3',
                    '/usr/local/bin/pip': '/usr/bin/pip3'}
 
-ubuntu_pkgs = (docker_assets / 'pkgs-ubuntu.txt').read_text().splitlines()
-alpine_pkgs = (docker_assets / 'pkgs-alpine.txt').read_text().splitlines()
+ubuntu_pkgs = read_dependency_list(docker_assets / 'pkgs-ubuntu.txt')
+alpine_pkgs = read_dependency_list(docker_assets / 'pkgs-alpine.txt')
 python_steps = [
     ADD(docker_assets / 'requirements.txt'),
     ADD(docker_assets / 'requirements-test.txt'),

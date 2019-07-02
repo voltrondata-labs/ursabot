@@ -1,3 +1,13 @@
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
+#
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
+#
+# This file contains function or sections of code that are marked as being
+# derivative works of Buildbot. The above license only applies to code that
+# is not marked as such.
+
 import json
 import mock
 from collections import namedtuple
@@ -25,6 +35,10 @@ class GithubClientServiceTest(unittest.TestCase):
 
     @ensure_deferred
     async def setUp(self):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
+
         if httpclientservice.treq is None:
             raise unittest.SkipTest('this test requires treq')
 

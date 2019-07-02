@@ -1,3 +1,13 @@
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
+#
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
+#
+# This file contains function or sections of code that are marked as being
+# derivative works of Buildbot. The above license only applies to code that
+# is not marked as such.
+
 import textwrap
 import traceback
 from pathlib import Path
@@ -25,6 +35,9 @@ class TestFormatterBase(TestReactorMixin, unittest.TestCase):
         return path.read_text()
 
     def setUp(self):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
         self.setUpTestReactor()
         self.master = fakemaster.make_master(self, wantData=True, wantDb=True,
                                              wantMq=True)
@@ -33,6 +46,9 @@ class TestFormatterBase(TestReactorMixin, unittest.TestCase):
         raise NotImplementedError()
 
     def setupDb(self, results1, results2):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
         self.db = self.master.db
         self.db.insertTestData([
             fakedb.Master(id=92),
@@ -103,6 +119,9 @@ class TestFormatter(TestFormatterBase):
 class TestMarkdownFormatter(TestFormatterBase):
 
     def setupDb(self, current, previous, log1=None, log2=None):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
         super().setupDb(current, previous)
 
         self.db.insertTestData([
@@ -251,6 +270,9 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         return BenchmarkCommentFormatter()
 
     def setupDb(self, current, previous):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
         super().setupDb(current, previous)
 
         log1 = self.load_fixture('archery-benchmark-diff.jsonl')
