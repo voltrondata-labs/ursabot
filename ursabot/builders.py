@@ -334,7 +334,12 @@ python_install = SetupPy(
         'ARROW_HOME': util.Property('CMAKE_INSTALL_PREFIX'),
         'PYARROW_CMAKE_GENERATOR': util.Property('CMAKE_GENERATOR'),
         'PYARROW_BUILD_TYPE': util.Property('CMAKE_BUILD_TYPE'),
-        'PYARROW_WITH_PARQUET': util.Property('ARROW_PARQUET')
+        'PYARROW_WITH_ORC': util.Property('ARROW_ORC'),
+        'PYARROW_WITH_CUDA': util.Property('ARROW_CUDA'),
+        'PYARROW_WITH_FLIGHT': util.Property('ARROW_FLIGHT'),
+        'PYARROW_WITH_PLASMA': util.Property('ARROW_PLASMA'),
+        'PYARROW_WITH_GANDIVA': util.Property('ARROW_GANDIVA'),
+        'PYARROW_WITH_PARQUET': util.Property('ARROW_PARQUET'),
     }
 )
 python_test = PyTest(
@@ -501,7 +506,7 @@ class ArrowPythonTest(DockerBuilder):
     tags = ['arrow', 'python']
     properties = {
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON',
+        'ARROW_PLASMA': 'ON',  # also sets PYARROW_WITH_PLASMA
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
@@ -535,9 +540,9 @@ class ArrowPythonTest(DockerBuilder):
 class ArrowPythonCudaTest(ArrowPythonTest):
     tags = ['arrow', 'python', 'cuda']
     properties = {
-        'ARROW_CUDA': 'ON',
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON',
+        'ARROW_CUDA': 'ON',  # also sets PYARROW_WITH_CUDA
+        'ARROW_PLASMA': 'ON',  # also sets PYARROW_WITH_PLASMA
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
