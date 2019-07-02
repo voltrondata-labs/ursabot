@@ -532,6 +532,23 @@ class ArrowPythonTest(DockerBuilder):
     )
 
 
+class ArrowPythonCudaTest(ArrowCppTest):
+    tags = ['arrow', 'python', 'cuda']
+    properties = {
+        'ARROW_CUDA': 'ON',
+        'ARROW_PYTHON': 'ON',
+        'ARROW_PLASMA': 'ON',
+        'CMAKE_INSTALL_PREFIX': '/usr/local',
+        'CMAKE_INSTALL_LIBDIR': 'lib'
+    }
+    images = images.filter(
+        name='python',
+        arch='amd64',
+        variant='cuda',
+        tag='worker'
+    )
+
+
 class ArrowCppCondaTest(DockerBuilder):
     tags = ['arrow', 'cpp']
     properties = {
