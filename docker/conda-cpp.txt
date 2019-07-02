@@ -26,5 +26,6 @@ rapidjson
 re2
 snappy
 thrift-cpp
+uriparser
 zlib
 zstd
