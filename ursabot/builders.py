@@ -555,7 +555,7 @@ class ArrowPythonCudaTest(ArrowPythonTest):
     properties = {
         'ARROW_PYTHON': 'ON',
         'ARROW_CUDA': 'ON',  # also sets PYARROW_WITH_CUDA
-        'ARROW_PLASMA': 'OFF',  # also sets PYARROW_WITH_PLASMA
+        'ARROW_PLASMA': 'ON',  # also sets PYARROW_WITH_PLASMA
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
@@ -607,7 +607,7 @@ class ArrowPythonCondaTest(DockerBuilder):
     properties = {
         'ARROW_FLIGHT': 'ON',
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'OFF',
+        'ARROW_PLASMA': 'ON',
         'ARROW_PARQUET': 'ON',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
