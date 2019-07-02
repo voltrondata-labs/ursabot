@@ -76,10 +76,11 @@ class Builder(util.BuilderConfig):
         if self.name_prefix:
             name = f'{self.name_prefix} {name}'
         factory = factory or BuildFactory(steps)
-        env = toolz.merge(env or {}, self.env or {})
-        properties = toolz.merge(properties or {}, self.properties or {})
-        default_properties = toolz.merge(default_properties or {},
-                                         self.default_properties or {})
+        env = toolz.merge(self.env or {}, env or {})
+        properties = toolz.merge(self.properties or {}, properties or {})
+        default_properties = toolz.merge(self.default_properties or {},
+                                         default_properties or {})
+
         workernames = None if workers is None else [w.name for w in workers]
 
         super().__init__(name=name, tags=tags, properties=properties,
@@ -105,9 +106,10 @@ class Builder(util.BuilderConfig):
 class DockerBuilder(Builder):
 
     images = tuple()
+    hostconfig = None
 
     def __init__(self, name=None, image=None, properties=None, tags=None,
-                 **kwargs):
+                 hostconfig=None, **kwargs):
         if not isinstance(image, DockerImage):
             raise ValueError('Image must be an instance of DockerImage')
 
@@ -116,7 +118,8 @@ class DockerBuilder(Builder):
         tags += list(image.platform)
         properties = properties or {}
         properties['docker_image'] = str(image)
-        properties['docker_runtime'] = image.runtime  # nvidia or None
+        properties['docker_hostconfig'] = toolz.merge(self.hostconfig or {},
+                                                      hostconfig or {})
         super().__init__(name=name, properties=properties, tags=tags, **kwargs)
 
     @classmethod
@@ -315,7 +318,6 @@ parquet_test_data_path = util.Interpolate(
     '%(prop:builddir)s/cpp/submodules/parquet-testing/data'
 )
 
-
 cpp_mkdir = Mkdir(dir='cpp/build', name='Create C++ build directory')
 cpp_cmake = CMake(
     path='..',
@@ -324,13 +326,7 @@ cpp_cmake = CMake(
     definitions=definitions
 )
 cpp_compile = Ninja(name='Compile C++', workdir='cpp/build')
-cpp_test = CTest(
-    args=['--output-on-failure'],
-    workdir='cpp/build',
-    env={
-        'ARROW_TEST_DATA': arrow_test_data_path
-    }
-)
+cpp_test = CTest(args=['--output-on-failure'], workdir='cpp/build')
 cpp_install = Ninja(args=['install'], name='Install C++', workdir='cpp/build')
 
 python_install = SetupPy(
@@ -464,6 +460,9 @@ class ArrowCppTest(DockerBuilder):
 
 class ArrowCppCudaTest(ArrowCppTest):
     tags = ['arrow', 'cpp', 'cuda']
+    hostconfig = {
+        'runtime': 'nvidia'
+    }
     properties = {
         'ARROW_CUDA': 'ON',
         'ARROW_PLASMA': 'ON',
@@ -511,9 +510,12 @@ class ArrowCppBenchmark(DockerBuilder):
 
 class ArrowPythonTest(DockerBuilder):
     tags = ['arrow', 'python']
+    hostconfig = {
+        'shm_size': '2G',  # required for plasma
+    }
     properties = {
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'OFF',  # also sets PYARROW_WITH_PLASMA
+        'ARROW_PLASMA': 'ON',  # also sets PYARROW_WITH_PLASMA
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
@@ -546,10 +548,14 @@ class ArrowPythonTest(DockerBuilder):
 
 class ArrowPythonCudaTest(ArrowPythonTest):
     tags = ['arrow', 'python', 'cuda']
+    hostconfig = {
+        'shm_size': '2G',  # required for plasma
+        'runtime': 'nvidia',  # required for cuda
+    }
     properties = {
         'ARROW_PYTHON': 'ON',
         'ARROW_CUDA': 'ON',  # also sets PYARROW_WITH_CUDA
-        'ARROW_PLASMA': 'OFF',  # also sets PYARROW_WITH_PLASMA
+        'ARROW_PLASMA': 'ON',  # also sets PYARROW_WITH_PLASMA
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
@@ -570,7 +576,8 @@ class ArrowCppCondaTest(DockerBuilder):
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     env = {
-        'PARQUET_TEST_DATA': parquet_test_data_path
+        'ARROW_TEST_DATA': arrow_test_data_path,  # for flight
+        'PARQUET_TEST_DATA': parquet_test_data_path  # for parquet
     }
     steps = [
         SetPropertiesFromEnv({
@@ -594,15 +601,19 @@ class ArrowCppCondaTest(DockerBuilder):
 
 class ArrowPythonCondaTest(DockerBuilder):
     tags = ['arrow', 'python']
+    hostconfig = {
+        'shm_size': '2G',  # required for plasma
+    }
     properties = {
         'ARROW_FLIGHT': 'ON',
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'OFF',
+        'ARROW_PLASMA': 'ON',
         'ARROW_PARQUET': 'ON',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     env = {
-        'PARQUET_TEST_DATA': parquet_test_data_path
+        'ARROW_TEST_DATA': arrow_test_data_path,  # for flight
+        'PARQUET_TEST_DATA': parquet_test_data_path  # for parquet
     }
     steps = [
         SetPropertiesFromEnv({

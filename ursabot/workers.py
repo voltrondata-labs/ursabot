@@ -43,17 +43,9 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
     #    copied from the original implementation with minor modification
     #    to pass runtime configuration to the containers
 
-    def checkConfig(self, *args, runtime=None, **kwargs):
-        super().checkConfig(*args, **kwargs)
-
-    @ensure_deferred
-    async def reconfigService(self, *args, runtime=None, **kwargs):
-        self.runtime = runtime
-        await super().reconfigService(*args, **kwargs)
-
     def renderWorkerProps(self, build):
         return build.render(
-            (self.image, self.dockerfile, self.runtime, self.volumes)
+            (self.image, self.dockerfile, self.hostconfig, self.volumes)
         )
 
     @ensure_deferred
@@ -63,7 +55,7 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         args = await self.renderWorkerPropsOnStart(build)
         return await threads.deferToThread(self._thd_start_instance, *args)
 
-    def _thd_start_instance(self, image, dockerfile, runtime, volumes):
+    def _thd_start_instance(self, image, dockerfile, hostconfig, volumes):
         docker_client = self._getDockerClient()
         container_name = self.getContainerName()
         # cleanup the old instances
@@ -109,23 +101,20 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             )
 
         volumes, binds = self._thd_parse_volumes(volumes)
-        host_conf = self.hostconfig.copy()
-        host_conf['binds'] = binds
-        if docker_py_version >= 2.2:
-            host_conf['init'] = True
 
-        host_conf = docker_client.create_host_config(
-            runtime=runtime,
-            **host_conf
-        )
+        hostconfig['binds'] = binds
+        if docker_py_version >= 2.2:
+            hostconfig['init'] = True
+
         instance = docker_client.create_container(
             image,
             self.command,
             name=self.getContainerName(),
-            runtime=runtime,
             volumes=volumes,
             environment=self.createEnvironment(),
-            host_config=host_conf
+            host_config=docker_client.create_host_config(
+                **hostconfig
+            )
         )
 
         if instance.get('Id') is None:
