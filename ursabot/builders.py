@@ -323,7 +323,7 @@ cpp_cmake = CMake(
     definitions=definitions
 )
 cpp_compile = Ninja(name='Compile C++', workdir='cpp/build')
-cpp_test = CTest(workdir='cpp/build')
+cpp_test = CTest(args=['--output-on-failure'], workdir='cpp/build')
 cpp_install = Ninja(args=['install'], name='Install C++', workdir='cpp/build')
 
 python_install = SetupPy(
