@@ -180,12 +180,9 @@ definitions = {
     'CMAKE_RANLIB': None,
     'PYTHON_EXECUTABLE': None,
     # Build Arrow with Altivec
-    # 'ARROW_ALTIVEC': 'ON',
+    'ARROW_ALTIVEC': 'ON',
     # Rely on boost shared libraries where relevant
-    # 'ARROW_BOOST_USE_SHARED': 'ON',
-    # Use vendored Boost instead of existing Boost.
-    # Note that this requires linking Boost statically.
-    # 'ARROW_BOOST_VENDORED': 'OFF',
+    'ARROW_BOOST_USE_SHARED': 'ON',
     # Build the Arrow micro benchmarks
     'ARROW_BUILD_BENCHMARKS': 'OFF',
     # Build the Arrow examples
@@ -197,23 +194,23 @@ definitions = {
     # Build the Arrow googletest unit tests
     'ARROW_BUILD_TESTS': 'ON',
     # Build Arrow commandline utilities
-    # 'ARROW_BUILD_UTILITIES': 'ON',
+    'ARROW_BUILD_UTILITIES': 'ON',
     # Build the Arrow Compute Modules
     'ARROW_COMPUTE': 'ON',
     # Build the Arrow CUDA extensions (requires CUDA toolkit)
     'ARROW_CUDA': 'OFF',
     # Compiler flags to append when compiling Arrow
-    # 'ARROW_CXXFLAGS': '',
+    'ARROW_CXXFLAGS': '',
     # Compile with extra error context (line numbers, code)
     'ARROW_EXTRA_ERROR_CONTEXT': 'ON',
     # Build the Arrow Flight RPC System (requires GRPC, Protocol Buffers)
-    # 'ARROW_FLIGHT': 'OFF',
+    'ARROW_FLIGHT': 'OFF',
     # Build Arrow Fuzzing executables
     # 'ARROW_FUZZING': 'OFF',
     # Build the Gandiva libraries
     'ARROW_GANDIVA': 'OFF',
     # Build the Gandiva JNI wrappers
-    # 'ARROW_GANDIVA_JAVA': 'OFF',
+    'ARROW_GANDIVA_JAVA': 'OFF',
     # Compiler flags to append when pre-compiling Gandiva operations
     # 'ARROW_GANDIVA_PC_CXX_FLAGS': '',
     # Include -static-libstdc++ -static-libgcc when linking with Gandiva
@@ -232,9 +229,9 @@ definitions = {
     # Build Arrow libraries with install_name set to @rpath
     # 'ARROW_INSTALL_NAME_RPATH': 'ON',
     # Build the Arrow IPC extensions
-    # 'ARROW_IPC': 'ON',
+    'ARROW_IPC': 'ON',
     # Build the Arrow jemalloc-based allocator
-    # 'ARROW_JEMALLOC': 'ON',
+    'ARROW_JEMALLOC': 'ON',
     # Exclude deprecated APIs from build
     # 'ARROW_NO_DEPRECATED_API': 'OFF',
     # Only define the lint and check-format targets
@@ -250,9 +247,9 @@ definitions = {
     # Build the plasma object store along with Arrow
     'ARROW_PLASMA': 'OFF',
     # Build the plasma object store java client
-    # 'ARROW_PLASMA_JAVA_CLIENT': 'OFF',
+    'ARROW_PLASMA_JAVA_CLIENT': 'OFF',
     # Rely on Protocol Buffers shared libraries where relevant
-    # 'ARROW_PROTOBUF_USE_SHARED': 'OFF',
+    'ARROW_PROTOBUF_USE_SHARED': 'ON',
     # Build the Arrow CPython extensions
     'ARROW_PYTHON': 'OFF',
     # How to link the re2 library. static|shared
@@ -260,9 +257,9 @@ definitions = {
     # Build Arrow libraries with RATH set to $ORIGIN
     # 'ARROW_RPATH_ORIGIN': 'OFF',
     # Build Arrow with TensorFlow support enabled
-    # 'ARROW_TENSORFLOW': 'OFF',
+    'ARROW_TENSORFLOW': 'OFF',
     # Linkage of Arrow libraries with unit tests executables. static|shared
-    # 'ARROW_TEST_LINKAGE': 'shared',
+    'ARROW_TEST_LINKAGE': 'shared',
     # Run the test suite using valgrind --tool=memcheck
     # 'ARROW_TEST_MEMCHECK': 'OFF',
     # Enable Address Sanitizer checks
@@ -298,13 +295,13 @@ definitions = {
     # https://issues.apache.org/jira/browse/ARROW-4831 is resolved
     'ARROW_WITH_ZSTD': 'ON',
     # Build the Parquet examples. Requires static libraries to be built.
-    # 'PARQUET_BUILD_EXAMPLES': 'OFF',
+    'PARQUET_BUILD_EXAMPLES': 'OFF',
     # Build the Parquet executable CLI tools.
     # Requires static libraries to be built.
-    # 'PARQUET_BUILD_EXECUTABLES': 'OFF',
+    'PARQUET_BUILD_EXECUTABLES': 'OFF',
     # Depend only on Thirdparty headers to build libparquet.
     # Always OFF if building binaries
-    # 'PARQUET_MINIMAL_DEPENDENCY': 'OFF'
+    'PARQUET_MINIMAL_DEPENDENCY': 'OFF'
 }
 definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
 
