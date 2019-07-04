@@ -379,7 +379,7 @@ class UrsabotTest(DockerBuilder):
     )
 
 
-class CrossbowTrigger(DockerBuilder):
+class CrossbowBuilder(DockerBuilder):
     tags = ['crossbow']
     steps = [
         GitHub(
@@ -398,7 +398,16 @@ class CrossbowTrigger(DockerBuilder):
             # quite misleasing option, but it prevents checking out the branch
             # set in the sourcestamp by the pull request, which refers to arrow
             alwaysUseLatest=True
-        ),
+        )
+    ]
+    images = images.filter(
+        name='crossbow',
+        tag='worker'
+    )
+
+
+class CrossbowTrigger(CrossbowBuilder):
+    steps = CrossbowBuilder.steps + [
         Crossbow(
             args=util.FlattenList([
                 '--github-token', util.Secret('ursabot/github_token'),
@@ -412,10 +421,21 @@ class CrossbowTrigger(DockerBuilder):
             result_file='job.yml'
         )
     ]
-    images = images.filter(
-        name='crossbow',
-        tag='worker'
-    )
+
+
+class CrossbowStatus(CrossbowBuilder):
+    steps = CrossbowBuilder.steps + [
+        Crossbow(
+            args=[
+                '--github-token', util.Secret('ursabot/github_token'),
+                'status',
+                '--output', 'status.txt',
+                '--job-prefix', 'nightly',
+            ],
+            workdir='arrow/dev/tasks',
+            result_file='status.txt'
+        )
+    ]
 
 
 # TODO(kszucs): properly implement it
@@ -605,7 +625,7 @@ class ArrowPythonCondaTest(DockerBuilder):
         'shm_size': '2G',  # required for plasma
     }
     properties = {
-        'ARROW_FLIGHT': 'ON',
+        'ARROW_FLIGHT': 'OFF',
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',
         'ARROW_PARQUET': 'ON',
