@@ -568,6 +568,29 @@ for arch in ['amd64']:
         )
         images.append(java)
 
+
+# Go
+for arch in ['amd64']:
+    ubuntu_version = 3
+
+    for go_version in ['1.12.6', '1.11.11']:
+        go = DockerImage(
+            name=f'golang-{go_version}',
+            base=f'{arch}/ubuntu:{ubuntu_version}',
+            arch=arch,
+            os=f'ubuntu-{ubuntu_version}',
+            org='ursalab',
+            title=f'{arch.upper()} Go {go_version}',
+            steps=[
+                RUN(apt("wget", "git", "gcc")),
+                ENV(GOPATH='/go'),
+                ENV(PATH='$GOPATH/bin:/usr/local/go/bin:$PATH'),
+                ADD(docker_assets / 'install_go.sh'),
+                RUN('/install_go.sh', go_version)
+            ]
+        )
+        images.append(go)
+
 # URSABOT
 ursabot = DockerImage(
     name='ursabot',
