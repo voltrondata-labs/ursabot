@@ -625,7 +625,7 @@ class ArrowPythonCondaTest(DockerBuilder):
         'shm_size': '2G',  # required for plasma
     }
     properties = {
-        'ARROW_FLIGHT': 'OFF',
+        'ARROW_FLIGHT': 'ON',
         'ARROW_PYTHON': 'ON',
         'ARROW_PLASMA': 'ON',
         'ARROW_PARQUET': 'ON',
