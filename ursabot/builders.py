@@ -18,7 +18,7 @@ from .docker import DockerImage, images
 from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery, Crossbow)
+                    Archery, Crossbow, Maven)
 from .utils import Collection, startswith, slugify
 
 
@@ -633,5 +633,22 @@ class ArrowPythonCondaTest(DockerBuilder):
     images = images.filter(
         name=startswith('python'),
         variant='conda',
+        tag='worker'
+    )
+
+
+class ArrowJavaTest(DockerBuilder):
+    tags = ['arrow', 'java']
+    steps = [
+        checkout_arrow,
+        Maven(
+            args=['-B', 'test'],
+            workdir='java',
+            name='Maven Test',
+        )
+    ]
+    images = images.filter(
+        name=startswith('java'),
+        arch='amd64',
         tag='worker'
     )

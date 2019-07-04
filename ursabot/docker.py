@@ -549,12 +549,31 @@ for arch in ['amd64']:
         )
         images.extend([cpp, python])
 
+# JAVA
+for arch in ['amd64']:
+    maven_version = 3
+
+    for java_version in ['8', '11']:
+        java = DockerImage(
+            name=f'java-{java_version}',
+            base=f'{arch}/maven:{maven_version}-jdk-{java_version}',
+            arch=arch,
+            os=f'debian-9',
+            org='ursalab',
+            title=f'{arch.upper()} Java OpenJDK {java_version}',
+            steps=[
+                RUN(apt('python3', 'python3-pip')),
+                RUN(symlink(python_symlinks))
+            ]
+        )
+        images.append(java)
+
 # URSABOT
 ursabot = DockerImage(
     name='ursabot',
     base='python:3.7',
     arch='amd64',
-    os='debian',
+    os='debian-9',
     org='ursalab',
     title='Ursabot Python 3.7',
     steps=[
