@@ -18,8 +18,7 @@ from .docker import DockerImage, images
 from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery, Crossbow, Maven,
-                    Go)
+                    Archery, Crossbow, Maven, Go)
 from .utils import Collection, startswith, slugify
 
 
@@ -674,7 +673,7 @@ class ArrowGoTest(DockerBuilder):
         )
     ]
     images = images.filter(
-        name=startswith('golang'),
+        name=startswith('go'),
         arch='amd64',
         tag='worker'
     )
