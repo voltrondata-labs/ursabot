@@ -16,7 +16,7 @@ from buildbot.process.results import SUCCESS, FAILURE
 from buildbot.steps.worker import CompositeStepMixin
 from buildbot.interfaces import IRenderable
 
-from .utils import ensure_deferred, infer_number_cpus
+from .utils import ensure_deferred
 
 
 class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
@@ -233,12 +233,9 @@ class Env(ShellCommand):
 class Ninja(ShellCommand):
     # TODO(kszucs): add proper descriptions
     name = 'Ninja'
-    command = ['ninja']
-
-    def __init__(self, parallel_jobs=None, **kwargs):
-        self.parallel_jobs = parallel_jobs or infer_number_cpus()
-        self.command.append(f'-j{self.parallel_jobs}')
-        super().__init__(**kwargs)
+    # TODO(fsaintjacques) infer the number of cpus from the environment, either
+    # the worker or before executing the command.
+    command = ['ninja', '-j6']
 
 
 class CTest(ShellCommand):

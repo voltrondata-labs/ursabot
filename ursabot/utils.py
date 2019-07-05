@@ -47,11 +47,6 @@ def slugify(s):
     return s
 
 
-def infer_number_cpus():
-    result = subprocess.run(["nproc"], capture_output=True, check=True)
-    return int(result.stdout)
-
-
 class Filter:
 
     __slot__ = ('fn',)
