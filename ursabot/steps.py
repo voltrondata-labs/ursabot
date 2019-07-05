@@ -280,3 +280,8 @@ class Maven(ShellCommand):
 class Go(ShellCommand):
     name = 'Go'
     command = ['go']
+
+
+class Cargo(ShellCommand):
+    name = 'Cargo'
+    command = ['cargo']

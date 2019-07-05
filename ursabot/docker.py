@@ -573,7 +573,7 @@ for arch in ['amd64']:
     for go_version in ['1.12.6', '1.11.11']:
         go = DockerImage(
             name=f'go-{go_version}',
-            base=f'{arch}/golang:{go_version}',
+            base=f'{arch}/golang:{go_version}-stretch',
             arch=arch,
             os=f'debian-9',
             org='ursalab',
@@ -584,6 +584,23 @@ for arch in ['amd64']:
             ]
         )
         images.append(go)
+
+# RUST
+for arch in ['amd64']:
+    for rust_version in ['1.35']:
+        rust = DockerImage(
+            name=f'rust-{rust_version}',
+            base=f'{arch}/rust:{rust_version}-stretch',
+            arch=arch,
+            os=f'debian-9',
+            org='ursalab',
+            title=f'{arch.upper()} Debian 9 Rust {rust_version}',
+            steps=[
+                RUN(apt('python3', 'python3-pip')),
+                RUN(symlink(python_symlinks))
+            ]
+        )
+        images.append(rust)
 
 # URSABOT
 ursabot = DockerImage(

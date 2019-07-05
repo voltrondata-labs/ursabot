@@ -18,7 +18,7 @@ from .docker import DockerImage, images
 from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery, Crossbow, Maven, Go)
+                    Archery, Crossbow, Maven, Go, Cargo)
 from .utils import Collection, startswith, slugify
 
 
@@ -674,6 +674,27 @@ class ArrowGoTest(DockerBuilder):
     ]
     images = images.filter(
         name=startswith('go'),
+        arch='amd64',
+        tag='worker'
+    )
+
+
+class ArrowRustTest(DockerBuilder):
+    tags = ['arrow', 'rust']
+    env = {
+        'ARROW_TEST_DATA': arrow_test_data_path,
+        'PARQUET_TEST_DATA': parquet_test_data_path
+    }
+    steps = [
+        checkout_arrow,
+        Cargo(
+            args=['test'],
+            workdir='rust',
+            name='Rust Test'
+        )
+    ]
+    images = images.filter(
+        name=startswith('rust'),
         arch='amd64',
         tag='worker'
     )
