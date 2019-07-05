@@ -11,6 +11,7 @@ import pathlib
 import itertools
 import functools
 import operator
+import subprocess
 
 import toolz
 from ruamel.yaml import YAML
@@ -44,6 +45,11 @@ def slugify(s):
     s = re.sub(r'([A-Z])', lambda m: '-' + m.group(1).lower(), s)
     s = s.strip('-')
     return s
+
+
+def infer_number_cpus():
+    result = subprocess.run(["nproc"], capture_output=True, check=True)
+    return int(result.stdout)
 
 
 class Filter:
