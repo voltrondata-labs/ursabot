@@ -11,7 +11,6 @@ import pathlib
 import itertools
 import functools
 import operator
-import subprocess
 
 import toolz
 from ruamel.yaml import YAML
