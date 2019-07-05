@@ -8,6 +8,7 @@ import copy
 import toolz
 import itertools
 import warnings
+import os
 from collections import defaultdict
 
 from buildbot import interfaces
@@ -325,7 +326,19 @@ cpp_cmake = CMake(
     generator='Ninja',
     definitions=definitions
 )
-cpp_compile = Ninja(name='Compile C++', workdir='cpp/build')
+
+
+@util.renderer
+def ninja_concurrency(props):
+    n_cpus = len(os.sched_getaffinitiy(0))
+    max_concurrency = props.getProperties('max_concurrency', default=n_cpus)
+    return [f'-j{max_concurrency}']
+
+
+cpp_compile = Ninja(
+    name='Compile C++',
+    workdir='cpp/build',
+    args=ninja_concurrency)
 cpp_test = CTest(args=['--output-on-failure'], workdir='cpp/build')
 cpp_install = Ninja(args=['install'], name='Install C++', workdir='cpp/build')
 

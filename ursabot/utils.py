@@ -47,6 +47,23 @@ def slugify(s):
     return s
 
 
+def count_cpuspec(cpuspec):
+    '''Count the number of cpus in a cpuspec, see cpuset(7) section Formats'''
+
+    cpus = set()
+    for cpuset in cpuspec.split(','):
+        a_range = cpuset.split('-')
+        if len(a_range) == 1:
+            cpus.add(int(a_range[0]))
+        if len(a_range) == 2:
+            start = int(a_range[0])
+            end = int(a_range[1])
+            if start <= end:
+                cpus.update(range(start, end + 1))
+
+    return len(cpus)
+
+
 class Filter:
 
     __slot__ = ('fn',)

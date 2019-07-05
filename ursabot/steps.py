@@ -233,9 +233,7 @@ class Env(ShellCommand):
 class Ninja(ShellCommand):
     # TODO(kszucs): add proper descriptions
     name = 'Ninja'
-    # TODO(fsaintjacques) infer the number of cpus from the environment, either
-    # the worker or before executing the command.
-    command = ['ninja', '-j6']
+    command = ['ninja']
 
 
 class CTest(ShellCommand):
