@@ -275,3 +275,8 @@ class Crossbow(ResultLogMixin, ShellCommand):
 class Maven(ShellCommand):
     name = 'Maven'
     command = ['mvn']
+
+
+class Go(ShellCommand):
+    name = 'Go'
+    command = ['go']

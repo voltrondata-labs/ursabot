@@ -568,6 +568,23 @@ for arch in ['amd64']:
         )
         images.append(java)
 
+# GO
+for arch in ['amd64']:
+    for go_version in ['1.12.6', '1.11.11']:
+        go = DockerImage(
+            name=f'go-{go_version}',
+            base=f'{arch}/golang:{go_version}',
+            arch=arch,
+            os=f'debian-9',
+            org='ursalab',
+            title=f'{arch.upper()} Debian 9 Go {go_version}',
+            steps=[
+                RUN(apt('python3', 'python3-pip')),
+                RUN(symlink(python_symlinks))
+            ]
+        )
+        images.append(go)
+
 # URSABOT
 ursabot = DockerImage(
     name='ursabot',
