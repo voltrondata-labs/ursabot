@@ -688,6 +688,11 @@ class ArrowRustTest(DockerBuilder):
     steps = [
         checkout_arrow,
         Cargo(
+            args=['build'],
+            workdir='rust',
+            name='Rust Build'
+        ),
+        Cargo(
             args=['test'],
             workdir='rust',
             name='Rust Test'
