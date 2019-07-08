@@ -318,17 +318,30 @@ parquet_test_data_path = util.Interpolate(
     '%(prop:builddir)s/cpp/submodules/parquet-testing/data'
 )
 
-cpp_mkdir = Mkdir(dir='cpp/build', name='Create C++ build directory')
+cpp_mkdir = Mkdir(
+    dir='cpp/build',
+    name='Create C++ build directory'
+)
 cpp_cmake = CMake(
     path='..',
     workdir='cpp/build',
     generator='Ninja',
     definitions=definitions
 )
-cpp_compile = Ninja(name='Compile C++', workdir='cpp/build')
-cpp_test = CTest(args=['--output-on-failure'], workdir='cpp/build')
-cpp_install = Ninja(args=['install'], name='Install C++', workdir='cpp/build')
-
+cpp_compile = Ninja(
+    j=util.Property('ncpus', 4),
+    name='Compile C++',
+    workdir='cpp/build'
+)
+cpp_test = CTest(
+    args=['--output-on-failure'],
+    workdir='cpp/build'
+)
+cpp_install = Ninja(
+    'install',
+    name='Install C++',
+    workdir='cpp/build'
+)
 python_install = SetupPy(
     args=['develop'],
     name='Build PyArrow',

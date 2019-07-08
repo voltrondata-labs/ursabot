@@ -235,6 +235,15 @@ class Ninja(ShellCommand):
     name = 'Ninja'
     command = ['ninja']
 
+    def __init__(self, *targets, **kwargs):
+        args = []
+        for ninja_option in {'j', 'k', 'l', 'n'}:
+            value = kwargs.pop(ninja_option, None)
+            if value is not None:
+                args.extend([f'-{ninja_option}', value])
+        args.extend(targets)
+        super().__init__(args=args, **kwargs)
+
 
 class CTest(ShellCommand):
     name = 'CTest'
