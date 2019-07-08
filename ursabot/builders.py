@@ -8,7 +8,6 @@ import copy
 import toolz
 import itertools
 import warnings
-import os
 from collections import defaultdict
 
 from buildbot import interfaces
@@ -330,9 +329,8 @@ cpp_cmake = CMake(
 
 @util.renderer
 def ninja_concurrency(props):
-    n_cpus = len(os.sched_getaffinitiy(0))
-    max_concurrency = props.getProperties('max_concurrency', default=n_cpus)
-    return [f'-j{max_concurrency}']
+    max_concurrency = props.getProperty('max_concurrency')
+    return [f'-j{max_concurrency}'] if max_concurrency else []
 
 
 cpp_compile = Ninja(
