@@ -329,7 +329,7 @@ cpp_cmake = CMake(
     definitions=definitions
 )
 cpp_compile = Ninja(
-    j=util.Property('ncpus', 4),
+    j=util.Property('ncpus', 6),
     name='Compile C++',
     workdir='cpp/build'
 )
