@@ -37,7 +37,7 @@ class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
     """
 
     def __init__(self, result_file=None, **kwargs):
-        self.result_file = result_file
+        self.result_file = result_file  # TODO(kszucs): else collectSTDOUT
         super().__init__(**kwargs)
 
     @ensure_deferred
@@ -275,6 +275,11 @@ class Crossbow(ResultLogMixin, ShellCommand):
 class Maven(ShellCommand):
     name = 'Maven'
     command = ['mvn']
+
+
+class Npm(ShellCommand):
+    name = 'NPM'
+    command = ['npm']
 
 
 class Go(ShellCommand):

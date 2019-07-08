@@ -568,6 +568,23 @@ for arch in ['amd64']:
         )
         images.append(java)
 
+# JAVASCRIPT
+for arch in ['amd64']:
+    for nodejs_version in ['11']:
+        js = DockerImage(
+            name=f'js-{nodejs_version}',
+            base=f'{arch}/node:{nodejs_version}-stretch',
+            arch=arch,
+            os=f'debian-9',
+            org='ursalab',
+            title=f'{arch.upper()} Debian 9 NodeJS {nodejs_version}',
+            steps=[
+                RUN(apt('python3', 'python3-pip')),
+                RUN(symlink(python_symlinks))
+            ]
+        )
+        images.append(js)
+
 # GO
 for arch in ['amd64']:
     for go_version in ['1.12.6', '1.11.11']:

@@ -18,7 +18,7 @@ from .docker import DockerImage, images
 from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery, Crossbow, Maven, Go, Cargo)
+                    Archery, Crossbow, Maven, Go, Cargo, Npm)
 from .utils import Collection, startswith, slugify
 
 
@@ -106,21 +106,24 @@ class Builder(util.BuilderConfig):
 class DockerBuilder(Builder):
 
     images = tuple()
+    volumes = tuple()
     hostconfig = None
 
     def __init__(self, name=None, image=None, properties=None, tags=None,
-                 hostconfig=None, **kwargs):
+                 hostconfig=None, volumes=tuple(), **kwargs):
         if not isinstance(image, DockerImage):
             raise ValueError('Image must be an instance of DockerImage')
 
         name = image.title
         tags = tags or [image.name]
         tags += list(image.platform)
-        properties = properties or {}
-        properties['docker_image'] = str(image)
-        properties['docker_hostconfig'] = toolz.merge(self.hostconfig or {},
-                                                      hostconfig or {})
-        super().__init__(name=name, properties=properties, tags=tags, **kwargs)
+        props = properties or {}
+        props['docker_image'] = str(image)
+        props['docker_volumes'] = list(toolz.concat([self.volumes, volumes]))
+        props['docker_hostconfig'] = toolz.merge(
+            self.hostconfig or {}, hostconfig or {}
+        )
+        super().__init__(name=name, properties=props, tags=tags, **kwargs)
 
     @classmethod
     def builders_for(cls, workers, images=tuple(), **kwargs):
@@ -649,6 +652,26 @@ class ArrowJavaTest(DockerBuilder):
     ]
     images = images.filter(
         name=startswith('java'),
+        arch='amd64',
+        tag='worker'
+    )
+
+
+class ArrowJSTest(DockerBuilder):
+    tags = ['arrow', 'js']
+    volumes = [
+        # util.Interpolate('%prop(buildername)s:~/.npm:rw')
+    ]
+    steps = [
+        checkout_arrow,
+        Npm(['install', '-g', 'npm@latest'], workdir='js', name='Update NPM'),
+        Npm(['install'], workdir='js', name='Install Dependencies'),
+        Npm(['run', 'lint'], workdir='js', name='Lint'),
+        Npm(['run', 'build'], workdir='js', name='Build'),
+        Npm(['run', 'test'], workdir='js', name='Test')
+    ]
+    images = images.filter(
+        name=startswith('js'),
         arch='amd64',
         tag='worker'
     )
