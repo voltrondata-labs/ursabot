@@ -16,7 +16,7 @@ from codenamize import codenamize
 
 from .docker import DockerImage, images
 from .workers import DockerLatentWorker
-from .steps import (ShellCommand, SetPropertiesFromEnv,
+from .steps import (ShellCommand, SetPropertiesFromEnv, SetPropertyFromCommand,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
                     Archery, Crossbow, Maven, Go, Cargo)
 from .utils import Collection, startswith, slugify
@@ -215,7 +215,7 @@ definitions = {
     # Build the Gandiva JNI wrappers
     'ARROW_GANDIVA_JAVA': 'OFF',
     # Compiler flags to append when pre-compiling Gandiva operations
-    # 'ARROW_GANDIVA_PC_CXX_FLAGS': '',
+    'ARROW_GANDIVA_PC_CXX_FLAGS': None,
     # Include -static-libstdc++ -static-libgcc when linking with Gandiva
     # static libraries
     # 'ARROW_GANDIVA_STATIC_LIBSTDCPP': 'OFF',
@@ -580,12 +580,22 @@ class ArrowPythonCudaTest(ArrowPythonTest):
     )
 
 
+def as_system_includes(stdout, stderr):
+    """Parse the output of `c++ -E -Wp,-v -xc++ -`"""
+    args = []
+    for line in stderr.splitlines():
+        if line.startswith(' '):
+            args.extend(('-isystem', line.strip()))
+    return ';'.join(args)
+
+
 class ArrowCppCondaTest(DockerBuilder):
     tags = ['arrow', 'cpp']
     properties = {
         'ARROW_FLIGHT': 'ON',
         'ARROW_PLASMA': 'ON',
         'ARROW_PARQUET': 'ON',
+        'ARROW_GANDIVA': 'ON',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     env = {
@@ -594,11 +604,21 @@ class ArrowCppCondaTest(DockerBuilder):
     }
     steps = [
         SetPropertiesFromEnv({
+            'CXX': 'CXX',
             'CMAKE_AR': 'AR',
             'CMAKE_RANLIB': 'RANLIB',
             'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
             'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
         }),
+        # pass system includes paths to clang
+        SetPropertyFromCommand(
+            'ARROW_GANDIVA_PC_CXX_FLAGS',
+            extract_fn=as_system_includes,
+            command=[util.Property('CXX')],
+            args=['-E', '-Wp,-v', '-xc++', '-'],
+            collect_stdout=False,
+            collect_stderr=True,
+        ),
         checkout_arrow,
         cpp_mkdir,
         cpp_cmake,

@@ -3,6 +3,10 @@
 #
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
+#
+# This file contains function or sections of code that are marked as being
+# derivative works of Buildbot. The above license only applies to code that
+# is not marked as such.
 
 import pytest
 from pathlib import Path
@@ -17,8 +21,12 @@ from buildbot.test.util.misc import TestReactorMixin
 from buildbot.test.fake.remotecommand import (ExpectShell, Expect,
                                               ExpectRemoteRef)
 
-from ursabot.steps import ShellCommand, ResultLogMixin
+from ursabot.steps import (ShellCommand, ResultLogMixin, SetPropertiesFromEnv,
+                           SetPropertyFromCommand)
 from ursabot.utils import ensure_deferred
+
+
+fixtures = Path(__file__).parent / 'fixtures'
 
 
 # the original FakeLogFile doesn't have an addContent which is used by the
@@ -32,6 +40,13 @@ class FakeLogFile(logfile.FakeLogFile):
 
 class BuildStepTestCase(unittest.TestCase, TestReactorMixin,
                         steps.BuildStepMixin, config.ConfigErrorsMixin):
+
+    def setUp(self):
+        self.setUpTestReactor()
+        return self.setUpBuildStep()
+
+    def tearDown(self):
+        return self.tearDownBuildStep()
 
     def setupStep(self, *args, **kwargs):
         super().setupStep(*args, **kwargs)
@@ -50,13 +65,6 @@ class MyDockerCommand(ShellCommand):
 
 
 class TestShellCommand(BuildStepTestCase):
-
-    def setUp(self):
-        self.setUpTestReactor()
-        return self.setUpBuildStep()
-
-    def tearDown(self):
-        return self.tearDownBuildStep()
 
     def test_constructor(self):
         # this checks that an exception is raised for invalid arguments
@@ -104,7 +112,64 @@ class TestShellCommand(BuildStepTestCase):
         return await self.runStep()
 
 
-fixture = Path(__file__).parent / 'fixtures' / f'archery-benchmark-diff.jsonl'
+class TestSetPropertiesFromEnv(BuildStepTestCase):
+
+    def test_simple(self):
+        # License note:
+        #    Copied from the original buildbot implementation with
+        #    minor changes and additions.
+        self.setupStep(
+            SetPropertiesFromEnv({
+                'prefix_one': 'one',
+                'two': 'two',
+                'three': 'three',
+                'five': 'FIVE',
+                'six': 'six'
+            }, source='me')
+        )
+        self.worker.worker_environ = {
+            'one': '1',
+            'two': None,
+            'six': '6',
+            'FIVE': '555'
+        }
+        self.worker.worker_system = 'linux'
+        self.properties.setProperty('four', 4, 'them')
+        self.properties.setProperty('five', 5, 'them')
+        self.properties.setProperty('six', 99, 'them')
+        self.expectOutcome(result=SUCCESS,
+                           state_string='Set')
+        self.expectProperty('prefix_one', '1', source='me')
+        self.expectNoProperty('two')
+        self.expectNoProperty('three')
+        self.expectProperty('four', 4, source='them')
+        self.expectProperty('five', '555', source='me')
+        self.expectProperty('six', '6', source='me')
+        return self.runStep()
+
+
+class TestSetPropertyFromCommand(BuildStepTestCase):
+
+    @ensure_deferred
+    async def test_run_property(self):
+        self.setupStep(
+            SetPropertyFromCommand(
+                property='echoed',
+                command='echo',
+                args=['something'],
+                workdir='build',
+            )
+        )
+        self.expectCommands(
+            ExpectShell(workdir='build', command=['echo', 'something']) +
+            ExpectShell.log('stdio', stdout='something') +
+            0
+        )
+        self.expectLogfile('stdio', 'something')
+        self.expectOutcome(result=SUCCESS)
+        self.expectProperty('echoed', 'something')
+
+        return await self.runStep()
 
 
 def upload_string(string):
@@ -137,7 +202,7 @@ class TestResultLog(BuildStepTestCase):
 
     @ensure_deferred
     async def test_result_log_from_file(self):
-        content = fixture.read_text()
+        content = (fixtures / f'archery-benchmark-diff.jsonl').read_text()
         self.setupStep(
             MyStepWithResult(workdir='build', result_file='result.json')
         )

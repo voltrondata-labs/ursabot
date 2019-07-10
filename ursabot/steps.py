@@ -11,7 +11,7 @@
 from twisted.internet import threads
 
 from buildbot.plugins import steps, util
-from buildbot.process import buildstep
+from buildbot.process import buildstep, logobserver
 from buildbot.process.results import SUCCESS, FAILURE
 from buildbot.steps.worker import CompositeStepMixin
 from buildbot.interfaces import IRenderable
@@ -155,6 +155,43 @@ class CMake(ShellMixin, steps.CMake):
         return cmd.results()
 
 
+class SetPropertyFromCommand(ShellCommand):
+    name = 'SetPropertiesFromCommand'
+    description = ['Setting']
+    descriptionDone = ['Set']
+
+    def __init__(self, property, extract_fn=lambda stdout, stderr: stdout,
+                 collect_stdout=True, collect_stderr=False,
+                 source='SetPropertyFromCommand', **kwargs):
+        super().__init__(**kwargs)
+        assert callable(extract_fn)
+        self.extract_fn = extract_fn
+        self.source = source
+        self.property = property
+        self.collect_stdout = collect_stdout
+        self.collect_stderr = collect_stderr
+
+    @ensure_deferred
+    async def run(self):
+        # LogObservers cannot be used with new-style steps, because they are
+        # flushed asynchronously, so use the RemoteShellCommand's log
+        # collection feature
+        cmd = await self.makeRemoteShellCommand(
+            command=self.command,
+            collectStdout=self.collect_stdout,
+            collectStderr=self.collect_stderr
+        )
+        await self.runCommand(cmd)
+
+        value = self.extract_fn(
+            getattr(cmd, 'stdout', None),
+            getattr(cmd, 'stderr', None)
+        )
+        self.setProperty(self.property, value, self.source, runtime=True)
+
+        return cmd.results()
+
+
 class SetPropertiesFromEnv(buildstep.BuildStep):
     """Sets properties from environment variables on the worker."""
 
@@ -180,8 +217,6 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
         # dictionary is also folded to uppercase, so we can simply fold the
         # variable names to uppercase to duplicate the case-insensitivity.
         fold_to_uppercase = (self.worker.worker_system == 'win32')
-
-        properties = self.build.getProperties()
         environ = self.worker.worker_environ
 
         log = []
@@ -192,7 +227,7 @@ class SetPropertiesFromEnv(buildstep.BuildStep):
             value = environ.get(var, None)
             if value:
                 # note that the property is not uppercased
-                properties.setProperty(prop, value, self.source, runtime=True)
+                self.setProperty(prop, value, self.source, runtime=True)
                 log.append(f'{prop} = {value}')
 
         await self.addCompleteLog('properties', '\n'.join(log))
