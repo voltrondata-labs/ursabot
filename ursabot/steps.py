@@ -11,7 +11,7 @@
 from twisted.internet import threads
 
 from buildbot.plugins import steps, util
-from buildbot.process import buildstep, logobserver
+from buildbot.process import buildstep
 from buildbot.process.results import SUCCESS, FAILURE
 from buildbot.steps.worker import CompositeStepMixin
 from buildbot.interfaces import IRenderable
@@ -156,7 +156,7 @@ class CMake(ShellMixin, steps.CMake):
 
 
 class SetPropertyFromCommand(ShellCommand):
-    name = 'SetPropertiesFromCommand'
+    name = 'SetPropertyFromCommand'
     description = ['Setting']
     descriptionDone = ['Set']
 

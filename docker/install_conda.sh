@@ -17,19 +17,20 @@ archs=([amd64]=x86_64
        [i386]=x86)
 
 # Validate arguments
-if [ "$#" -ne 2 ]; then
-  echo "Usage: $0 <architecture> <installation-prefix>"
-  exit
-elif [[ -z ${archs[$1]} ]]; then
-  echo "Unexpected architecture argument: ${1}"
-  exit
+if [ "$#" -ne 3 ]; then
+  echo "Usage: $0 <miniconda-version> <architecture> <installation-prefix>"
+  exit 1
+elif [[ -z ${archs[$2]} ]]; then
+  echo "Unexpected architecture argument: ${2}"
+  exit 1
 fi
 
-ARCH=${archs[$1]}
-CONDA_PREFIX=$2
+VERSION=$1
+ARCH=${archs[$2]}
+CONDA_PREFIX=$3
 
 echo "Downloading Miniconda installer..."
-wget -nv https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-${ARCH}.sh -O /tmp/miniconda.sh
+wget -nv https://repo.continuum.io/miniconda/Miniconda3-${VERSION}-Linux-${ARCH}.sh -O /tmp/miniconda.sh
 bash /tmp/miniconda.sh -b -p ${CONDA_PREFIX}
 rm /tmp/miniconda.sh
 
@@ -45,6 +46,7 @@ conda config --set remote_connect_timeout_secs 12
 
 # Setup conda-forge
 conda config --add channels conda-forge
+conda config --set channel_priority strict
 
 # Update packages
 conda update --all -y

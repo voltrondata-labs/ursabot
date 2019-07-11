@@ -74,13 +74,15 @@ def list_images(ctx):
 @docker.command()
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
+@click.option('--nocache/--cache', default=False,
+              help='Do not use cache when building the images')
 @click.pass_context
-def build(ctx, push):
+def build(ctx, push, nocache):
     """Build docker images"""
     client = ctx.obj['client']
     images = ctx.obj['images']
 
-    images.build(client=client)
+    images.build(client=client, nocache=nocache)
     if push:
         images.push(client=client)
 

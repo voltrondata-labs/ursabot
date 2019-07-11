@@ -431,14 +431,6 @@ class CrossbowTrigger(DockerBuilder):
     )
 
 
-# TODO(kszucs): properly implement it
-# class UrsabotDockerBuild(Builder):
-#     name = 'ursabot-docker-build'
-#     steps = [
-#         PythonFunction(lambda: 'trying to run this function')
-#     ]
-
-
 class ArrowCppTest(DockerBuilder):
     tags = ['arrow', 'cpp']
     properties = {
@@ -451,6 +443,7 @@ class ArrowCppTest(DockerBuilder):
         cpp_mkdir,
         cpp_cmake,
         cpp_compile,
+        cpp_install,
         cpp_test
     ]
     images = (
@@ -521,23 +514,17 @@ class ArrowCppBenchmark(DockerBuilder):
     )
 
 
-class ArrowPythonTest(DockerBuilder):
+class ArrowPythonTest(ArrowCppTest):
     tags = ['arrow', 'python']
     hostconfig = {
         'shm_size': '2G',  # required for plasma
     }
     properties = {
+        **ArrowCppTest.properties,
         'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON',  # also sets PYARROW_WITH_PLASMA
-        'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     steps = [
-        checkout_arrow,
-        cpp_mkdir,
-        cpp_cmake,
-        cpp_compile,
-        cpp_install,
+        *ArrowCppTest.steps[:-1],
         python_install,
         python_test
     ]
@@ -566,11 +553,8 @@ class ArrowPythonCudaTest(ArrowPythonTest):
         'runtime': 'nvidia',  # required for cuda
     }
     properties = {
-        'ARROW_PYTHON': 'ON',
+        **ArrowPythonTest.properties,
         'ARROW_CUDA': 'ON',  # also sets PYARROW_WITH_CUDA
-        'ARROW_PLASMA': 'ON',  # also sets PYARROW_WITH_PLASMA
-        'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     images = images.filter(
         name=startswith('python'),
@@ -618,11 +602,13 @@ class ArrowCppCondaTest(DockerBuilder):
             args=['-E', '-Wp,-v', '-xc++', '-'],
             collect_stdout=False,
             collect_stderr=True,
+            workdir='.'
         ),
         checkout_arrow,
         cpp_mkdir,
         cpp_cmake,
         cpp_compile,
+        cpp_install,
         cpp_test
     ]
     images = images.filter(
@@ -632,34 +618,17 @@ class ArrowCppCondaTest(DockerBuilder):
     )
 
 
-class ArrowPythonCondaTest(DockerBuilder):
+class ArrowPythonCondaTest(ArrowCppCondaTest):
     tags = ['arrow', 'python']
     hostconfig = {
         'shm_size': '2G',  # required for plasma
     }
     properties = {
-        'ARROW_FLIGHT': 'ON',
-        'ARROW_PYTHON': 'ON',
-        'ARROW_PLASMA': 'ON',
-        'ARROW_PARQUET': 'ON',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
-    }
-    env = {
-        'ARROW_TEST_DATA': arrow_test_data_path,  # for flight
-        'PARQUET_TEST_DATA': parquet_test_data_path  # for parquet
+        **ArrowCppCondaTest.properties,
+        'ARROW_PYTHON': 'ON'
     }
     steps = [
-        SetPropertiesFromEnv({
-            'CMAKE_AR': 'AR',
-            'CMAKE_RANLIB': 'RANLIB',
-            'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
-            'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
-        }),
-        checkout_arrow,
-        cpp_mkdir,
-        cpp_cmake,
-        cpp_compile,
-        cpp_install,
+        *ArrowCppCondaTest.steps[:-1],
         python_install,
         python_test
     ]

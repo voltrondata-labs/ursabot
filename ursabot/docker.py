@@ -227,17 +227,29 @@ class DockerImage:
 
 class ImageCollection(Collection):
 
-    def build(self, *args, **kwargs):
+    def _image_dependents(self):
+        """Returns an mapping of image => {parents}
+
+        Including parent images not originally part of the collection.
+        """
         deps = dict()
-        for image in self:
+        stack = self[:]
+        while stack:
             # image.base is either a string or a DockerImage, in the former
             # case it is going to be pulled from the registry instead of
-            # being built by us
+            # being built by us, in the latter case we need to traverse
+            # the parents
+            image = stack.pop()
             if image not in deps:
                 deps[image] = set()
             if isinstance(image.base, DockerImage):
                 deps[image].add(image.base)
+                if image.base not in deps:
+                    stack.append(image.base)
+        return deps
 
+    def build(self, *args, **kwargs):
+        deps = self._image_dependents()
         for image_set in toposort(deps):
             # TODO(kszucs): this can be easily parallelized with dask
             for image in image_set:
@@ -456,9 +468,10 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
 # CONDA
 for arch in ['amd64']:
     basetitle = f'{arch.upper()} Conda'
+    miniconda_version = 'latest'
 
     base = DockerImage(
-        name='base',
+        name=f'base',
         base=f'{arch}/ubuntu:18.04',
         arch=arch,
         os='ubuntu-18.04',
@@ -470,7 +483,7 @@ for arch in ['amd64']:
             # install miniconda
             ENV(PATH='/opt/conda/bin:$PATH'),
             ADD(docker_assets / 'install_conda.sh'),
-            RUN('/install_conda.sh', arch, '/opt/conda'),
+            RUN('/install_conda.sh', miniconda_version, arch, '/opt/conda'),
             # run conda activate
             SHELL(['/bin/bash', '-l', '-c']),
             ENTRYPOINT(['/bin/bash', '-l', '-c']),
@@ -506,7 +519,7 @@ for arch in ['amd64']:
             RUN(conda('benchmark', 'click', 'pandas'))
         ]
     )
-    images.extend([crossbow, cpp, cpp_benchmark])
+    images.extend([cpp, cpp_benchmark, crossbow])
 
     for python_version in ['2.7', '3.6', '3.7']:
         python = DockerImage(
