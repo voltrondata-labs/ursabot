@@ -80,12 +80,14 @@ class Builder(util.BuilderConfig):
         properties = toolz.merge(self.properties or {}, properties or {})
         default_properties = toolz.merge(self.default_properties or {},
                                          default_properties or {})
-
         workernames = None if workers is None else [w.name for w in workers]
 
         super().__init__(name=name, tags=tags, properties=properties,
                          defaultProperties=default_properties, env=env,
                          workernames=workernames, factory=factory, **kwargs)
+        # traverse properties and defaultProperties and call any callables with
+        # self as argument
+        self._traverse_properties()
 
     @classmethod
     def _generate_name(cls, prefix=None, slug=True, ids=True, codename=None):
@@ -98,6 +100,26 @@ class Builder(util.BuilderConfig):
             # generates codename like: pushy-idea
             name += ' ({})'.format(codenamize(codename, max_item_chars=5))
         return name
+
+    def _traverse_properties(self):
+        """A small utility function to generate properties dynamically
+
+        The builder configuration is all set up after __init__. In order to
+        dynamically change values based on other values of the instance the
+        base BuilderConfig class should be refactored.
+        """
+        def render(value):
+            if callable(value):
+                return value(self)
+            elif isinstance(value, (list, tuple)):
+                return list(map(render, value))
+            elif isinstance(value, dict):
+                return toolz.valmap(render, value)
+            else:
+                return value
+
+        self.properties = render(self.properties)
+        self.defaultProperties = render(self.defaultProperties)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} '{self.name}'>"
@@ -117,12 +139,13 @@ class DockerBuilder(Builder):
         name = image.title
         tags = tags or [image.name]
         tags += list(image.platform)
+        volumes = list(toolz.concat([self.volumes, volumes]))
+        hostconfig = toolz.merge(self.hostconfig or {}, hostconfig or {})
+
         props = properties or {}
         props['docker_image'] = str(image)
-        props['docker_volumes'] = list(toolz.concat([self.volumes, volumes]))
-        props['docker_hostconfig'] = toolz.merge(
-            self.hostconfig or {}, hostconfig or {}
-        )
+        props['docker_volumes'] = volumes
+        props['docker_hostconfig'] = hostconfig
         super().__init__(name=name, properties=props, tags=tags, **kwargs)
 
     @classmethod
@@ -660,7 +683,7 @@ class ArrowJavaTest(DockerBuilder):
 class ArrowJSTest(DockerBuilder):
     tags = ['arrow', 'js']
     volumes = [
-        # util.Interpolate('%prop(buildername)s:~/.npm:rw')
+        lambda builder: f'{slugify(builder.name)}:/root/.npm:rw'
     ]
     steps = [
         checkout_arrow,
