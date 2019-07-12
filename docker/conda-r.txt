@@ -1,0 +1,26 @@
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
+#
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
+
+r-assertthat
+r-base
+r-bit64
+r-fs
+r-purrr
+r-r6
+r-rcpp >=0.12.18.2
+r-rlang
+r-tidyselect
+
+# test dependencies
+pandoc
+r-covr
+r-hms
+r-lubridate
+r-pkgdown
+r-rmarkdown
+r-roxygen2
+r-testthat
+r-tibble

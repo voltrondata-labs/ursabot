@@ -421,13 +421,24 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
                 RUN(symlink(python_symlinks))
             ]
         )
+        r = DockerImage(
+            name='r',
+            base=cpp,
+            title=f'{basetitle} R',
+            steps=[
+                ADD(docker_assets / 'install_r.sh'),
+                ADD(docker_assets / 'install_r_deps.R'),
+                RUN('/install_r.sh'),
+                RUN('/install_r_deps.R'),
+            ]
+        )
         python = DockerImage(
             name='python-3',
             base=cpp,
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        images.extend([cpp, python])
+        images.extend([cpp, r, python])
 
         if ubuntu_version in {'18.04'}:
             cpp_benchmark = DockerImage(
@@ -519,7 +530,21 @@ for arch in ['amd64']:
             RUN(conda('benchmark', 'click', 'pandas'))
         ]
     )
+<<<<<<< HEAD
     images.extend([cpp, cpp_benchmark, crossbow])
+=======
+    r = DockerImage(
+        name='cpp',
+        base=cpp,
+        title=f'{basetitle} R',
+        steps=[
+            # install cpp dependencies
+            ADD(docker_assets / 'conda-r.txt'),
+            RUN(conda(files=['conda-r.txt'])),
+        ]
+    )
+    images.extend([crossbow, cpp, cpp_benchmark, r])
+>>>>>>> ubuntu and conda images for R
 
     for python_version in ['2.7', '3.6', '3.7']:
         python = DockerImage(
