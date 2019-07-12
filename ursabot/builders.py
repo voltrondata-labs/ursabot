@@ -598,7 +598,7 @@ class ArrowCppCondaTest(DockerBuilder):
         SetPropertyFromCommand(
             'ARROW_GANDIVA_PC_CXX_FLAGS',
             extract_fn=as_system_includes,
-            command=[util.Property('CXX')],
+            command=[util.Property('CXX', 'c++')],
             args=['-E', '-Wp,-v', '-xc++', '-'],
             collect_stdout=False,
             collect_stderr=True,

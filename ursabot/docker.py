@@ -6,6 +6,7 @@
 
 import json
 import logging
+import collections
 from pathlib import Path
 from functools import wraps
 from operator import methodcaller
@@ -232,18 +233,17 @@ class ImageCollection(Collection):
 
         Including parent images not originally part of the collection.
         """
-        deps = dict()
-        stack = self[:]
+        deps = collections.defaultdict(set)
+        stack = collections.deque(self)
         while stack:
             # image.base is either a string or a DockerImage, in the former
             # case it is going to be pulled from the registry instead of
             # being built by us, in the latter case we need to traverse
             # the parents
             image = stack.pop()
-            if image not in deps:
-                deps[image] = set()
+            parents = deps[image]
             if isinstance(image.base, DockerImage):
-                deps[image].add(image.base)
+                parents.add(image.base)
                 if image.base not in deps:
                     stack.append(image.base)
         return deps
