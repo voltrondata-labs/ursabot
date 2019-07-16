@@ -39,11 +39,7 @@ def read_dependency_list(path):
 
 
 def slugify(s):
-    '''Slugify CamelCase name'''
-    s = re.sub(r'[\W\-]+', '-', s)
-    s = re.sub(r'([A-Z])', lambda m: '-' + m.group(1).lower(), s)
-    s = s.strip('-')
-    return s
+    return re.sub(r'[\W_]+', '-', s)
 
 
 class Filter:
