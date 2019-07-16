@@ -4,28 +4,29 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
-# ARROW-4056: The conda-forge boost 1.69.0 seems to break the Parquet unit
-# tests with Xcode 8.3. Root cause not yet determined
-boost-cpp=1.68.0
+boost-cpp>=1.68.0
 brotli
 bzip2
 c-ares
+clangdev=7
 cmake
 double-conversion
 flatbuffers
 gflags
 glog
-gmock
-grpc-cpp
-gtest
+gmock>=1.8.1
+grpc-cpp>=1.21.4
+gtest>=1.8.1
 libprotobuf
+llvmdev=7
 lz4-c
-openssl
+ninja
+pkg-config
 python
 rapidjson
 re2
 snappy
-thrift-cpp
+thrift-cpp>=0.11.0
 uriparser
 zlib
 zstd
