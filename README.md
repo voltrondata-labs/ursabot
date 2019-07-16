@@ -402,7 +402,13 @@ Ursabot has a CLI interface to build the docker images:
 ursabot docker build --help
 ```
 
-To build and push Arrow C++ `amd64` `conda` images:
+To list Arrow C++ `amd64` `conda` `cpp` images:
+
+```bash
+ursabot --verbose docker --arch amd64 --variant conda --name cpp list
+```
+
+To build and push Arrow C++ `amd64` `conda` `cpp` images:
 
 ```bash
 ursabot --verbose docker --arch amd64 --variant conda --name cpp build --push

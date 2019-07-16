@@ -534,7 +534,7 @@ for arch in ['amd64']:
     images.extend([cpp, cpp_benchmark, crossbow])
 =======
     r = DockerImage(
-        name='cpp',
+        name='r',
         base=cpp,
         title=f'{basetitle} R',
         steps=[
