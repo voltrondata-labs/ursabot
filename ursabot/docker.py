@@ -427,8 +427,9 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             title=f'{basetitle} R',
             steps=[
                 ADD(docker_assets / 'install_r.sh'),
-                ADD(docker_assets / 'install_r_deps.R'),
                 RUN('/install_r.sh'),
+                RUN(apt('libxml2-dev', 'libcurl4-openssl-dev')),
+                ADD(docker_assets / 'install_r_deps.R'),
                 RUN('/install_r_deps.R'),
             ]
         )
