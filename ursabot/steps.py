@@ -56,59 +56,23 @@ class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
         return result
 
 
-class ShellMixin(buildstep.ShellMixin):
-    """Run command in a login bash shell
-
-    ShellCommand uses the old-style API but commands like CMake uses the
-    new style, ShellMixin based API. Buildbot runs each command with a
-    non-login /bin/sh, thus .bashrc is not loaded.
-
-    The primary purpose of this mixin to use with conda environments.
-    """
-
-    shell = tuple()  # will run sh on unix and batch on windows by default
-
-    def makeRemoteShellCommand(self, **kwargs):
-        import pipes  # only available on unix
-
-        # copied from buildbot_worker.runprocess
-        def quote(e):
-            """Quote shell arguments
-
-            License note:
-                Copied from buildbot_worker.runprocess in the original buildbot
-                implementation.
-            """
-            if not e:
-                return '""'
-            return pipes.quote(e)
-
-        # follow the semantics of the parent method, but don't flatten
-        # command = self.command + kwargs.pop('command', tuple())
-        command = kwargs.pop('command')
-        if not isinstance(command, (tuple, list)):
-            raise ValueError('Command must be an instance of list or tuple')
-
-        if self.shell:
-            # render the command and prepend with the shell
-            # TODO(kszucs): validate self.shell
-            command = ' '.join(map(quote, command))
-            command = tuple(self.shell) + (command,)
-
-        return super().makeRemoteShellCommand(command=command, **kwargs)
-
-
-class ShellCommand(ShellMixin, buildstep.BuildStep):
-
+class ShellCommand(buildstep.ShellMixin, buildstep.BuildStep):
     name = 'Shell'
+    args = tuple()
 
-    def __init__(self, args=tuple(), command=tuple(), **kwargs):
+    def __init__(self, args=tuple(), command=tuple(), as_shell=False,
+                 quote=True, **kwargs):
         command, args = command or self.command, args or self.args
 
         if not IRenderable.providedBy(command) and not command:
             raise ValueError('No command was provided')
 
-        kwargs['command'] = util.FlattenList([command, args])
+        cmd = util.FlattenList([command, args])
+        if as_shell:
+            # runs the command as is without quoting any arguments of it
+            cmd = util.Transform(' '.join, cmd)
+
+        kwargs['command'] = cmd
         kwargs = self.setupShellMixin(kwargs)
         super().__init__(**kwargs)
 
@@ -119,7 +83,7 @@ class ShellCommand(ShellMixin, buildstep.BuildStep):
         return cmd.results()
 
 
-class CMake(ShellMixin, steps.CMake):
+class CMake(steps.CMake):
 
     name = 'CMake'
 

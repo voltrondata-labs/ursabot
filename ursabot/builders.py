@@ -543,7 +543,8 @@ class ArrowCppBenchmark(DockerBuilder):
 class ArrowRTest(ArrowCppTest):
     tags = ['arrow', 'R']
     steps = [
-        *ArrowCppTest.steps[:-1],
+        # *ArrowCppTest.steps[:-1],
+        checkout_arrow,
         RCMD(
             args=['build', '.'],
             name='Build',
@@ -551,6 +552,7 @@ class ArrowRTest(ArrowCppTest):
         ),
         RCMD(
             args=['check', 'arrow_*tar.gz'],
+            as_shell=True,  # to expand *
             name='Check',
             workdir='r',
             env={
