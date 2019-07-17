@@ -18,7 +18,7 @@ from .docker import DockerImage, images
 from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv, SetPropertyFromCommand,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery, Crossbow, Maven, Go, Cargo, Npm, RCMD)
+                    Archery, Crossbow, Maven, Go, Cargo, Npm, R)
 from .utils import Collection, startswith, slugify
 
 
@@ -390,6 +390,24 @@ python_test = PyTest(
     workdir='python',
     env={'LD_LIBRARY_PATH': ld_library_path}
 )
+r_deps = R(
+    args=[
+        '-e',
+        'install.packages("remotes"); remotes::install_deps(dep = TRUE)'
+    ],
+    name='Install dependencies',
+    workdir='r'
+)
+r_build = R(args=['CMD', 'build', '.'], name='Build', workdir='r')
+r_check = R(
+    args=['check', 'arrow_*tar.gz', '--as-cran', '--no-manual'],
+    as_shell=True,  # to expand *
+    name='Check',
+    workdir='r',
+    env={
+        '_R_CHECK_FORCE_SUGGESTS_': 'false'
+    }
+)
 
 
 class UrsabotTest(DockerBuilder):
@@ -543,22 +561,11 @@ class ArrowCppBenchmark(DockerBuilder):
 class ArrowRTest(ArrowCppTest):
     tags = ['arrow', 'R']
     steps = [
-        # *ArrowCppTest.steps[:-1],
+        # *ArrowCppTest.steps[:-1],  # excluding the last test step
         checkout_arrow,
-        RCMD(
-            args=['build', '.'],
-            name='Build',
-            workdir='r'
-        ),
-        RCMD(
-            args=['check', 'arrow_*tar.gz'],
-            as_shell=True,  # to expand *
-            name='Check',
-            workdir='r',
-            env={
-                '_R_CHECK_FORCE_SUGGESTS_': 'false'
-            }
-        )
+        r_deps,
+        r_build,
+        r_check
     ]
     images = images.filter(
         name='r',
@@ -578,7 +585,7 @@ class ArrowPythonTest(ArrowCppTest):
         'ARROW_PYTHON': 'ON',
     }
     steps = [
-        *ArrowCppTest.steps[:-1],
+        *ArrowCppTest.steps[:-1],  # excluding the last test step
         python_install,
         python_test
     ]
@@ -667,6 +674,21 @@ class ArrowCppCondaTest(DockerBuilder):
     ]
     images = images.filter(
         name='cpp',
+        variant='conda',
+        tag='worker'
+    )
+
+
+class ArrowRCondaTest(ArrowCppCondaTest):
+    tags = ['arrow', 'R']
+    steps = [
+        *ArrowCppCondaTest.steps[:-1],  # excluding the test step
+        r_deps,
+        r_build,
+        r_check
+    ]
+    images = images.filter(
+        name='r',
         variant='conda',
         tag='worker'
     )

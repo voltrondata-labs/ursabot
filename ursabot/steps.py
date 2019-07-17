@@ -298,6 +298,6 @@ class Cargo(ShellCommand):
     command = ['cargo']
 
 
-class RCMD(ShellCommand):
-    name = 'R CMD'
-    command = ['R', 'CMD']
+class R(ShellCommand):
+    name = 'R'
+    command = ['R']
