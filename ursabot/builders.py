@@ -400,7 +400,7 @@ r_deps = R(
 )
 r_build = R(args=['CMD', 'build', '.'], name='Build', workdir='r')
 r_check = R(
-    args=['check', 'arrow_*tar.gz', '--as-cran', '--no-manual'],
+    args=['CMD', 'check', 'arrow_*tar.gz'],
     as_shell=True,  # to expand *
     name='Check',
     workdir='r',

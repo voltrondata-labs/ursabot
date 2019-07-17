@@ -25,6 +25,9 @@ workers:
     ncpus: 2
     docker:
       host: 'unix://var/run/docker.sock'
+      # masterFQDN: 'host.docker.internal'  # enable it on mac
+      autopull: true
+      alwayspull: false
       hostconfig:
         network_mode: 'host'
         cpuset_cpus: '0,1'
@@ -34,6 +37,9 @@ workers:
     ncpus: 2
     docker:
       host: 'unix://var/run/docker.sock'
+      # masterFQDN: 'host.docker.internal'  # enable it on mac
+      autopull: true
+      alwayspull: false
       hostconfig:
         network_mode: 'host'
         cpuset_cpus: '2,3'
