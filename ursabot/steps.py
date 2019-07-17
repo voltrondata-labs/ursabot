@@ -67,8 +67,6 @@ class ShellMixin(buildstep.ShellMixin):
     """
 
     shell = tuple()  # will run sh on unix and batch on windows by default
-    command = tuple()
-    args = tuple()
 
     def makeRemoteShellCommand(self, **kwargs):
         import pipes  # only available on unix
@@ -334,3 +332,8 @@ class Go(ShellCommand):
 class Cargo(ShellCommand):
     name = 'Cargo'
     command = ['cargo']
+
+
+class RCMD(ShellCommand):
+    name = 'R CMD'
+    command = ['R', 'CMD']

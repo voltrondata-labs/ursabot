@@ -531,9 +531,6 @@ for arch in ['amd64']:
             RUN(conda('benchmark', 'click', 'pandas'))
         ]
     )
-<<<<<<< HEAD
-    images.extend([cpp, cpp_benchmark, crossbow])
-=======
     r = DockerImage(
         name='r',
         base=cpp,
@@ -545,7 +542,6 @@ for arch in ['amd64']:
         ]
     )
     images.extend([crossbow, cpp, cpp_benchmark, r])
->>>>>>> ubuntu and conda images for R
 
     for python_version in ['2.7', '3.6', '3.7']:
         python = DockerImage(

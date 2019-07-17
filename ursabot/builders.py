@@ -18,7 +18,7 @@ from .docker import DockerImage, images
 from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv, SetPropertyFromCommand,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery, Crossbow, Maven, Go, Cargo, Npm)
+                    Archery, Crossbow, Maven, Go, Cargo, Npm, RCMD)
 from .utils import Collection, startswith, slugify
 
 
@@ -535,6 +535,32 @@ class ArrowCppBenchmark(DockerBuilder):
         name='cpp-benchmark',
         os=startswith('ubuntu'),
         arch='amd64',  # until ARROW-5382: SSE on ARM NEON gets resolved
+        variant=None,  # plain linux images, not conda
+        tag='worker'
+    )
+
+
+class ArrowRTest(ArrowCppTest):
+    tags = ['arrow', 'R']
+    steps = [
+        *ArrowCppTest.steps[:-1],
+        RCMD(
+            args=['build', '.'],
+            name='Build',
+            workdir='r'
+        ),
+        RCMD(
+            args=['check', 'arrow_*tar.gz'],
+            name='Check',
+            workdir='r',
+            env={
+                '_R_CHECK_FORCE_SUGGESTS_': 'false'
+            }
+        )
+    ]
+    images = images.filter(
+        name='r',
+        arch='amd64',
         variant=None,  # plain linux images, not conda
         tag='worker'
     )
