@@ -11,7 +11,6 @@
 import json
 from pathlib import Path
 
-import pytest
 from twisted.trial import unittest
 
 from buildbot.plugins import util
@@ -219,7 +218,7 @@ class TestUrsabotHook(ChangeHookTestCase):
 
     @ensure_deferred
     async def check_issue_comment_with_command(
-        self, command,  expected_props=None, commit_message=None
+        self, command, expected_props=None, commit_message=None
     ):
         # handle_issue_comment queries the pull request
         request_json = self.load_fixture('pull-request-26')

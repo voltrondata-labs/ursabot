@@ -35,7 +35,7 @@ class ChangeFilter(filter.ChangeFilter):
 
         # create check tuples for the properties argument
         check_tuples += [self._create_check_tuple(f'prop:{name}', value)
-                   for name, value in properties.items()]
+                         for name, value in properties.items()]
 
         self.filter_fn = fn
         self.checks = self.createChecks(*check_tuples)

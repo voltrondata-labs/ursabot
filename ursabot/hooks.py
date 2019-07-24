@@ -187,7 +187,7 @@ class GithubHook(GitHubEventHandler):
         head_msg = await self._get_commit_msg(repo_full_name, head_sha)
         if allow_skip and self._has_skip(head_msg):
             log.info(f'GitHub PR #{number}, Ignoring: head commit message '
-                      'contains skip pattern')
+                     f'contains skip pattern')
             return ([], 'git')
 
         action = payload.get('action')
