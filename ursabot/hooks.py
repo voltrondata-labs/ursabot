@@ -158,7 +158,7 @@ class GithubHook(GitHubEventHandler):
         removed or changed.
         """
         url = f'/repos/{repo}/pulls/{number}/files'
-        result = await self._get(url)
+        result = await self._get(url) or []
         return [file['filename'] for file in result]
 
     @ensure_deferred
