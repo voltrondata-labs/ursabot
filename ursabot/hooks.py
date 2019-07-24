@@ -5,6 +5,7 @@
 # license that can be found in the LICENSE_BSD file.
 
 from urllib.parse import urlparse
+from dateutil.parser import parse as dateparse
 
 from buildbot.util.logger import Logger
 from buildbot.www.hooks.github import GitHubEventHandler
@@ -136,7 +137,6 @@ class GithubHook(GitHubEventHandler):
         log.info(f'POST to {url} with the following result: {result}')
         return result
 
-    @ensure_deferred
     async def _get_commit_msg(self, repo, sha):
         """Queries the commit message from the API
 
@@ -146,10 +146,89 @@ class GithubHook(GitHubEventHandler):
            Copied from the original buildbot implementation with minor
            modifications.
         """
-        url = '/repos/{}/commits/{}'.format(repo, sha)
+        url = f'/repos/{repo}/commits/{sha}'
         result = await self._get(url)
         commit = result.get('commit', {})
         return commit.get('message', 'No message field')
+
+    async def _get_pull_request_files(self, repo, number):
+        """Queries the files affected by a pull request
+
+        Returns the affected files, no matter whether the file was added,
+        removed or changed.
+        """
+        url = f'/repos/{repo}/pulls/{number}/files'
+        result = await self._get(url)
+        return [file['filename'] for file in result]
+
+    @ensure_deferred
+    async def handle_pull_request(self, payload, event, allow_skip=True):
+        """Handles the pull request event
+
+        Also queries the commit's message and the files affected by the pull
+        request.
+
+        License note:
+           Copied from the original buildbot implementation with minor
+           modifications and additions.
+        """
+        changes = []
+        number = payload['number']
+        refname = f'refs/pull/{number}/{self.pullrequest_ref}'
+        basename = payload['pull_request']['base']['ref']
+        commits = payload['pull_request']['commits']
+        title = payload['pull_request']['title']
+        comments = payload['pull_request']['body']
+        repo_full_name = payload['repository']['full_name']
+        head_sha = payload['pull_request']['head']['sha']
+
+        log.debug(f'Processing GitHub PR #{number}')
+
+        head_msg = await self._get_commit_msg(repo_full_name, head_sha)
+        if allow_skip and self._has_skip(head_msg):
+            log.info(f'GitHub PR #{number}, Ignoring: head commit message '
+                      'contains skip pattern')
+            return ([], 'git')
+
+        action = payload.get('action')
+        if action not in ('opened', 'reopened', 'synchronize'):
+            log.info(f'GitHub PR #{number} {action}, ignoring')
+            return (changes, 'git')
+
+        properties = self.extractProperties(payload['pull_request'])
+        properties.update({'event': event})
+        properties.update({'basename': basename})
+
+        plural = 's' if commits != 1 else ''
+        desc = f'GitHub Pull Request #{number} ({commits} commit{plural})'
+        desc = '\n'.join([desc, title, comments])
+
+        files = await self._get_pull_request_files(repo_full_name, number)
+
+        change = {
+            'revision': payload['pull_request']['head']['sha'],
+            'when_timestamp': dateparse(payload['pull_request']['created_at']),
+            'branch': refname,
+            'revlink': payload['pull_request']['_links']['html']['href'],
+            'repository': payload['repository']['html_url'],
+            'project': payload['pull_request']['base']['repo']['full_name'],
+            'category': 'pull',
+            # TODO: Get author name based on login id using txgithub module
+            'author': payload['sender']['login'],
+            'comments': desc,
+            'properties': properties,
+            'files': files
+        }
+
+        if callable(self._codebase):
+            change['codebase'] = self._codebase(payload)
+        elif self._codebase is not None:
+            change['codebase'] = self._codebase
+
+        changes.append(change)
+        log.info(f'Received {len(changes)} changes from GitHub PR #{number}')
+
+        return (changes, 'git')
 
     @ensure_deferred
     async def handle_issue_comment(self, payload, event):
@@ -214,13 +293,17 @@ class GithubHook(GitHubEventHandler):
         try:
             pull_request = await self._get(issue['pull_request']['url'])
             # handle_pull_request contains pull request specific logic
-            changes, _ = await self.handle_pull_request({
-                'action': 'synchronize',
-                'sender': payload['sender'],
-                'repository': payload['repository'],
-                'pull_request': pull_request,
-                'number': pull_request['number'],
-            }, event)
+            changes, _ = await self.handle_pull_request(
+                payload={
+                    'action': 'synchronize',
+                    'sender': payload['sender'],
+                    'repository': payload['repository'],
+                    'pull_request': pull_request,
+                    'number': pull_request['number'],
+                },
+                event=event,
+                allow_skip=False
+            )
             # `event: issue_comment` will be available between the properties,
             # but We still need a way to determine which builders to run, so
             # pass the command property as well and flag the change category as

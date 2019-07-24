@@ -25,7 +25,7 @@ class ChangeFilter(filter.ChangeFilter):
 
         # create check tuples for the original arguments
         # branch has a special treatment beacuase of NotABranch
-        checks = [
+        check_tuples = [
             self._create_check_tuple('branch', branch, default=NotABranch),
             self._create_check_tuple('project', project),
             self._create_check_tuple('repository', repository),
@@ -34,11 +34,11 @@ class ChangeFilter(filter.ChangeFilter):
         ]
 
         # create check tuples for the properties argument
-        checks += [self._create_check_tuple(f'prop:{name}', value)
+        check_tuples += [self._create_check_tuple(f'prop:{name}', value)
                    for name, value in properties.items()]
 
         self.filter_fn = fn
-        self.checks = self.createChecks(*checks)
+        self.checks = self.createChecks(*check_tuples)
 
     def _create_check_tuple(self, name, value, default=None):
         # sample: (project, project_re, project_fn, "project"),
