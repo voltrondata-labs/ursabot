@@ -7,6 +7,7 @@
 import copy
 import toolz
 import itertools
+import textwrap
 import warnings
 from collections import defaultdict
 
@@ -393,7 +394,17 @@ python_test = PyTest(
 r_deps = R(
     args=[
         '-e',
-        'install.packages("remotes"); remotes::install_deps(dep = TRUE)'
+        textwrap.dedent('''
+            install.packages(
+                "remotes",
+                repo = "http://cran.rstudio.com/"
+            )
+            remotes::install_deps(
+                dependencies = TRUE,
+                upgrade = "never",
+                repos = "https://cran.rstudio.com"
+            )
+        ''')
     ],
     name='Install dependencies',
     workdir='r'
@@ -559,10 +570,9 @@ class ArrowCppBenchmark(DockerBuilder):
 
 
 class ArrowRTest(ArrowCppTest):
-    tags = ['arrow', 'R']
+    tags = ['arrow', 'r']
     steps = [
-        # *ArrowCppTest.steps[:-1],  # excluding the last test step
-        checkout_arrow,
+        *ArrowCppTest.steps[:-1],  # excluding the last test step
         r_deps,
         r_build,
         r_check
@@ -680,7 +690,7 @@ class ArrowCppCondaTest(DockerBuilder):
 
 
 class ArrowRCondaTest(ArrowCppCondaTest):
-    tags = ['arrow', 'R']
+    tags = ['arrow', 'r']
     steps = [
         *ArrowCppCondaTest.steps[:-1],  # excluding the test step
         r_deps,

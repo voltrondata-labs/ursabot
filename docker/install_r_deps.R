@@ -31,7 +31,12 @@ install.packages(
     'testthat',
     'bit64',
     'hms',
-    'lubridate'
+    'lubridate',
+    'covr',
+    'lubridate',
+    'pkgdown',
+    'rmarkdown',
+    'roxygen2'
   ),
   repos = 'https://cran.rstudio.com'
 )
