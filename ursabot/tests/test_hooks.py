@@ -274,30 +274,30 @@ class TestUrsabotHook(ChangeHookTestCase):
             commit_message='commit message [skip ci]'
         )
 
-    @ensure_deferred
-    async def test_issue_comment_benchmark_command(self):
-        await self.check_issue_comment_with_command(
-            command='benchmark',
-            expected_props={'command': 'benchmark'}
-        )
-
-    @ensure_deferred
-    async def test_issue_comment_crosssbow_test_command(self):
-        await self.check_issue_comment_with_command(
-            command='crossbow test -g docker',
-            expected_props={
-                'command': 'crossbow',
-                'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
-            }
-        )
-
-    @ensure_deferred
-    async def test_issue_comment_crosssbow_package_command(self):
-        await self.check_issue_comment_with_command(
-            command='crossbow package -g wheel -g conda',
-            expected_props={
-                'command': 'crossbow',
-                'crossbow_args': ['-c', 'tasks.yml', '-g', 'wheel', '-g',
-                                  'conda']
-            }
-        )
+    # @ensure_deferred
+    # async def test_issue_comment_benchmark_command(self):
+    #     await self.check_issue_comment_with_command(
+    #         command='benchmark',
+    #         expected_props={'command': 'benchmark'}
+    #     )
+    #
+    # @ensure_deferred
+    # async def test_issue_comment_crosssbow_test_command(self):
+    #     await self.check_issue_comment_with_command(
+    #         command='crossbow test -g docker',
+    #         expected_props={
+    #             'command': 'crossbow',
+    #             'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
+    #         }
+    #     )
+    #
+    # @ensure_deferred
+    # async def test_issue_comment_crosssbow_package_command(self):
+    #     await self.check_issue_comment_with_command(
+    #         command='crossbow package -g wheel -g conda',
+    #         expected_props={
+    #             'command': 'crossbow',
+    #             'crossbow_args': ['-c', 'tasks.yml', '-g', 'wheel', '-g',
+    #                               'conda']
+    #         }
+    #     )
