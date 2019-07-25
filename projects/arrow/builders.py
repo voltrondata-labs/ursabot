@@ -9,6 +9,8 @@ from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
                            GitHub, Archery, Crossbow, Maven, Go, Cargo, Npm, R)
 from ursabot.utils import startswith, slugify
 
+from .docker import images
+
 
 # prefer GitHub over Git step
 checkout_arrow = GitHub(

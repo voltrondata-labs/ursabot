@@ -5,6 +5,9 @@ from ursabot.builder import DockerBuilder
 from ursabot.steps import ShellCommand, PyTest, Pip, GitHub
 
 
+from .docker import images
+
+
 class UrsabotTest(DockerBuilder):
     tags = ['ursabot']
     steps = [
