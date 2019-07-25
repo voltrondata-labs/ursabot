@@ -511,6 +511,9 @@ class ArrowCppTest(DockerBuilder):
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
+    env = {
+        'PARQUET_TEST_DATA': parquet_test_data_path  # for parquet
+    }
     steps = [
         checkout_arrow,
         cpp_mkdir,
