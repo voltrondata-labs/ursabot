@@ -301,3 +301,8 @@ class Cargo(ShellCommand):
 class R(ShellCommand):
     name = 'R'
     command = ['R']
+
+
+class Make(ShellCommand):
+    name = 'Make'
+    command = ['make']

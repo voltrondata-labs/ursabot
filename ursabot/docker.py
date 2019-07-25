@@ -406,7 +406,7 @@ images = ImageCollection()
 
 for arch in ['amd64', 'arm64v8', 'arm32v7']:
     # UBUNTU
-    for ubuntu_version in ['16.04', '18.04']:
+    for ubuntu_version in ['18.04']:
         basetitle = f'{arch.upper()} Ubuntu {ubuntu_version}'
 
         cpp = DockerImage(
@@ -417,7 +417,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             org='ursalab',
             title=f'{basetitle} C++',
             steps=[
-                RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
+                RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
             ]
         )
@@ -465,7 +465,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             title=f'{basetitle} C++',
             org='ursalab',
             steps=[
-                RUN(apk(*alpine_pkgs, 'python3-dev', 'py3-pip')),
+                RUN(apk(*alpine_pkgs, 'ccache', 'python3-dev', 'py3-pip')),
                 RUN(symlink(python_symlinks))
             ]
         )
@@ -520,7 +520,7 @@ for arch in ['amd64']:
             # install cpp dependencies
             ADD(docker_assets / 'conda-linux.txt'),
             ADD(docker_assets / 'conda-cpp.txt'),
-            RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
+            RUN(conda('ccache', files=['conda-linux.txt', 'conda-cpp.txt'])),
         ]
     )
     cpp_benchmark = DockerImage(
@@ -539,6 +539,9 @@ for arch in ['amd64']:
             # install cpp dependencies
             ADD(docker_assets / 'conda-r.txt'),
             RUN(conda(files=['conda-r.txt'])),
+            RUN(conda('ccache', 'tzcode')),
+            RUN(apt('tzdata')),
+            ENV(TZ='UTC')
         ]
     )
     images.extend([crossbow, cpp, cpp_benchmark, r])
@@ -572,7 +575,7 @@ for arch in ['amd64']:
             runtime='nvidia',
             title=f'{basetitle} C++',
             steps=[
-                RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
+                RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
             ]
         )

@@ -15,6 +15,7 @@ r-rlang
 r-tidyselect
 
 # test dependencies
+binutils
 pandoc
 r-covr
 r-hms
