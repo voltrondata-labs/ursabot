@@ -7,6 +7,7 @@
 import copy
 import toolz
 import itertools
+import textwrap
 import warnings
 from collections import defaultdict
 
@@ -18,7 +19,7 @@ from .docker import DockerImage, images
 from .workers import DockerLatentWorker
 from .steps import (ShellCommand, SetPropertiesFromEnv, SetPropertyFromCommand,
                     Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery, Crossbow, Maven, Go, Cargo, Npm)
+                    Archery, Crossbow, Maven, Go, Cargo, Npm, R)
 from .utils import Collection, startswith, slugify
 
 
@@ -390,6 +391,48 @@ python_test = PyTest(
     workdir='python',
     env={'LD_LIBRARY_PATH': ld_library_path}
 )
+r_deps = R(
+    args=[
+        '-e',
+        textwrap.dedent('''
+            install.packages(
+                "remotes",
+                repo = "http://cran.rstudio.com/"
+            )
+            remotes::install_deps(
+                dependencies = TRUE,
+                upgrade = "never",
+                repos = "https://cran.rstudio.com"
+            )
+        ''')
+    ],
+    name='Install dependencies',
+    workdir='r'
+)
+r_build = R(
+    args=['CMD', 'build', '.'],
+    name='Build',
+    workdir='r'
+)
+r_install = R(
+    args=['CMD', 'INSTALL', 'arrow_*tar.gz'],
+    as_shell=True,
+    name='Install',
+    workdir='r',
+    env={
+        'LD_LIBRARY_PATH': ld_library_path
+    }
+)
+r_check = R(
+    args=['CMD', 'check', 'arrow_*tar.gz', '--no-manual'],
+    as_shell=True,  # to expand *
+    name='Check',
+    workdir='r',
+    env={
+        'LD_LIBRARY_PATH': ld_library_path,
+        '_R_CHECK_FORCE_SUGGESTS_': 'false'
+    }
+)
 
 
 class UrsabotTest(DockerBuilder):
@@ -458,8 +501,12 @@ class CrossbowTrigger(DockerBuilder):
 
 
 class ArrowCppTest(DockerBuilder):
-    tags = ['arrow', 'cpp']
+    tags = ['arrow', 'cpp', 'parquet', 'plasma']
+    volumes = [
+        lambda builder: f'{slugify(builder.name)}:/root/.ccache:rw'
+    ]
     properties = {
+        'ARROW_PARQUET': 'ON',
         'ARROW_PLASMA': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
@@ -491,15 +538,13 @@ class ArrowCppTest(DockerBuilder):
 
 
 class ArrowCppCudaTest(ArrowCppTest):
-    tags = ['arrow', 'cpp', 'cuda']
+    tags = ['arrow', 'cpp', 'cuda', 'parquet', 'plasma']
     hostconfig = {
         'runtime': 'nvidia'
     }
     properties = {
+        **ArrowCppTest.properties,
         'ARROW_CUDA': 'ON',
-        'ARROW_PLASMA': 'ON',
-        'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
     }
     images = images.filter(
         name='cpp',
@@ -512,7 +557,6 @@ class ArrowCppCudaTest(ArrowCppTest):
 class ArrowCppBenchmark(DockerBuilder):
     tags = ['arrow', 'cpp', 'benchmark']
     properties = {
-        'ARROW_PLASMA': 'ON',
         'CMAKE_INSTALL_PREFIX': '/usr/local',
         'CMAKE_INSTALL_LIBDIR': 'lib'
     }
@@ -540,8 +584,25 @@ class ArrowCppBenchmark(DockerBuilder):
     )
 
 
+class ArrowRTest(ArrowCppTest):
+    tags = ['arrow', 'r']
+    steps = [
+        *ArrowCppTest.steps[:-1],  # excluding the last test step
+        r_deps,
+        r_build,
+        r_install,
+        r_check
+    ]
+    images = images.filter(
+        name='r',
+        arch='amd64',
+        variant=None,  # plain linux images, not conda
+        tag='worker'
+    )
+
+
 class ArrowPythonTest(ArrowCppTest):
-    tags = ['arrow', 'python']
+    tags = ['arrow', 'python', 'parquet', 'plasma']
     hostconfig = {
         'shm_size': '2G',  # required for plasma
     }
@@ -550,7 +611,7 @@ class ArrowPythonTest(ArrowCppTest):
         'ARROW_PYTHON': 'ON',
     }
     steps = [
-        *ArrowCppTest.steps[:-1],
+        *ArrowCppTest.steps[:-1],  # excluding the last test step
         python_install,
         python_test
     ]
@@ -573,7 +634,7 @@ class ArrowPythonTest(ArrowCppTest):
 
 
 class ArrowPythonCudaTest(ArrowPythonTest):
-    tags = ['arrow', 'python', 'cuda']
+    tags = ['arrow', 'python', 'cuda', 'parquet', 'plasma']
     hostconfig = {
         'shm_size': '2G',  # required for plasma
         'runtime': 'nvidia',  # required for cuda
@@ -600,7 +661,10 @@ def as_system_includes(stdout, stderr):
 
 
 class ArrowCppCondaTest(DockerBuilder):
-    tags = ['arrow', 'cpp']
+    tags = ['arrow', 'cpp', 'flight', 'gandiva', 'parquet', 'plasma']
+    volumes = [
+        lambda builder: f'{slugify(builder.name)}:/root/.ccache:rw'
+    ]
     properties = {
         'ARROW_FLIGHT': 'ON',
         'ARROW_PLASMA': 'ON',
@@ -644,8 +708,24 @@ class ArrowCppCondaTest(DockerBuilder):
     )
 
 
+class ArrowRCondaTest(ArrowCppCondaTest):
+    tags = ['arrow', 'r']
+    steps = [
+        *ArrowCppCondaTest.steps[:-1],  # excluding the test step
+        r_deps,
+        r_build,
+        r_install,
+        r_check
+    ]
+    images = images.filter(
+        name='r',
+        variant='conda',
+        tag='worker'
+    )
+
+
 class ArrowPythonCondaTest(ArrowCppCondaTest):
-    tags = ['arrow', 'python']
+    tags = ['arrow', 'cpp', 'flight', 'gandiva', 'parquet', 'plasma', 'python']
     hostconfig = {
         'shm_size': '2G',  # required for plasma
     }

@@ -62,7 +62,7 @@ def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
     ctx.obj['images'] = docker_images
 
 
-@docker.command()
+@docker.command('list')
 @click.pass_context
 def list_images(ctx):
     """List the docker images"""

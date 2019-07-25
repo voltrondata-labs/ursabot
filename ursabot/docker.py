@@ -406,7 +406,7 @@ images = ImageCollection()
 
 for arch in ['amd64', 'arm64v8', 'arm32v7']:
     # UBUNTU
-    for ubuntu_version in ['16.04', '18.04']:
+    for ubuntu_version in ['18.04']:
         basetitle = f'{arch.upper()} Ubuntu {ubuntu_version}'
 
         cpp = DockerImage(
@@ -417,8 +417,29 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             org='ursalab',
             title=f'{basetitle} C++',
             steps=[
-                RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
+                RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
+            ]
+        )
+        cpp_benchmark = DockerImage(
+            name='cpp-benchmark',
+            base=cpp,
+            title=f'{basetitle} C++ Benchmark',
+            steps=[
+                RUN(apt('libbenchmark-dev')),
+                RUN(pip('click', 'pandas'))
+            ]
+        )
+        r = DockerImage(
+            name='r',
+            base=cpp,
+            title=f'{basetitle} R',
+            steps=[
+                ADD(docker_assets / 'install_r.sh'),
+                RUN('/install_r.sh'),
+                RUN(apt('libxml2-dev', 'libcurl4-openssl-dev')),
+                ADD(docker_assets / 'install_r_deps.R'),
+                RUN('/install_r_deps.R'),
             ]
         )
         python = DockerImage(
@@ -427,19 +448,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        images.extend([cpp, python])
-
-        if ubuntu_version in {'18.04'}:
-            cpp_benchmark = DockerImage(
-                name='cpp-benchmark',
-                base=cpp,
-                title=f'{basetitle} C++ Benchmark',
-                steps=[
-                    RUN(apt('libbenchmark-dev')),
-                    RUN(pip('click', 'pandas'))
-                ]
-            )
-            images.append(cpp_benchmark)
+        images.extend([cpp, cpp_benchmark, r, python])
 
     # ALPINE
     for alpine_version in ['3.9']:
@@ -453,7 +462,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             title=f'{basetitle} C++',
             org='ursalab',
             steps=[
-                RUN(apk(*alpine_pkgs, 'python3-dev', 'py3-pip')),
+                RUN(apk(*alpine_pkgs, 'ccache', 'python3-dev', 'py3-pip')),
                 RUN(symlink(python_symlinks))
             ]
         )
@@ -508,7 +517,7 @@ for arch in ['amd64']:
             # install cpp dependencies
             ADD(docker_assets / 'conda-linux.txt'),
             ADD(docker_assets / 'conda-cpp.txt'),
-            RUN(conda(files=['conda-linux.txt', 'conda-cpp.txt'])),
+            RUN(conda('ccache', files=['conda-linux.txt', 'conda-cpp.txt'])),
         ]
     )
     cpp_benchmark = DockerImage(
@@ -519,7 +528,17 @@ for arch in ['amd64']:
             RUN(conda('benchmark', 'click', 'pandas'))
         ]
     )
-    images.extend([cpp, cpp_benchmark, crossbow])
+    r = DockerImage(
+        name='r',
+        base=cpp,
+        title=f'{basetitle} R',
+        steps=[
+            # install R dependencies
+            ADD(docker_assets / 'conda-r.txt'),
+            RUN(conda(files=['conda-r.txt']))
+        ]
+    )
+    images.extend([crossbow, cpp, cpp_benchmark, r])
 
     for python_version in ['2.7', '3.6', '3.7']:
         python = DockerImage(
@@ -550,7 +569,7 @@ for arch in ['amd64']:
             runtime='nvidia',
             title=f'{basetitle} C++',
             steps=[
-                RUN(apt(*ubuntu_pkgs, 'python3', 'python3-pip')),
+                RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
             ]
         )
