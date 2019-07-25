@@ -715,8 +715,7 @@ class ArrowRCondaTest(ArrowCppCondaTest):
         r_deps,
         r_build,
         r_install,
-        r_check,
-        ShellCommand(command=['sleep'], args=['3000'])
+        r_check
     ]
     images = images.filter(
         name='r',

@@ -421,6 +421,15 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
                 RUN(symlink(python_symlinks))
             ]
         )
+        cpp_benchmark = DockerImage(
+            name='cpp-benchmark',
+            base=cpp,
+            title=f'{basetitle} C++ Benchmark',
+            steps=[
+                RUN(apt('libbenchmark-dev')),
+                RUN(pip('click', 'pandas'))
+            ]
+        )
         r = DockerImage(
             name='r',
             base=cpp,
@@ -439,19 +448,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        images.extend([cpp, r, python])
-
-        if ubuntu_version in {'18.04'}:
-            cpp_benchmark = DockerImage(
-                name='cpp-benchmark',
-                base=cpp,
-                title=f'{basetitle} C++ Benchmark',
-                steps=[
-                    RUN(apt('libbenchmark-dev')),
-                    RUN(pip('click', 'pandas'))
-                ]
-            )
-            images.append(cpp_benchmark)
+        images.extend([cpp, cpp_benchmark, r, python])
 
     # ALPINE
     for alpine_version in ['3.9']:
