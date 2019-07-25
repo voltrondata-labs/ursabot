@@ -533,12 +533,9 @@ for arch in ['amd64']:
         base=cpp,
         title=f'{basetitle} R',
         steps=[
-            # install cpp dependencies
+            # install R dependencies
             ADD(docker_assets / 'conda-r.txt'),
-            RUN(conda(files=['conda-r.txt'])),
-            RUN(conda('ccache', 'tzcode')),
-            RUN(apt('tzdata')),
-            ENV(TZ='UTC')
+            RUN(conda(files=['conda-r.txt']))
         ]
     )
     images.extend([crossbow, cpp, cpp_benchmark, r])
