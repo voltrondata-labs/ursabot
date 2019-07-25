@@ -271,3 +271,6 @@ for arch in ['amd64']:
             ]
         )
         images.append(rust)
+
+
+# worker_image = ...(images)
