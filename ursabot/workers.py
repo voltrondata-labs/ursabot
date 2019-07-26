@@ -17,7 +17,9 @@
 
 from io import BytesIO
 
+import toolz
 from twisted.internet import threads
+from buildbot.plugins import util
 from buildbot.util.logger import Logger
 from buildbot.interfaces import LatentWorkerCannotSubstantiate
 from buildbot.interfaces import LatentWorkerFailedToSubstantiate
@@ -33,6 +35,7 @@ log = Logger()
 class WorkerMixin:
 
     def __init__(self, *args, arch=None, tags=tuple(), **kwargs):
+        """Bookkeep a bit of metadata to describe the workers"""
         self.arch = arch
         self.tags = tuple(tags)
         super().__init__(*args, **kwargs)
@@ -42,6 +45,29 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
     # License note:
     #    copied from the original implementation with minor modification
     #    to pass runtime configuration to the containers
+
+    @ensure_deferred
+    async def reconfigService(self, password=None, image=None, volumes=None,
+                              hostconfig=None, missing_timeout=180, **kwargs):
+        # Set the default password to None so random one is generated.
+        # Let the DockerBuilder instances to lazily extend the docker volumes
+        # and hostconfig via the reserved docker_volumes and docker_hostconfig
+        # properties. The volumes are concatenated and the hostconfigs are
+        # merged. The image is overridden.
+        image = util.Property('docker_image', default=image)
+        volumes = util.Transform(
+            lambda a, b: list(toolz.concat([a, b])),
+            volumes or [],
+            util.Property('docker_volumes', [])
+        )
+        hostconfig = util.Transform(
+            toolz.merge,
+            hostconfig or {},
+            util.Property('docker_hostconfig', default={})
+        )
+        await super().reconfigService(password=password, image=image,
+                                      volumes=volumes, hostconfig=hostconfig,
+                                      **kwargs)
 
     def renderWorkerProps(self, build):
         return build.render(

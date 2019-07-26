@@ -3,13 +3,18 @@ import toolz
 
 class ProjectConfig:
 
-    def __init__(self, workers, builders, schedulers, pollers=None,
-                 reporters=None):
+    def __init__(self, name, workers, builders, schedulers, pollers=None,
+                 reporters=None, images=None):
+        self.name = name
         self.workers = workers
         self.builders = builders
         self.schedulers = schedulers
+        self.images = images or []
         self.pollers = pollers or []
         self.reporters = reporters or []
+
+    def __repr__(self):
+        return f'<{self.__class}: {self.name}>'
 
 
 def MasterConfig(title, url, webui_port, worker_port, database_url, projects,
