@@ -111,7 +111,7 @@ class GithubHook(GitHubEventHandler):
             'secret': self._secret,
             'token': self._tokens,
             'debug': self.debug,
-            'strict': self.strict,
+            'strict': self._strict,
             'verify': self.verify,
             'codebase': self._codebase,
             'pullrequest_ref': self.pullrequest_ref,

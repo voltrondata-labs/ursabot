@@ -39,3 +39,7 @@ script:
   - URSABOT_ENV=test buildbot checkconfig .
   - URSABOT_ENV=prod buildbot checkconfig .
   - popd
+
+  # check the top level "ubrella" config
+  - URSABOT_ENV=test buildbot checkconfig .
+  - URSABOT_ENV=prod buildbot checkconfig .

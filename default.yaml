@@ -57,8 +57,10 @@ hooks:
 
 projects:
   ursabot:
+    enabled: true
     config: 'projects/ursabot/master.cfg'
     variable: ursabot
   arrow:
+    enabled: true
     config: 'projects/arrow/master.cfg'
     variable: arrow
