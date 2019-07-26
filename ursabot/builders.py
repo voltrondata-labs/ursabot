@@ -164,6 +164,11 @@ class DockerBuilder(Builder):
         docker_builder : List[DockerBuilder]
             Builder instances.
         """
+        if not isinstance(workers, Collection):
+            workers = Collection(workers)
+        if not isinstance(images, Collection):
+            images = Collection(images)
+
         assert all(isinstance(i, DockerImage) for i in images)
         assert all(isinstance(w, DockerLatentWorker) for w in workers)
 

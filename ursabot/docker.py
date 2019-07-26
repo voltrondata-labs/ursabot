@@ -385,27 +385,20 @@ def conda(*packages, files=tuple()):
     return cmd.lstrip()
 
 
-docker_assets = Path()
-
-
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
-worker_command = 'twistd --pidfile= -ny buildbot.tac'
-worker_steps = [
+_docker_assets = Path(__file__).parent.parent / 'docker'
+_worker_command = 'twistd --pidfile= -ny buildbot.tac'
+_worker_steps = [
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
-    ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
+    ADD(_docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot')
 ]
 
 
-# TODO(kszucs) make a function out of the following snippet
-
-# create worker images and add them to the list of arrow images
-worker_images = []
-for image in images:
-    # exec form is required for conda images becase of the bash entrypoint
-    cmd = [worker_command] if image.variant == 'conda' else worker_command
-    steps = worker_steps + [CMD(cmd)]
-    worker = DockerImage(image.name, base=image, tag='worker', steps=steps)
-    worker_images.append(worker)
+def worker_image_for(image):
+    # treat conda images specially because of environment activation
+    cmd = [_worker_command] if image.variant == 'conda' else _worker_command
+    steps = _worker_steps + [CMD(cmd)]
+    return DockerImage(image.name, base=image, tag='worker', steps=steps)

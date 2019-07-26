@@ -102,6 +102,25 @@ class GithubHook(GitHubEventHandler):
 
         super().__init__(*args, **kwargs)
 
+    def _as_hook_dialect_config(self):
+        # the change hooks can be configured in a bit twisted fashion
+        # return the dictionary required to configure this object through
+        # the buildmaster config
+        hook_arguments = {
+            'class': self.__class__,
+            'secret': self._secret,
+            'token': self._tokens,
+            'debug': self.debug,
+            'strict': self.strict,
+            'verify': self.verify,
+            'codebase': self._codebase,
+            'pullrequest_ref': self.pullrequest_ref,
+            'github_api_endpoint': self.github_api_endpoint,
+            'github_property_whitelist': self.github_property_whitelist,
+            'skips': self.skips
+        }
+        return {'github': hook_arguments}
+
     async def _client(self):
         # return if the service has been already initialized
         if self._http:
