@@ -21,6 +21,9 @@ script:
   # run the worker tests (docker utilities for now)
   - pytest -v ursabot
 
+  # run the arrow project tests
+  - pytest -sv projects/arrow
+
   # check the ursabot buildbot configurations
   - pushd projects/ursabot
   - URSABOT_ENV=test buildbot checkconfig .

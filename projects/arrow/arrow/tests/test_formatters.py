@@ -11,11 +11,10 @@
 import textwrap
 from buildbot.process.results import FAILURE, SUCCESS
 from buildbot.test.fake import fakedb
-
-from ursabot.formatters import (BenchmarkCommentFormatter,
-                                CrossbowCommentFormatter)
 from ursabot.utils import ensure_deferred
 from ursabot.tests.test_formatters import TestFormatterBase
+
+from ..formatters import BenchmarkCommentFormatter, CrossbowCommentFormatter
 
 
 class TestBenchmarkCommentFormatter(TestFormatterBase):

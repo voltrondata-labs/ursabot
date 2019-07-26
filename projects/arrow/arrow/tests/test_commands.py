@@ -1,6 +1,7 @@
 import pytest
+from ursabot.commands import CommandError
 
-from ursabot.commands import CommandError, ursabot
+from ..commands import ursabot
 
 
 @pytest.mark.parametrize(('command', 'expected_props'), [

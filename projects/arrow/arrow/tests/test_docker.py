@@ -1,6 +1,6 @@
 from ursabot.docker import DockerImage, DockerFile
 
-from .docker import images
+from ..docker import images
 
 
 def test_arrow_images():
