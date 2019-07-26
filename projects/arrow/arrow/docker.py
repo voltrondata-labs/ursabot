@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from ursabot.docker import ImageCollection, DockerImage
+from ursabot.docker import ImageCollection, DockerImage, worker_image_for
 from ursabot.docker import ENTRYPOINT, ADD, RUN, ENV, SHELL
 from ursabot.docker import pip, apt, apk, symlink, conda
 from ursabot.utils import read_dependency_list
@@ -272,5 +272,7 @@ for arch in ['amd64']:
         )
         images.append(rust)
 
-
-# worker_image = ...(images)
+# WORKERS
+# create worker containers for all of the images above, meaning installing
+# buildbow-worker python package and the service configurations
+images += [worker_image_for(image) for image in images]

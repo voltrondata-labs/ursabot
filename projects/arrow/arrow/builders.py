@@ -259,6 +259,10 @@ r_check = R(
 
 class CrossbowTrigger(DockerBuilder):
     tags = ['crossbow']
+    env = {
+        'GIT_COMMITTER_NAME': 'ursabot',
+        'GIT_COMMITTER_EMAIL': 'ursabot@ci.ursalabs.org'
+    }
     steps = [
         GitHub(
             name='Clone Arrow',
@@ -296,7 +300,7 @@ class CrossbowTrigger(DockerBuilder):
     )
 
 
-class ArrowCppTest(DockerBuilder):
+class CppTest(DockerBuilder):
     tags = ['arrow', 'cpp', 'parquet', 'plasma']
     volumes = [
         lambda builder: f'{slugify(builder.name)}:/root/.ccache:rw'
@@ -336,13 +340,13 @@ class ArrowCppTest(DockerBuilder):
     )
 
 
-class ArrowCppCudaTest(ArrowCppTest):
+class CppCudaTest(CppTest):
     tags = ['arrow', 'cpp', 'cuda', 'parquet', 'plasma']
     hostconfig = {
         'runtime': 'nvidia'
     }
     properties = {
-        **ArrowCppTest.properties,
+        **CppTest.properties,
         'ARROW_CUDA': 'ON',
     }
     images = images.filter(
@@ -353,7 +357,7 @@ class ArrowCppCudaTest(ArrowCppTest):
     )
 
 
-class ArrowCppBenchmark(DockerBuilder):
+class CppBenchmark(DockerBuilder):
     tags = ['arrow', 'cpp', 'benchmark']
     properties = {
         'CMAKE_INSTALL_PREFIX': '/usr/local',
@@ -383,10 +387,10 @@ class ArrowCppBenchmark(DockerBuilder):
     )
 
 
-class ArrowRTest(ArrowCppTest):
+class RTest(CppTest):
     tags = ['arrow', 'r']
     steps = [
-        *ArrowCppTest.steps[:-1],  # excluding the last test step
+        *CppTest.steps[:-1],  # excluding the last test step
         r_deps,
         r_build,
         r_install,
@@ -400,17 +404,17 @@ class ArrowRTest(ArrowCppTest):
     )
 
 
-class ArrowPythonTest(ArrowCppTest):
+class PythonTest(CppTest):
     tags = ['arrow', 'python', 'parquet', 'plasma']
     hostconfig = {
         'shm_size': '2G',  # required for plasma
     }
     properties = {
-        **ArrowCppTest.properties,
+        **CppTest.properties,
         'ARROW_PYTHON': 'ON',
     }
     steps = [
-        *ArrowCppTest.steps[:-1],  # excluding the last test step
+        *CppTest.steps[:-1],  # excluding the last test step
         python_install,
         python_test
     ]
@@ -432,14 +436,14 @@ class ArrowPythonTest(ArrowCppTest):
     )
 
 
-class ArrowPythonCudaTest(ArrowPythonTest):
+class PythonCudaTest(PythonTest):
     tags = ['arrow', 'python', 'cuda', 'parquet', 'plasma']
     hostconfig = {
         'shm_size': '2G',  # required for plasma
         'runtime': 'nvidia',  # required for cuda
     }
     properties = {
-        **ArrowPythonTest.properties,
+        **PythonTest.properties,
         'ARROW_CUDA': 'ON',  # also sets PYARROW_WITH_CUDA
     }
     images = images.filter(
@@ -459,7 +463,7 @@ def as_system_includes(stdout, stderr):
     return ';'.join(args)
 
 
-class ArrowCppCondaTest(DockerBuilder):
+class CppCondaTest(DockerBuilder):
     tags = ['arrow', 'cpp', 'flight', 'gandiva', 'parquet', 'plasma']
     volumes = [
         lambda builder: f'{slugify(builder.name)}:/root/.ccache:rw'
@@ -507,10 +511,10 @@ class ArrowCppCondaTest(DockerBuilder):
     )
 
 
-class ArrowRCondaTest(ArrowCppCondaTest):
+class RCondaTest(CppCondaTest):
     tags = ['arrow', 'r']
     steps = [
-        *ArrowCppCondaTest.steps[:-1],  # excluding the test step
+        *CppCondaTest.steps[:-1],  # excluding the test step
         r_deps,
         r_build,
         r_install,
@@ -523,17 +527,17 @@ class ArrowRCondaTest(ArrowCppCondaTest):
     )
 
 
-class ArrowPythonCondaTest(ArrowCppCondaTest):
+class PythonCondaTest(CppCondaTest):
     tags = ['arrow', 'cpp', 'flight', 'gandiva', 'parquet', 'plasma', 'python']
     hostconfig = {
         'shm_size': '2G',  # required for plasma
     }
     properties = {
-        **ArrowCppCondaTest.properties,
+        **CppCondaTest.properties,
         'ARROW_PYTHON': 'ON'
     }
     steps = [
-        *ArrowCppCondaTest.steps[:-1],
+        *CppCondaTest.steps[:-1],
         python_install,
         python_test
     ]
@@ -544,7 +548,7 @@ class ArrowPythonCondaTest(ArrowCppCondaTest):
     )
 
 
-class ArrowJavaTest(DockerBuilder):
+class JavaTest(DockerBuilder):
     tags = ['arrow', 'java']
     steps = [
         checkout_arrow,
@@ -561,7 +565,7 @@ class ArrowJavaTest(DockerBuilder):
     )
 
 
-class ArrowJSTest(DockerBuilder):
+class JSTest(DockerBuilder):
     tags = ['arrow', 'js']
     volumes = [
         lambda builder: f'{slugify(builder.name)}:/root/.npm:rw'
@@ -581,7 +585,7 @@ class ArrowJSTest(DockerBuilder):
     )
 
 
-class ArrowGoTest(DockerBuilder):
+class GoTest(DockerBuilder):
     tags = ['arrow', 'go']
     env = {
         'GO111MODULE': 'on',
@@ -606,7 +610,7 @@ class ArrowGoTest(DockerBuilder):
     )
 
 
-class ArrowRustTest(DockerBuilder):
+class RustTest(DockerBuilder):
     tags = ['arrow', 'rust']
     env = {
         'ARROW_TEST_DATA': arrow_test_data_path,
