@@ -28,9 +28,9 @@ database_url: 'sqlite:///arrow.sqlite'
 secrets:
   # setup secret providers, currently on SecretInPass supported
   enabled: true
-  directory: '~/.ursalabs-pass'
   # optional, prefer gpg-agent instead
   passphrase:
+  directory:
 
 ######################### Project specific configurations #####################
 

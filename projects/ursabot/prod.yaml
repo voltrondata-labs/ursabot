@@ -11,6 +11,8 @@ webui_port: 8100
 
 secrets:
   enabled: true
+  passphrase:
+  directory: '~/.password-store'
 
 ######################### Project specific configurations #####################
 

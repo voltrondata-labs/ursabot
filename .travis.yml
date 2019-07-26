@@ -24,6 +24,9 @@ script:
   # run the arrow project tests
   - pytest -sv projects/arrow
 
+  # make checkconfig happy about password-store
+  - mkdir ~/.password-store
+
   # check the ursabot buildbot configurations
   - pushd projects/ursabot
   - URSABOT_ENV=test buildbot checkconfig .
@@ -31,5 +34,7 @@ script:
   - popd
 
   # check the arrow buildbot configurations
-  - buildbot checkconfig projects/arrow/test.cfg
-  - buildbot checkconfig projects/arrow/prod.cfg
+  - pushd projects/arrow
+  - URSABOT_ENV=test buildbot checkconfig .
+  - URSABOT_ENV=prod buildbot checkconfig .
+  - popd

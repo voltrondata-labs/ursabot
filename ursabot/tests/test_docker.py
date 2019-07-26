@@ -7,7 +7,7 @@
 from textwrap import dedent
 
 import pytest
-from dockermap.api import DockerFile, DockerClientWrapper
+from dockermap.api import DockerClientWrapper
 
 from ursabot.docker import DockerImage, ImageCollection
 from ursabot.docker import RUN, CMD, apk, apt, pip, conda
