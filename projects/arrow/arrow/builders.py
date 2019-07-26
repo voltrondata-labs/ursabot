@@ -1,8 +1,6 @@
-
 import textwrap
 
 from buildbot.plugins import util
-
 from ursabot.builders import DockerBuilder
 from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
                            Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip,
