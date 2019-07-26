@@ -22,13 +22,11 @@ script:
   - pytest -v ursabot
 
   # check the ursabot buildbot configurations
-  - buildbot checkconfig projects/ursabot/test.cfg
-  - buildbot checkconfig projects/ursabot/prod.cfg
+  - pushd projects/ursabot
+  - URSABOT_ENV=test buildbot checkconfig .
+  - URSABOT_ENV=prod buildbot checkconfig .
+  - popd
 
   # check the arrow buildbot configurations
   - buildbot checkconfig projects/arrow/test.cfg
   - buildbot checkconfig projects/arrow/prod.cfg
-
-  # check the configurations icluding both projects
-  - buildbot checkconfig projects/arrow/both_test.cfg
-  - buildbot checkconfig projects/arrow/both_prod.cfg
