@@ -25,6 +25,7 @@ script:
   - pytest -sv projects/arrow
 
   # make checkconfig happy about password-store
+  - sudo apt-get install pass
   - mkdir ~/.password-store
 
   # check the ursabot buildbot configurations
