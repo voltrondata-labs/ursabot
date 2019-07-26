@@ -4,6 +4,9 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
-import pytest
+# import pytest
+#
+# from ursabot.commands import CommandError, ursabot
 
-from ursabot.commands import CommandError, ursabot
+# TODO(kszucs): write tests, including a plugging-in mechanism for injecting
+# commands from projects (like arrow and ursabot)
