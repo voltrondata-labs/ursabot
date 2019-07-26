@@ -190,21 +190,21 @@ Then open `http://localhost:8100` in the browser.
 The buildbot configuration is implemented in `master.cfg`, however to turn
 services on and off more easily, add workers without touching any python
 file, and provide credentials without committing to git there is another
-static configuration layer constructed by `default.toml`, `test.toml`
-and `prod.toml` files.
+static configuration layer constructed by `default.yaml`, `test.yaml`
+and `prod.yaml` files.
 These files are loaded as plain dictionaries and merged upon each other
 depending on the `URSABOT_ENV` environment variable. The default value of
 `URSABOT_ENV` is `test`, the merge order is:
 
-1. [`default.toml`](default.toml)
-2. `$URSABOT_ENV.toml` like [`test.toml`](test.toml) or [`prod.toml`](prod.toml)
-3. `local.toml` [optional]
-4. `.secrets.toml` [optional]
+1. [`default.yaml`](default.yaml)
+2. `$URSABOT_ENV.yaml` like [`test.yaml`](test.yaml) or [`prod.yaml`](prod.yaml)
+3. `local.yaml` [optional]
+4. `.secrets.yaml` [optional]
 
-For the available configuration keys see [`default.toml`](default.toml).
+For the available configuration keys see [`default.yaml`](default.yaml).
 The preferred secret handling method is to setup a secret provider like
 `SecretInPass`, see the `secrets` configuration key in
-[`default.toml`](default.toml).
+[`default.yaml`](default.yaml).
 
 
 ### Adding a new build(er)s
@@ -454,7 +454,7 @@ $ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p
 
 Adding docker latent workers requires a worker entry in the configuration.
 Name, architecture and a docker host (accessable by the buildmaster) are
-required, see an example in [default.toml](default.toml).
+required, see an example in [default.yaml](default.yaml).
 Adding non-docker workers are also possible, but must register them in the
 [master.cfg](master.cfg).
 

@@ -17,8 +17,8 @@ class ProjectConfig:
         return f'<{self.__class}: {self.name}>'
 
 
-def MasterConfig(title, url, webui_port, worker_port, database_url, projects,
-                 auth=None, authz=None, change_hook=None,
+def MasterConfig(title, url, webui_port, worker_port, projects,
+                 database_url=None, auth=None, authz=None, change_hook=None,
                  secret_providers=None):
     """Returns with the dictionary that the buildmaster pays attention to."""
 
@@ -30,7 +30,7 @@ def MasterConfig(title, url, webui_port, worker_port, database_url, projects,
     else:
         hook_dialect_config = change_hook._as_hook_dialect_config()
 
-    return {
+    buildmaster_config = {
         'buildbotNetUsageData': None,
         'title': title,
         'titleURL': url,
@@ -42,11 +42,9 @@ def MasterConfig(title, url, webui_port, worker_port, database_url, projects,
         'change_source': component('pollers'),
         'secretsProviders': secret_providers or [],
         'protocols': {'pb': {'port': worker_port}},
-        'db': {'db_url': 'sqlite:///ursabot.sqlite'},
+        'db': {'db_url': database_url},
         'www': {
             'port': webui_port,
-            'auth': auth,
-            'authz': authz,
             'change_hook_dialects': hook_dialect_config,
             'plugins': {
                 'waterfall_view': {},
@@ -55,3 +53,12 @@ def MasterConfig(title, url, webui_port, worker_port, database_url, projects,
             }
         }
     }
+
+    # buildbot raises errors for None or empty dict values so only set of they
+    # are passed
+    if auth is not None:
+        buildmaster_config['www']['auth'] = auth
+    if authz is not None:
+        buildmaster_config['www']['authz'] = authz
+
+    return buildmaster_config

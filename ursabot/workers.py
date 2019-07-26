@@ -55,8 +55,9 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         super().checkConfig(name, password=password, image=image, **kwargs)
 
     @ensure_deferred
-    async def reconfigService(self, password=None, image=None, volumes=None,
-                              hostconfig=None, missing_timeout=180, **kwargs):
+    async def reconfigService(self, name, password=None, image=None,
+                              volumes=None, hostconfig=None,
+                              missing_timeout=180, **kwargs):
         # Set the default password to None so random one is generated.
         # Let the DockerBuilder instances to lazily extend the docker volumes
         # and hostconfig via the reserved docker_volumes and docker_hostconfig
@@ -74,7 +75,7 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             util.Property('docker_hostconfig', default={})
         )
         return await super().reconfigService(
-            password=password, image=image, volumes=volumes,
+            name=name, password=password, image=image, volumes=volumes,
             hostconfig=hostconfig, **kwargs
         )
 

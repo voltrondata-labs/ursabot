@@ -1,0 +1,63 @@
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
+#
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
+
+# The 'title' string will appear at the top of this buildbot installation's
+# home pages (linked to the 'titleURL').
+title: 'Ursabot'
+
+# The 'buildbotURL' string should point to the location where the buildbot's
+# internal web server is visible. This typically uses the port number set in
+# the 'webui_port' entry below, but with an externally-visible host name which
+# the buildbot cannot figure out without some help.
+url:
+
+# Protocols contains information about protocols which master will use for
+# communicating with workers. You must define at least 'port' option that
+# workers could connect to your master with this protocol.
+# 'port' must match the value configured into the workers (with their
+# --master option)
+worker_port: 9989
+webui_port: 8100
+database_url: 'sqlite:///ursabot.sqlite'
+
+secrets:
+  # setup secret providers, currently on SecretInPass supported
+  enabled: true
+  directory: '~/.ursalabs-pass'
+  # optional, prefer gpg-agent instead
+  passphrase:
+
+######################### Project specific configurations #####################
+
+ursabot:
+  # specific configurations for building ursabot project itself, `name` must be
+  # in `owner/repo` format
+  name: 'ursa-labs/ursabot'
+  repo: 'https://github.com/ursa-labs/ursabot'
+  poller:
+    enabled: false
+    token: '%(secret:ursabot/github_token)s'
+  reporters:
+    github_status:
+      enabled: false
+      tokens:
+        # multiple tokens can be provided to increate the rate limit
+        # 5000 API requests can be made with a single token, but the rotator
+        # will switch after reaching 1000 remaining rate limit
+        - '%(secret:ursabot/github_token)s'
+  workers:
+    # # currently only docker workers are supported in the master.cfg
+    # - name: 'local'
+    #   arch: 'arm64v8' or 'amd64'
+    #   docker:
+    #     host: 'tcp://host:port' or 'unix://var/run/docker.sock'
+    #     # for testing on docker on mac use the following reserved host
+    #     masterFQDN: 'host.docker.internal'
+    #     autopull: true
+    #     alwayspull: true
+    #     hostconfig:
+    #       network_mode: 'host'
+    #       cpuset_cpus: '2,3'

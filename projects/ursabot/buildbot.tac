@@ -20,12 +20,10 @@ import os
 from twisted.application import service
 from buildbot.master import BuildMaster
 
-# read config file from ENV variable!
-
 basedir = '.'
 rotateLength = 10000000
 maxRotatedFiles = 10
-configfile = 'ursabot.cfg'
+configfile = 'master.cfg'
 
 # Default umask for server
 umask = None
