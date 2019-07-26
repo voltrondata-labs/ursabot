@@ -21,5 +21,14 @@ script:
   # run the worker tests (docker utilities for now)
   - pytest -v ursabot
 
-  # check the buildbot configuration
-  - buildbot checkconfig
+  # check the ursabot buildbot configurations
+  - buildbot checkconfig projects/ursabot/test.cfg
+  - buildbot checkconfig projects/ursabot/prod.cfg
+
+  # check the arrow buildbot configurations
+  - buildbot checkconfig projects/arrow/test.cfg
+  - buildbot checkconfig projects/arrow/prod.cfg
+
+  # check the configurations icluding both projects
+  - buildbot checkconfig projects/arrow/both_test.cfg
+  - buildbot checkconfig projects/arrow/both_prod.cfg
