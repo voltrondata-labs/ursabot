@@ -1,3 +1,12 @@
+"""
+There is a small docker utility in ursabot.docker module to define
+hierachical images. It uses a DSL implemented in python instead of plain
+Dockerfiles. Additionally it plays nicely with the DockerLatentWorker and
+the DockerBuilder abstractions. The DockerBuilder can specify which
+DockerImage(s) it requires to run the build(s).
+For more see https://github.com/ursa-labs/ursabot#define-docker-images
+"""
+
 from pathlib import Path
 
 from ursabot.docker import ImageCollection, DockerImage, worker_image_for

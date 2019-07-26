@@ -4,15 +4,19 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
+###################### Buildmaster specific configurations ####################
+
 url: 'https://ci.ursalabs.org/'
 webui_port: 8100
 
 secrets:
   enabled: true
 
+######################### Project specific configurations #####################
+
 ursabot:
-  # ursabot is hosted within another configuration alongside arrow, so only the
-  # the configuration values under `ursabot` do matter in production
+  # production ursabot is hosted within another configuration alongside arrow
+  # so only the configuration values under `ursabot` do matter in production
   reporters:
     github_status:
       enabled: true

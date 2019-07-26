@@ -8,7 +8,7 @@
 
 # The 'title' string will appear at the top of this buildbot installation's
 # home pages (linked to the 'titleURL').
-title: 'Ursabot'
+title: 'Apache Arrow'
 
 # The 'buildbotURL' string should point to the location where the buildbot's
 # internal web server is visible. This typically uses the port number set in
@@ -22,8 +22,8 @@ url:
 # 'port' must match the value configured into the workers (with their
 # --master option)
 worker_port: 9989
-webui_port: 8100
-database_url: 'sqlite:///ursabot.sqlite'
+webui_port: 4100
+database_url: 'sqlite:///arrow.sqlite'
 
 secrets:
   # setup secret providers, currently on SecretInPass supported
@@ -34,24 +34,44 @@ secrets:
 
 ######################### Project specific configurations #####################
 
-ursabot:
-  # specific configurations for building ursabot project itself, `name` must be
+arrow:
+  # specific configurations for building arrow project itself, `name` must be
   # in `owner/repo` format
-  name: 'ursa-labs/ursabot'
-  repo: 'https://github.com/ursa-labs/ursabot'
+  enabled: true
+  name: 'apache/arrow'
+  repo: 'https://github.com/apache/arrow'
   poller:
     enabled: false
     token: '%(secret:ursabot/github_token)s'
+  schedulers:
+    # this scheduler allows developers to use the buildbot try command to
+    # trigger builds of code they have not yet committed.
+    try:
+      port: 4011
+      userpass: []
   reporters:
     github_status:
       enabled: false
+      # github token used for pushing status changes, have to provide
+      # repo:status scope for the token and must have write access to the
+      # arrow repository (recommented scopes: public_repo, repo:status)
       tokens:
         # multiple tokens can be provided to increate the rate limit
         # 5000 API requests can be made with a single token, but the rotator
         # will switch after reaching 1000 remaining rate limit
         - '%(secret:ursabot/github_token)s'
+    github_comment:
+      enabled: false
+      tokens:
+        - '%(secret:ursabot/github_token)s'
+    zulip_status:
+      enabled: false
+      bot:
+      organization:
+      stream:
+      apikey:
   workers:
-    # # currently only docker workers are supported in the master.cfg
+    # # currently only docker workers are supported
     # - name: 'local'
     #   arch: 'arm64v8' or 'amd64'
     #   docker:
