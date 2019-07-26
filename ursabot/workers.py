@@ -46,6 +46,14 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
     #    copied from the original implementation with minor modification
     #    to pass runtime configuration to the containers
 
+    def checkConfig(self, name, password=None, image=None, **kwargs):
+        # Set the default password to None so random one is generated.
+        # Set the default image to a reserved property if image is None to
+        # bypass the validation implemented in the parent class.
+        if image is None:
+            image = util.Property('docker_image', default=image)
+        super().checkConfig(name, password=password, image=image, **kwargs)
+
     @ensure_deferred
     async def reconfigService(self, password=None, image=None, volumes=None,
                               hostconfig=None, missing_timeout=180, **kwargs):
@@ -65,9 +73,10 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             hostconfig or {},
             util.Property('docker_hostconfig', default={})
         )
-        await super().reconfigService(password=password, image=image,
-                                      volumes=volumes, hostconfig=hostconfig,
-                                      **kwargs)
+        return await super().reconfigService(
+            password=password, image=image, volumes=volumes,
+            hostconfig=hostconfig, **kwargs
+        )
 
     def renderWorkerProps(self, build):
         return build.render(

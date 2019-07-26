@@ -2,7 +2,7 @@ from buildbot.plugins import util
 from ursabot.builders import DockerBuilder
 from ursabot.steps import ShellCommand, PyTest, Pip, GitHub
 
-from .images import worker_image
+from images import worker_image
 
 
 class UrsabotTest(DockerBuilder):

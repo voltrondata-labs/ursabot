@@ -40,7 +40,7 @@ def MasterConfig(title, url, webui_port, worker_port, database_url, projects,
         'schedulers': component('schedulers'),
         'services': component('reporters'),
         'change_source': component('pollers'),
-        'secretsProviders': secret_providers,
+        'secretsProviders': secret_providers or [],
         'protocols': {'pb': {'port': worker_port}},
         'db': {'db_url': 'sqlite:///ursabot.sqlite'},
         'www': {
