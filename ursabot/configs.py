@@ -55,13 +55,3 @@ def MasterConfig(title, url, webui_port, worker_port, database_url, projects,
             }
         }
     }
-    # c['www']['change_hook_dialects']['github'] = {
-    #     'class': UrsabotHook,
-    #     'secret': util.Interpolate(conf.hooks.github.secret),
-    #     'token': [
-    #         util.Interpolate(token) for token in conf.hooks.github.tokens
-    #     ],
-    #     'debug': conf.hooks.github.debug,
-    #     'strict': True,
-    #     'verify': True
-    # }
