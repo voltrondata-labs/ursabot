@@ -40,6 +40,10 @@ script:
   - URSABOT_ENV=prod buildbot checkconfig .
   - popd
 
+  # make checkconfig happy about password-store, the umbrella project actually
+  # uses ~/.ursalabs-pass
+  - mkdir ~/.ursalabs-pass
+
   # check the top level "ubrella" config
   - URSABOT_ENV=test buildbot checkconfig .
   - URSABOT_ENV=prod buildbot checkconfig .

@@ -9,6 +9,7 @@ webui_port: 8010
 
 secrets:
   enabled: true
+  directory: '~/.ursalabs-pass'
 
 hooks:
   github:
