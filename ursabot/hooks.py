@@ -12,7 +12,7 @@ from buildbot.www.hooks.github import GitHubEventHandler
 from buildbot.process.properties import Properties
 
 from .utils import ensure_deferred, GithubClientService
-from .commands import CommandError, ursabot as ursabot_command
+from .commands import CommandError
 
 
 log = Logger()
@@ -71,6 +71,10 @@ class GithubHook(GitHubEventHandler):
     botname = 'buildbot'
     headers = {'User-Agent': 'Buildbot'}
     use_reactions = False
+
+    # comment_handler is a callback which receives a comment as plain
+    # string and should raise a commands.CommandError on parse failure
+    # otherwise should return a dictionary of properties
     comment_handler = None
 
     def __init__(self, *args, tokens=None, token=None,
@@ -354,4 +358,3 @@ class UrsabotHook(GithubHook):
     botname = 'ursabot'
     headers = {'User-Agent': 'Ursabot'}
     use_reactions = True
-    comment_handler = staticmethod(ursabot_command)

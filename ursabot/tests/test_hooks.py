@@ -21,7 +21,7 @@ from buildbot.test.unit.test_www_hooks_github import _prepare_request
 
 from ursabot.utils import ensure_deferred
 from ursabot.hooks import GithubHook, UrsabotHook
-from ursabot.commands import CommandError, ursabot as ursabot_command
+from ursabot.commands import CommandError, group
 from ursabot.tests.mocks import GithubClientService
 
 
@@ -146,10 +146,23 @@ class TestGithubHook(ChangeHookTestCase):
         assert len(self.changes_added) == 0
 
 
+@group()
+def custom_handler():
+    pass
+
+
+@custom_handler.command()
+def build():
+    """Trigger all tests registered for this pull request."""
+    # each command must return a dictionary which are set as build properties
+    return {'command': 'build'}
+
+
 # XXX: hack for testing ursabot hook with comment reactions insted, patching is
 # messed up in the original test suite
 class NoReactionsUrsabotHook(UrsabotHook):
     use_reactions = False
+    comment_handler = custom_handler
 
 
 class TestUrsabotHook(ChangeHookTestCase):
@@ -189,7 +202,7 @@ class TestUrsabotHook(ChangeHookTestCase):
     async def test_issue_comment_with_empty_command_reponds_with_usage(self):
         # responds to the comment with the usage
         try:
-            ursabot_command('')
+            custom_handler('')
         except CommandError as e:
             usage = e.message
 

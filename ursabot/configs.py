@@ -65,6 +65,7 @@ class ProjectConfig(Config):
     compare_attrs = [
         'name',
         'images',
+        'commands',
         'pollers',
         'workers',
         'builders',
@@ -73,12 +74,14 @@ class ProjectConfig(Config):
     ]
 
     def __init__(self, name, workers, builders, schedulers, pollers=None,
-                 reporters=None, images=None):
+                 reporters=None, images=None, commands=None):
+        # TODO(kszucs): validation
         self.name = name
         self.workers = Collection(workers)
         self.builders = Collection(builders)
         self.schedulers = Collection(schedulers)
         self.images = ImageCollection(images or [])
+        self.commands = Collection(images or [])
         self.pollers = Collection(pollers or [])
         self.reporters = Collection(reporters or [])
 
@@ -122,6 +125,10 @@ class MasterConfig(Config):
     @property
     def images(self):
         return self._from_projects('images')
+
+    @property
+    def commands(self):
+        return self._from_projects('commands')
 
     @property
     def workers(self):

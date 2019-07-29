@@ -2,7 +2,14 @@
 import shlex
 import click
 
-from ursabot.commands import ursabot
+from ursabot.commands import group
+
+
+@group(name='@ursabot')
+@click.pass_context
+def ursabot(ctx):
+    """Ursabot"""
+    ctx.ensure_object(dict)
 
 
 @ursabot.command()

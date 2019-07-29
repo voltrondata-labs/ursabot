@@ -50,10 +50,10 @@ def ursabot(ctx, verbose, config_path, config_variable):
 
 
 @ursabot.command()
-@click.pass_context
-def checkconfig(ctx):
-    config = ctx.obj['config']
-    config_path = ctx.obj['config_path']
+@click.pass_obj
+def checkconfig(obj):
+    config = obj['config']
+    config_path = obj['config_path']
 
     try:
         config.as_buildbot(filename=config_path.name)
@@ -67,8 +67,8 @@ def checkconfig(ctx):
 
 
 @ursabot.command()
-@click.pass_context
-def upgrade_master(ctx):
+@click.pass_obj
+def upgrade_master(obj):
     from buildbot.util import in_reactor
     from buildbot.scripts.upgrade_master import upgradeDatabase
 
@@ -80,9 +80,9 @@ def upgrade_master(ctx):
         except Exception as e:
             click.error(e)
 
-    verbose = ctx.obj['verbose']
-    config = ctx.obj['config']
-    config_path = ctx.obj['config_path']
+    verbose = obj['verbose']
+    config = obj['config']
+    config_path = obj['config_path']
     basedir = config_path.parent.absolute()
 
     command_cfg = {'basedir': basedir, 'quiet': not verbose}
@@ -98,12 +98,12 @@ def upgrade_master(ctx):
 @click.option('--start-timeout', is_flag=True, default=None,
               help='The amount of time the script waits for the master to '
                    'start until it declares the operation as failure')
-@click.pass_context
-def start(ctx, no_daemon, start_timeout):
+@click.pass_obj
+def start(obj, no_daemon, start_timeout):
     from buildbot.scripts.start import start
     command_cfg = {
-        'basedir': ctx.obj['config_path'].parent.absolute(),
-        'quiet': not ctx.obj['verbose'],
+        'basedir': obj['config_path'].parent.absolute(),
+        'quiet': not obj['verbose'],
         'nodaemon': no_daemon,
         'start_timeout': start_timeout
     }
@@ -111,16 +111,16 @@ def start(ctx, no_daemon, start_timeout):
 
 
 @ursabot.command()
-@click.pass_context
 @click.option('--clean', '-c', is_flag=True, default=True,
               help='Clean shutdown master')
 @click.option('--no-wait', is_flag=True, default=False,
               help="Don't wait for complete master shutdown")
-def stop(ctx, clean, no_wait):
+@click.pass_obj
+def stop(obj, clean, no_wait):
     from buildbot.scripts.stop import stop
     command_cfg = {
-        'basedir': ctx.obj['config_path'].parent.absolute(),
-        'quiet': not ctx.obj['verbose'],
+        'basedir': obj['config_path'].parent.absolute(),
+        'quiet': not obj['verbose'],
         'clean': clean,
         'no-wait': no_wait
     }
@@ -128,7 +128,6 @@ def stop(ctx, clean, no_wait):
 
 
 @ursabot.command()
-@click.pass_context
 @click.option('--no-daemon', is_flag=True, default=False,
               help="Don't daemonize (stay in foreground)")
 @click.option('--start-timeout', is_flag=True, default=None,
@@ -138,11 +137,12 @@ def stop(ctx, clean, no_wait):
               help='Clean shutdown master')
 @click.option('--no-wait', is_flag=True, default=False,
               help="Don't wait for complete master shutdown")
-def restart(ctx, no_daemon, start_timeout, clean, no_wait):
+@click.pass_obj
+def restart(obj, no_daemon, start_timeout, clean, no_wait):
     from buildbot.scripts.restart import restart
     command_cfg = {
-        'basedir': ctx.obj['config_path'].parent.absolute(),
-        'quiet': not ctx.obj['verbose'],
+        'basedir': obj['config_path'].parent.absolute(),
+        'quiet': not obj['verbose'],
         'nodaemon': no_daemon,
         'start_timeout': start_timeout,
         'clean': clean,
@@ -167,14 +167,14 @@ def restart(ctx, no_daemon, start_timeout, clean, no_wait):
 @click.option('--variant', '-v', default=None,
               help='Filter images by variant')
 @click.option('--name', '-n', default=None, help='Filter images by name')
-@click.pass_context
-def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
+@click.pass_obj
+def docker(obj, docker_host, docker_username, docker_password, **kwargs):
     """Subcommand to build docker images for the docker builders
 
     It loads the docker images defined
     """
-    config = ctx.obj['config']
-    if ctx.obj['verbose']:
+    config = obj['config']
+    if obj['verbose']:
         logging.getLogger('dockermap').setLevel(logging.INFO)
 
     client = DockerClientWrapper(docker_host)
@@ -184,15 +184,15 @@ def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
     filters = toolz.valfilter(lambda x: x is not None, kwargs)
     images = config.images.filter(**filters)
 
-    ctx.obj['client'] = client
-    ctx.obj['images'] = images
+    obj['client'] = client
+    obj['images'] = images
 
 
 @docker.command('list')
-@click.pass_context
-def list_images(ctx):
+@click.pass_obj
+def list_images(obj):
     """List the docker images"""
-    images = ctx.obj['images']
+    images = obj['images']
     for image in images:
         click.echo(image)
 
@@ -202,11 +202,11 @@ def list_images(ctx):
               help='Push the built images')
 @click.option('--nocache/--cache', default=False,
               help='Do not use cache when building the images')
-@click.pass_context
-def build(ctx, push, nocache):
+@click.pass_obj
+def build(obj, push, nocache):
     """Build docker images"""
-    client = ctx.obj['client']
-    images = ctx.obj['images']
+    client = obj['client']
+    images = obj['images']
 
     images.build(client=client, nocache=nocache)
     if push:
@@ -216,10 +216,10 @@ def build(ctx, push, nocache):
 @docker.command()
 @click.option('--directory', '-d', default='images',
               help='Path to the directory where the images should be written')
-@click.pass_context
-def write_dockerfiles(ctx, directory):
+@click.pass_obj
+def write_dockerfiles(obj, directory):
     """Write the corresponding Dockerfile for the images"""
-    images = ctx.obj['images']
+    images = obj['images']
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
 

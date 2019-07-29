@@ -57,10 +57,3 @@ class Group(_CommandMixin, click.Group):
 
 command = partial(click.command, cls=Command)
 group = partial(click.group, cls=Group)
-
-
-@group(name='@ursabot')
-@click.pass_context
-def ursabot(ctx):
-    """Ursabot"""
-    ctx.ensure_object(dict)
