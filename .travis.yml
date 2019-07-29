@@ -34,5 +34,8 @@ script:
   - ursabot -v checkconfig
   - popd
 
-  # check the top level "ubrella" config
+  # check the top level "ubrella" config, this is the production config, so it
+  # requires both ~/.uralabs-pass to be present and pass to be installed
+  - sudo apt-get install pass
+  - mkdir ~/.ursalabs-pass
   - ursabot -v checkconfig

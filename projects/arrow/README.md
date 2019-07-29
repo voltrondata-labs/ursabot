@@ -52,3 +52,5 @@ Pushing the images:
 ```bash
 $ ursabot docker --arch amd64 --variant conda build --push
 ```
+
+TODO(kszucs): more verbose readme
