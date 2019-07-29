@@ -19,7 +19,7 @@ from buildbot.interfaces import LatentWorkerFailedToSubstantiate
 from buildbot.worker.docker import (DockerLatentWorker, _handle_stream_line,
                                     docker_py_version, docker)
 
-from .utils import ensure_deferred
+from .utils import Collection, ensure_deferred
 
 
 log = Logger()
@@ -175,3 +175,78 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
                     break
             del logs
         return [instance['Id'], image]
+
+
+def docker_workers_from(configs, docker_host='unix://var/run/docker.sock',
+                        masterFQDN=None, auto_pull=True, always_pull=False,
+                        volumes=None, hostconfig=None):
+    """A thin helper function to reduce worker configuration boilerplate.
+
+    Parameters
+    ----------
+    configs: List[Dict]
+        Mandatory keys:
+            - name (use alphanumeric and hyphen)
+            - arch (any of amd64, arm64v8, arm32v7)
+        Optional keys:
+            - tags: List[str], default []
+            - ncpus: int, default None
+            - max_builds: int, default 1
+            - volumes: list, default []
+            - missing_timeout: int, default 120
+            - auto_pull: bool, defaults to the auto_pull argument
+            - always_pull: bool, defaults to the always_pull argument
+            - docker_host: str, defaults to the docker_host argument
+            - masterFQDN: str, defaults to the masterFQDN argument
+            - hostconfig: dict, defaults to the hostconfig argument
+    docker_host: str, default unix://var/run/docker.sock
+    masterFQDN: str, default None
+        Address of the master the worker should connect to. This value is
+        passed to the docker image via environment variable BUILDMASTER.
+        Note: Use 'host.docker.internal' on Docker for Mac.
+    auto_pull: bool, default True
+        Automatically pulls image if requested image is not on docker host.
+    always_pull: bool, default False
+        Always pulls image if autopull is set to True.
+    volumes: List[str], default []
+        List of volumes which should be attached to the docker container.
+    hostconfig: dict, default {'network_mode': 'host'}
+        Additional docker configurations, directly passed to the low-level
+        docker APIClient.create_host_config.
+        For more see https://docker-py.readthedocs.io/en/stable/api.html.
+
+    Return
+    ------
+    docker_workers: Collection[DockerLatentWorker]
+    """
+    volumes = volumes or []
+    hostconfig = {'network_mode': 'host'}
+
+    workers = Collection()
+    for w in configs:
+        worker = DockerLatentWorker(
+            w['name'],
+            password=None,  # auto generated
+            arch=w['arch'],
+            tags=w.get('tags', []),
+            max_builds=w.get('max_builds', 1),
+            properties={'ncpus': w.get('ncpus')},
+            autopull=w.get('auto_pull', auto_pull),
+            alwaysPull=w.get('always_pull', always_pull),
+            docker_host=w.get('docker_host', docker_host),
+            masterFQDN=w.get('masterFQDN', masterFQDN),
+            volumes=w.get('volumes', volumes),
+            hostconfig=w.get('hostconfig', hostconfig),
+            missing_timeout=w.get('missing_timeout', 120)
+        )
+        workers.append(worker)
+
+    return workers
+
+
+def docker_test_workers(**kwargs):
+    configs = [
+        dict(name='local-docker-1', arch='amd64'),
+        dict(name='local-docker-2', arch='amd64')
+    ]
+    return docker_workers_from(configs, **kwargs)

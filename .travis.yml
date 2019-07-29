@@ -24,26 +24,15 @@ script:
   # run the arrow project tests
   - pytest -sv projects/arrow
 
-  # make checkconfig happy about password-store
-  - sudo apt-get install pass
-  - mkdir ~/.password-store
-
   # check the ursabot buildbot configurations
   - pushd projects/ursabot
-  - URSABOT_ENV=test buildbot checkconfig .
-  - URSABOT_ENV=prod buildbot checkconfig .
+  - ursabot -v checkconfig
   - popd
 
   # check the arrow buildbot configurations
   - pushd projects/arrow
-  - URSABOT_ENV=test buildbot checkconfig .
-  - URSABOT_ENV=prod buildbot checkconfig .
+  - ursabot -v checkconfig
   - popd
 
-  # make checkconfig happy about password-store, the umbrella project actually
-  # uses ~/.ursalabs-pass
-  - mkdir ~/.ursalabs-pass
-
   # check the top level "ubrella" config
-  - URSABOT_ENV=test buildbot checkconfig .
-  - URSABOT_ENV=prod buildbot checkconfig .
+  - ursabot -v checkconfig

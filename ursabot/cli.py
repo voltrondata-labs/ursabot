@@ -4,14 +4,17 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
-import click
+import sys
 import logging
 import toolz
 from pathlib import Path
 
+import click
 from dockermap.api import DockerClientWrapper
+from buildbot.config import ConfigErrors
 
-from .docker import images
+from .configs import Config, ProjectConfig, MasterConfig
+from .utils import ensure_deferred
 
 
 logging.basicConfig()
@@ -20,13 +23,132 @@ logger = logging.getLogger(__name__)
 
 @click.group()
 @click.option('--verbose/--quiet', '-v', default=False, is_flag=True)
+@click.option('--config-path', '-c', default='master.cfg',
+              help='Configuration file path')
+@click.option('--config-variable', '-cv', default='master',
+              help='Variable name in the configuration which is either an '
+                   ' instance of ProjectConfig or MasterConfig')
 @click.pass_context
-def ursabot(ctx, verbose):
-    ctx.ensure_object(dict)
-    ctx.obj['verbose'] = verbose
-
+def ursabot(ctx, verbose, config_path, config_variable):
     if verbose:
         logging.getLogger('ursabot').setLevel(logging.INFO)
+
+    # TODO(kszucs): capture stdout and stderr
+    config_path = Path(config_path)
+    config = Config.load_from(config_path, variable=config_variable)
+    if not isinstance(config, (ProjectConfig, MasterConfig)):
+        raise click.UsageError(
+            f'The loaded variable `{config_variable}` from `{config_path}` '
+            f'has type `{type(config)}` whereis it needs to be an instance of '
+            f'either ProjectConfig or MasterConfig'
+        )
+
+    ctx.ensure_object(dict)
+    ctx.obj['verbose'] = verbose
+    ctx.obj['config'] = config
+    ctx.obj['config_path'] = config_path
+
+
+@ursabot.command()
+@click.pass_context
+def checkconfig(ctx):
+    config = ctx.obj['config']
+    config_path = ctx.obj['config_path']
+
+    try:
+        config.as_buildbot(filename=config_path.name)
+    except ConfigErrors as e:
+        click.echo(click.style('Configuration Errors:', err=True, fg='red'))
+        for e in e.errors:
+            click.echo(click.style(f' {e}', err=True, fg='red'))
+        sys.exit(1)
+
+    click.echo(click.style('Config file is good!', fg='green'))
+
+
+@ursabot.command()
+@click.pass_context
+def upgrade_master(ctx):
+    from buildbot.util import in_reactor
+    from buildbot.scripts.upgrade_master import upgradeDatabase
+
+    @in_reactor
+    @ensure_deferred
+    async def run(command_cfg, master_cfg):
+        try:
+            await upgradeDatabase(command_cfg, master_cfg)
+        except Exception as e:
+            click.error(e)
+
+    verbose = ctx.obj['verbose']
+    config = ctx.obj['config']
+    config_path = ctx.obj['config_path']
+    basedir = config_path.parent.absolute()
+
+    command_cfg = {'basedir': basedir, 'quiet': not verbose}
+    master_cfg = config.as_buildbot(filename=config_path.name)
+
+    run(command_cfg, master_cfg)
+    click.echo(click.style('Upgrade complete!', fg='green'))
+
+
+@ursabot.command()
+@click.option('--no-daemon', is_flag=True, default=False,
+              help="Don't daemonize (stay in foreground)")
+@click.option('--start-timeout', is_flag=True, default=None,
+              help='The amount of time the script waits for the master to '
+                   'start until it declares the operation as failure')
+@click.pass_context
+def start(ctx, no_daemon, start_timeout):
+    from buildbot.scripts.start import start
+    command_cfg = {
+        'basedir': ctx.obj['config_path'].parent.absolute(),
+        'quiet': not ctx.obj['verbose'],
+        'nodaemon': no_daemon,
+        'start_timeout': start_timeout
+    }
+    start(command_cfg)
+
+
+@ursabot.command()
+@click.pass_context
+@click.option('--clean', '-c', is_flag=True, default=True,
+              help='Clean shutdown master')
+@click.option('--no-wait', is_flag=True, default=False,
+              help="Don't wait for complete master shutdown")
+def stop(ctx, clean, no_wait):
+    from buildbot.scripts.stop import stop
+    command_cfg = {
+        'basedir': ctx.obj['config_path'].parent.absolute(),
+        'quiet': not ctx.obj['verbose'],
+        'clean': clean,
+        'no-wait': no_wait
+    }
+    stop(command_cfg)
+
+
+@ursabot.command()
+@click.pass_context
+@click.option('--no-daemon', is_flag=True, default=False,
+              help="Don't daemonize (stay in foreground)")
+@click.option('--start-timeout', is_flag=True, default=None,
+              help='The amount of time the script waits for the master to '
+                   'start until it declares the operation as failure')
+@click.option('--clean', '-c', is_flag=True, default=True,
+              help='Clean shutdown master')
+@click.option('--no-wait', is_flag=True, default=False,
+              help="Don't wait for complete master shutdown")
+def restart(ctx, no_daemon, start_timeout, clean, no_wait):
+    from buildbot.scripts.restart import restart
+    command_cfg = {
+        'basedir': ctx.obj['config_path'].parent.absolute(),
+        'quiet': not ctx.obj['verbose'],
+        'nodaemon': no_daemon,
+        'start_timeout': start_timeout,
+        'clean': clean,
+        'no-wait': no_wait
+    }
+    restart(command_cfg)
 
 
 @ursabot.group()
@@ -47,7 +169,11 @@ def ursabot(ctx, verbose):
 @click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_context
 def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
-    """Subcommand to build docker images for the docker builders"""
+    """Subcommand to build docker images for the docker builders
+
+    It loads the docker images defined
+    """
+    config = ctx.obj['config']
     if ctx.obj['verbose']:
         logging.getLogger('dockermap').setLevel(logging.INFO)
 
@@ -56,10 +182,10 @@ def docker(ctx, docker_host, docker_username, docker_password, **kwargs):
         client.login(username=docker_username, password=docker_password)
 
     filters = toolz.valfilter(lambda x: x is not None, kwargs)
-    docker_images = images.filter(**filters)
+    images = config.images.filter(**filters)
 
     ctx.obj['client'] = client
-    ctx.obj['images'] = docker_images
+    ctx.obj['images'] = images
 
 
 @docker.command('list')
