@@ -30,6 +30,7 @@ setup(
         'buildbot',
         'click',
         'codenamize',
+        'dotenv',
         'docker',
         'docker-map',
         'tabulate',

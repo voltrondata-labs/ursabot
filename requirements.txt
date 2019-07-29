@@ -15,6 +15,7 @@ buildbot-waterfall-view
 buildbot-www
 click
 codenamize
+dotenv
 docker
 docker-map
 flake8
