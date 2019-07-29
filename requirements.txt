@@ -15,14 +15,14 @@ buildbot-waterfall-view
 buildbot-www
 click
 codenamize
-dotenv
 docker
 docker-map
 flake8
 mock
 pytest
-tabulate
+python-dotenv
 ruamel.yaml
+tabulate
 toolz
 toposort
 treq
