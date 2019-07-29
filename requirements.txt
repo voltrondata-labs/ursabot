@@ -21,6 +21,7 @@ flake8
 mock
 pytest
 tabulate
+ruamel.yaml
 toolz
 toposort
 treq

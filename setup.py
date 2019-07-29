@@ -33,6 +33,7 @@ setup(
         'docker',
         'docker-map',
         'tabulate',
+        'ruamel.yaml',
         'toolz',
         'toposort',
         'treq',
