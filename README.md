@@ -187,24 +187,18 @@ Then open `http://localhost:8100` in the browser.
 
 ## Configuring Ursabot
 
-The buildbot configuration is implemented in `master.cfg`, however to turn
-services on and off more easily, add workers without touching any python
-file, and provide credentials without committing to git there is another
-static configuration layer constructed by `default.yaml`, `test.yaml`
-and `prod.yaml` files.
-These files are loaded as plain dictionaries and merged upon each other
-depending on the `URSABOT_ENV` environment variable. The default value of
-`URSABOT_ENV` is `test`, the merge order is:
-
-1. [`default.yaml`](default.yaml)
-2. `$URSABOT_ENV.yaml` like [`test.yaml`](test.yaml) or [`prod.yaml`](prod.yaml)
-3. `local.yaml` [optional]
-4. `.secrets.yaml` [optional]
-
-For the available configuration keys see [`default.yaml`](default.yaml).
-The preferred secret handling method is to setup a secret provider like
-`SecretInPass`, see the `secrets` configuration key in
-[`default.yaml`](default.yaml).
+The buildmaster configuration happens in the `master.cfg` files. Originally
+buildbot loads the dictionary called `BuildmasterConfig`, but to make it more
+flexible and moduler ursabot introduces the `ProjectConfig` and `MasterConfig`
+abstractions.
+`ProjectConfig` contains all the relevant information for testing a project
+like Apache Arrow or Ursabot itself. `ProjectConfig` can be run alone, it must
+be passed to a `MasterConfig` object which provides a thin abstraction over
+the original buildbot `BuildmasterConfig`. One `MasterConfig` can
+[contain multiple][multiple-configs] `ProjectConfig` objects.
+[Including other project configurations][Including-configs] makes it possible
+to maintain the project relevant settings within the projects' repositories
+instead of a decoupled one dedicated for the buildmaster.
 
 
 ### Adding a new build(er)s
@@ -508,3 +502,5 @@ More closely Ursabot related:
 [buildbot-docs]: https://docs.buildbot.net
 [github-reactions]: https://help.github.com/en/articles/about-conversations-on-github#reacting-to-ideas-in-comments
 [github-author-associations]: https://developer.github.com/v4/enum/commentauthorassociation/
+[multiple-configs]: master.cfg#L137
+[including-configs]: master.cfg#L36
