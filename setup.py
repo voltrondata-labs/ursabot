@@ -37,6 +37,7 @@ setup(
         'toolz',
         'toposort',
         'treq',
+        'twisted[tls]'
     ],
     tests_require=['pytest>=3.9', 'mock'],
     entry_points="""
