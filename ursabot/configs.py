@@ -46,10 +46,6 @@ def collect_global_errors(and_raise=False):
             raise errors
 
 
-def get_global(name, default=None):
-    return globals().get(name, default)
-
-
 class Config(ComparableMixin):
 
     @classmethod
