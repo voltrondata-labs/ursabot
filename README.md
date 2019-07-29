@@ -274,7 +274,7 @@ miniconda = DockerImage(
 )
 
 
-class TestDockerBuilder(Builder):
+class TestDockerBuilder(DockerBuilder):
     tags = ['build-within-docker-container']
     steps = [
         # checkout the source code

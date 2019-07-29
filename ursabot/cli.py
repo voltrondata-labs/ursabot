@@ -197,6 +197,7 @@ def list_images(obj):
         click.echo(image)
 
 
+# TODO(kszucs): option to push to another organization
 @docker.command()
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
