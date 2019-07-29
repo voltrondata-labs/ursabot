@@ -177,14 +177,14 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         return [instance['Id'], image]
 
 
-def docker_workers_from(configs, docker_host='unix://var/run/docker.sock',
+def docker_workers_from(worker_dicts, docker_host='unix://var/run/docker.sock',
                         masterFQDN=None, auto_pull=True, always_pull=False,
                         volumes=None, hostconfig=None):
     """A thin helper function to reduce worker configuration boilerplate.
 
     Parameters
     ----------
-    configs: List[Dict]
+    worker_dicts: List[Dict]
         Mandatory keys:
             - name (use alphanumeric and hyphen)
             - arch (any of amd64, arm64v8, arm32v7)
@@ -223,7 +223,7 @@ def docker_workers_from(configs, docker_host='unix://var/run/docker.sock',
     hostconfig = {'network_mode': 'host'}
 
     workers = Collection()
-    for w in configs:
+    for w in worker_dicts:
         worker = DockerLatentWorker(
             w['name'],
             password=None,  # auto generated
@@ -242,6 +242,16 @@ def docker_workers_from(configs, docker_host='unix://var/run/docker.sock',
         workers.append(worker)
 
     return workers
+
+
+def load_workers_from(config_path, **kwargs):
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    with config_path.open('r') as fp:
+        worker_dicts = yaml.load(fp)['workers']
+
+    return docker_workers_from(worker_dicts, **kwargs)
 
 
 def docker_test_workers(**kwargs):

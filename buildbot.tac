@@ -16,33 +16,36 @@
 # Copyright Buildbot Team Members
 
 import os
+from pathlib import Path
 
 from twisted.application import service
-from buildbot.master import BuildMaster
+from twisted.python.logfile import LogFile
+from twisted.python.log import ILogObserver, FileLogObserver
 
-basedir = '.'
-rotateLength = 10000000
-maxRotatedFiles = 10
-configfile = 'master.cfg'
+from buildbot.master import BuildMaster
+from ursabot.configs import BuildmasterConfigLoader
+
+# TODO(factor out this boilerplate to the configs.py)
 
 # Default umask for server
 umask = None
-
-# if this is a relocatable tac file, get the directory containing the TAC
-if basedir == '.':
-    import os
-    basedir = os.path.abspath(os.path.dirname(__file__))
+rotateLength = 10000000
+maxRotatedFiles = 10
+basedir = Path().parent.absolute()
+configfile = basedir / 'master.cfg'
 
 # note: this line is matched against to check that this is a buildmaster
 # directory; do not edit it.
 application = service.Application('buildmaster')
-from twisted.python.logfile import LogFile
-from twisted.python.log import ILogObserver, FileLogObserver
-logfile = LogFile.fromFullPath(os.path.join(basedir, "twistd.log"), rotateLength=rotateLength,
-                                maxRotatedFiles=maxRotatedFiles)
+logfile = LogFile.fromFullPath(
+    str(basedir / 'twistd.log'),
+    rotateLength=rotateLength,
+    maxRotatedFiles=maxRotatedFiles
+)
 application.setComponent(ILogObserver, FileLogObserver(logfile).emit)
 
-m = BuildMaster(basedir, configfile, umask)
-m.setServiceParent(application)
-m.log_rotation.rotateLength = rotateLength
-m.log_rotation.maxRotatedFiles = maxRotatedFiles
+loader = BuildmasterConfigLoader(configfile, variable='master')
+master = BuildMaster(str(basedir), umask=umask, config_loader=loader)
+master.setServiceParent(application)
+master.log_rotation.rotateLength = rotateLength
+master.log_rotation.maxRotatedFiles = maxRotatedFiles

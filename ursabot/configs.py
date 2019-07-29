@@ -53,8 +53,9 @@ def get_global(name, default=None):
 class Config(ComparableMixin):
 
     @classmethod
-    def load_from(cls, path, variable, globals=None):
-        loader = FileLoader(path, variable=variable)
+    def load_from(cls, path, variable, inject_globals=None):
+        loader = FileLoader(path, variable=variable,
+                            inject_globals=inject_globals)
         config = loader.load()
         assert isinstance(config, cls)
         return config
