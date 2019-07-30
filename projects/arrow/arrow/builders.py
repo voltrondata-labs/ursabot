@@ -181,7 +181,8 @@ cpp_compile = Ninja(
     workdir='cpp/build'
 )
 cpp_test = CTest(
-    args=['--output-on-failure'],
+    j=util.Property('ncpus', 6),
+    output_on_failure=True,
     workdir='cpp/build'
 )
 cpp_install = Ninja(

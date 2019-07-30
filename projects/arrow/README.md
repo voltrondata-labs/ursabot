@@ -9,6 +9,13 @@ ursabot CI setup hosted at https://ci.ursalabs.org.
 $ ursabot checkconfig
 ```
 
+`ursabot` command loads `master.cfg` from the current directory by default, but
+`--config` argument can be passed to explicitly define a configuration file.
+
+```bash
+$ ursabot -c arrow/master.cfg checkconfig
+```
+
 # How to run it locally
 
 Firt master's database must be initialized:
