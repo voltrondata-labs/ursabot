@@ -103,7 +103,7 @@ def upgrade_master(obj):
 
 
 @ursabot.command()
-@click.option('--no-daemon', is_flag=True, default=False,
+@click.option('--no-daemon', '-nd', is_flag=True, default=False,
               help="Don't daemonize (stay in foreground)")
 @click.option('--start-timeout', is_flag=True, default=None,
               help='The amount of time the script waits for the master to '
@@ -139,7 +139,7 @@ def stop(obj, clean, no_wait):
 
 
 @ursabot.command()
-@click.option('--no-daemon', is_flag=True, default=False,
+@click.option('--no-daemon', '-nd', is_flag=True, default=False,
               help="Don't daemonize (stay in foreground)")
 @click.option('--start-timeout', is_flag=True, default=None,
               help='The amount of time the script waits for the master to '
