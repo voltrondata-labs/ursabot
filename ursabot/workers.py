@@ -179,7 +179,7 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
 
 def docker_workers_from(worker_dicts, docker_host='unix://var/run/docker.sock',
                         masterFQDN=None, auto_pull=True, always_pull=False,
-                        volumes=None, hostconfig=None):
+                        volumes=None, hostconfig=None, missing_timeout=120):
     """A thin helper function to reduce worker configuration boilerplate.
 
     Parameters
@@ -193,7 +193,7 @@ def docker_workers_from(worker_dicts, docker_host='unix://var/run/docker.sock',
             - ncpus: int, default None
             - max_builds: int, default 1
             - volumes: list, default []
-            - missing_timeout: int, default 120
+            - missing_timeout: int, default to the missing_timeout argument
             - auto_pull: bool, defaults to the auto_pull argument
             - always_pull: bool, defaults to the always_pull argument
             - docker_host: str, defaults to the docker_host argument
@@ -214,7 +214,9 @@ def docker_workers_from(worker_dicts, docker_host='unix://var/run/docker.sock',
         Additional docker configurations, directly passed to the low-level
         docker APIClient.create_host_config.
         For more see https://docker-py.readthedocs.io/en/stable/api.html.
-
+    missing_timeout: int, default 120
+        Timeout for the worker preparation. In case of docker builders it is
+        the time required to pull the docker image and spin up the container.
     Return
     ------
     docker_workers: Collection[DockerLatentWorker]
@@ -237,7 +239,7 @@ def docker_workers_from(worker_dicts, docker_host='unix://var/run/docker.sock',
             masterFQDN=w.get('masterFQDN', masterFQDN),
             volumes=w.get('volumes', volumes),
             hostconfig=w.get('hostconfig', hostconfig),
-            missing_timeout=w.get('missing_timeout', 120)
+            missing_timeout=w.get('missing_timeout', missing_timeout)
         )
         workers.append(worker)
 
