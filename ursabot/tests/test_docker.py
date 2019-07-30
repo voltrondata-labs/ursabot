@@ -69,7 +69,8 @@ def test_dockerfile_dsl(image):
     expected = dedent("""
         FROM ubuntu
 
-        RUN apt-get update -y -q && \\
+        RUN export DEBIAN_FRONTEND=noninteractive && \\
+            apt-get update -y -q && \\
             apt-get install -y -q \\
                 python \\
                 python-pip && \\
