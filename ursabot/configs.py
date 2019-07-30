@@ -196,7 +196,7 @@ class FileLoader(ComparableMixin):
     compare_attrs = ['path', 'variable', 'inject_globals']
 
     def __init__(self, path, variable, inject_globals=None):
-        self.path = path
+        self.path = Path(path)
         self.variable = variable
         self.inject_globals = inject_globals or {}
 
@@ -205,7 +205,7 @@ class FileLoader(ComparableMixin):
         #     It is a reimplementation based on the original
         #     buildbot.config.FileLoader and buildbot.config.loadConfigDict
         #     implementation.
-        config = Path(self.path).absolute()
+        config = self.path.absolute()
         basedir = config.parent
 
         if not config.exists():

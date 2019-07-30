@@ -4,9 +4,11 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
+import io
 import sys
 import logging
 import toolz
+from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
 import click
@@ -15,10 +17,6 @@ from buildbot.config import ConfigErrors
 
 from .configs import Config, ProjectConfig, MasterConfig
 from .utils import ensure_deferred
-
-
-logging.basicConfig()
-logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -33,9 +31,14 @@ def ursabot(ctx, verbose, config_path, config_variable):
     if verbose:
         logging.getLogger('ursabot').setLevel(logging.INFO)
 
-    # TODO(kszucs): capture stdout and stderr
-    config_path = Path(config_path)
-    config = Config.load_from(config_path, variable=config_variable)
+    stderr, stdout = io.StringIO(), io.StringIO()
+    with redirect_stderr(stderr), redirect_stdout(stdout):
+        config = Config.load_from(config_path, variable=config_variable)
+
+    if verbose:
+        click.echo(click.style(stderr.getvalue(), fg='red'), err=True)
+        click.echo(stdout.getvalue())
+
     if not isinstance(config, (ProjectConfig, MasterConfig)):
         raise click.UsageError(
             f'The loaded variable `{config_variable}` from `{config_path}` '
@@ -46,7 +49,7 @@ def ursabot(ctx, verbose, config_path, config_variable):
     ctx.ensure_object(dict)
     ctx.obj['verbose'] = verbose
     ctx.obj['config'] = config
-    ctx.obj['config_path'] = config_path
+    ctx.obj['config_path'] = Path(config_path)
 
 
 @ursabot.command()
@@ -101,13 +104,14 @@ def upgrade_master(obj):
 @click.pass_obj
 def start(obj, no_daemon, start_timeout):
     from buildbot.scripts.start import start
+
     command_cfg = {
         'basedir': obj['config_path'].parent.absolute(),
-        'quiet': not obj['verbose'],
+        'quiet': False,
         'nodaemon': no_daemon,
         'start_timeout': start_timeout
     }
-    start(command_cfg)
+    start(command_cfg)  # loads the config through the buildbot.tac
 
 
 @ursabot.command()
@@ -120,7 +124,7 @@ def stop(obj, clean, no_wait):
     from buildbot.scripts.stop import stop
     command_cfg = {
         'basedir': obj['config_path'].parent.absolute(),
-        'quiet': not obj['verbose'],
+        'quiet': False,
         'clean': clean,
         'no-wait': no_wait
     }
@@ -142,7 +146,7 @@ def restart(obj, no_daemon, start_timeout, clean, no_wait):
     from buildbot.scripts.restart import restart
     command_cfg = {
         'basedir': obj['config_path'].parent.absolute(),
-        'quiet': not obj['verbose'],
+        'quiet': False,
         'nodaemon': no_daemon,
         'start_timeout': start_timeout,
         'clean': clean,
