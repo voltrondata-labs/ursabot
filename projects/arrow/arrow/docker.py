@@ -144,6 +144,8 @@ for arch in ['amd64']:
         base=base,
         title=f'{basetitle} C++',
         steps=[
+            # install tzdata required for gandiva tests
+            RUN(apt('tzdata')),
             # install cpp dependencies
             ADD(docker_assets / 'conda-linux.txt'),
             ADD(docker_assets / 'conda-cpp.txt'),
