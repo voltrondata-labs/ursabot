@@ -19,6 +19,10 @@ from .configs import Config, ProjectConfig, MasterConfig
 from .utils import ensure_deferred
 
 
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+
+
 @click.group()
 @click.option('--verbose/--quiet', '-v', default=False, is_flag=True)
 @click.option('--config-path', '-c', default='master.cfg',
@@ -34,10 +38,13 @@ def ursabot(ctx, verbose, config_path, config_variable):
     stderr, stdout = io.StringIO(), io.StringIO()
     with redirect_stderr(stderr), redirect_stdout(stdout):
         config = Config.load_from(config_path, variable=config_variable)
+    stderr, stdout = stderr.getvalue(), stdout.getvalue()
 
     if verbose:
-        click.echo(click.style(stderr.getvalue(), fg='red'), err=True)
-        click.echo(stdout.getvalue())
+        if stderr:
+            click.echo(click.style(stderr, fg='red'), err=True)
+        if stdout:
+            click.echo(stdout)
 
     if not isinstance(config, (ProjectConfig, MasterConfig)):
         raise click.UsageError(
@@ -205,15 +212,15 @@ def list_images(obj):
 @docker.command()
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
-@click.option('--nocache/--cache', default=False,
+@click.option('--no-cache/--cache', default=False,
               help='Do not use cache when building the images')
 @click.pass_obj
-def build(obj, push, nocache):
+def build(obj, push, no_cache):
     """Build docker images"""
     client = obj['client']
     images = obj['images']
 
-    images.build(client=client, nocache=nocache)
+    images.build(client=client, nocache=no_cache)
     if push:
         images.push(client=client)
 

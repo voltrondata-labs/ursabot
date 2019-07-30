@@ -387,12 +387,12 @@ def conda(*packages, files=tuple()):
 
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
-_docker_assets = Path(__file__).parent.parent / 'docker'
+_pkg_root = Path(__file__).parent.parent
 _worker_command = 'twistd --pidfile= -ny buildbot.tac'
 _worker_steps = [
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
-    ADD(_docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
+    ADD(_pkg_root / 'worker.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot')
 ]
 
