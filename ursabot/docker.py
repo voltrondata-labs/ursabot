@@ -339,6 +339,7 @@ def symlink(mapping):
 def apt(*packages):
     """Generates apt install command"""
     template = dedent("""
+        export DEBIAN_FRONTEND=noninteractive && \\
         apt-get update -y -q && \\
         apt-get install -y -q \\
         {} && \\
@@ -514,10 +515,12 @@ for arch in ['amd64']:
         base=base,
         title=f'{basetitle} C++',
         steps=[
+            # install tzdata required for gandiva tests
+            RUN(apt('tzdata')),
             # install cpp dependencies
             ADD(docker_assets / 'conda-linux.txt'),
             ADD(docker_assets / 'conda-cpp.txt'),
-            RUN(conda('ccache', files=['conda-linux.txt', 'conda-cpp.txt'])),
+            RUN(conda('ccache', files=['conda-linux.txt', 'conda-cpp.txt']))
         ]
     )
     cpp_benchmark = DockerImage(
