@@ -39,3 +39,8 @@ script:
   - sudo apt-get install pass
   - mkdir ~/.ursalabs-pass
   - ursabot -v checkconfig
+
+  # run one of the arrow builders locally
+  - pushd projects/arrow
+  - ursabot project build 'AMD64 Ubuntu 18.04 C++'
+  - popd
