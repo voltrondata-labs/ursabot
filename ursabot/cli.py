@@ -72,7 +72,7 @@ def checkconfig(obj):
     config_path = obj['config_path']
 
     try:
-        config.as_buildbot(filename=config_path.name)
+        config.as_buildbot(source=config_path.name)
     except ConfigErrors as e:
         click.echo(click.style('Configuration Errors:', err=True, fg='red'))
         for e in e.errors:
