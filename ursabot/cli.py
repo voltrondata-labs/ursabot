@@ -20,7 +20,7 @@ from buildbot.config import ConfigErrors
 from buildbot.master import BuildMaster
 from buildbot.process.results import Results, SUCCESS, WARNINGS
 
-from .configs import Config, ProjectConfig, MasterConfig, InMemoryLoader
+from .configs import Config, MasterConfig, InMemoryLoader
 from .utils import ensure_deferred
 
 
