@@ -16,6 +16,7 @@ from buildbot.plugins import util
 from buildbot.util.logger import Logger
 from buildbot.interfaces import LatentWorkerCannotSubstantiate
 from buildbot.interfaces import LatentWorkerFailedToSubstantiate
+from buildbot.worker.latent import States, AbstractLatentWorker
 from buildbot.worker.docker import (DockerLatentWorker, _handle_stream_line,
                                     docker_py_version, docker)
 
@@ -70,6 +71,29 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             name, password, docker_host, image=image, command=command,
             volumes=volumes, hostconfig=hostconfig, **kwargs
         )
+
+    @ensure_deferred
+    async def stopService(self):
+        # XXX: _insubstantiation_notifier is unset, probably left out from
+        #     a previous buildbot refactoring, so removed the check and use
+        #     the start_stop_lock instead.
+        #
+        # License note:
+        #    copied from the original implementation with minor modification
+        #    to pass runtime configuration to the containers
+
+        self._log_start_stop_locked('stopService')
+        self._start_stop_lock.acquire()
+        try:
+            if self.conn is not None or self.state in [States.SUBSTANTIATING,
+                                                       States.SUBSTANTIATED]:
+                await self._soft_disconnect(stopping_service=True)
+            self._clearBuildWaitTimer()
+            res = await super(AbstractLatentWorker, self).stopService()
+        finally:
+            self._start_stop_lock.release()
+
+        return res
 
     def renderWorkerProps(self, build):
         # License note:
@@ -161,6 +185,7 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             )
         shortid = instance['Id'][:6]
         log.info(f'Container created, Id: {shortid}...')
+
         instance['image'] = image
         self.instance = instance
         docker_client.start(instance)
@@ -174,6 +199,7 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
                 if self.conn:
                     break
             del logs
+
         return [instance['Id'], image]
 
 

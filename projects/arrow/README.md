@@ -30,7 +30,48 @@ Start/stop/restart the master:
 $ ursabot -v start|stop|restart
 ```
 
-# Commands operating on docker images
+# Commands
+
+Describe the loaded master configuration:
+
+```bash
+$ ursabot desc
+```
+
+Describe the loaded project configuration:
+
+```bash
+$ ursabot project desc  # for master configs with a single project
+$ ursabot project -p arrow desc  # for master configs with multiple projects
+```
+
+## Commands for local reproducibility
+
+Testing `Ursabot Python 3.7` builder on master:
+
+```bash
+$ ursabot project build 'Ursabot Python 3.7'
+```
+
+Testing `Ursabot Python 3.7` builder with github pull request number 140:
+
+```bash
+$ ursabot project build -pr 140 'Ursabot Python 3.7'
+```
+
+Testing `Ursabot Python 3.7` with local repository:
+
+```bash
+# upcoming feature
+```
+
+Passing multiple buildbot properties for the build:
+
+```bash
+$ ursabot project build -p prop=value -p myprop=myvalue 'Ursabot Python 3.7'
+```
+
+## Commands operating on docker images
 
 Listing images:
 

@@ -61,6 +61,7 @@ class ProjectConfig(Config):
 
     compare_attrs = [
         'name',
+        'repo',
         'images',
         'commands',
         'pollers',
@@ -70,10 +71,11 @@ class ProjectConfig(Config):
         'reporters'
     ]
 
-    def __init__(self, name, workers, builders, schedulers, pollers=None,
+    def __init__(self, name, repo, workers, builders, schedulers, pollers=None,
                  reporters=None, images=None, commands=None):
         # TODO(kszucs): validation
         self.name = name
+        self.repo = repo
         self.workers = Collection(workers)
         self.builders = Collection(builders)
         self.schedulers = Collection(schedulers)
@@ -101,7 +103,7 @@ class MasterConfig(Config):
         'worker_port',
     ]
 
-    def __init__(self, title='Ursabot', url='http://localhost:8080',
+    def __init__(self, title='Ursabot', url='http://localhost:8100',
                  webui_port=8100, worker_port=9989, auth=None, authz=None,
                  database_url='sqlite:///ursabot.sqlite', projects=None,
                  change_hook=None, secret_providers=None):
@@ -112,9 +114,32 @@ class MasterConfig(Config):
         self.worker_port = worker_port
         self.webui_port = webui_port
         self.database_url = database_url
-        self.projects = projects
         self.change_hook = change_hook
         self.secret_providers = secret_providers
+        self.projects = Collection(projects)
+
+    def project(self, name=None):
+        """Select one of the projects defined in the MasterConfig
+
+        Parameters
+        ----------
+        name: str, default None
+            Name of the project. If None is passed and the master has a single
+            project configured, then return with that.
+
+        Returns
+        -------
+        project: ProjectConfig
+        """
+        if name is None:
+            if len(self.projects) == 1:
+                return self.projects[0]
+            else:
+                project_names = ', '.join(p.name for p in self.projects)
+                raise ValueError(f'Master config has multiple projects, one '
+                                 f'must be selected: {project_names}')
+        else:
+            return self.projects.filter(name=name)[0]
 
     def _from_projects(self, key):
         return reduce(operator.add, (getattr(p, key) for p in self.projects))
@@ -147,7 +172,24 @@ class MasterConfig(Config):
     def reporters(self):
         return self._from_projects('reporters')
 
-    def as_buildbot(self, filename):
+    def as_clitest(self, source):
+        # TODO generate workers  based on the CLI options
+        # TODO custom schedulers
+        buildbot_config_dict = {
+            'buildbotNetUsageData': None,
+
+            'workers': self.workers,
+            'builders': self.builders,
+            'schedulers': self.schedulers,
+            'db': {'db_url': 'sqlite://'},
+            'protocols': {'pb': {'port': 9000}},
+            # 'protocols': {'pb': {'port': "tcp:0:interface=127.0.0.1"}}
+            # 'www': {'avatar_methods': []},  # disable avatars
+        }
+        return BuildbotMasterConfig.loadFromDict(buildbot_config_dict,
+                                                 filename=source)
+
+    def as_buildbot(self, source):
         """Returns with the buildbot compatible buildmaster configuration"""
 
         if self.change_hook is None:
@@ -187,7 +229,17 @@ class MasterConfig(Config):
             buildbot_config_dict['www']['authz'] = self.authz
 
         return BuildbotMasterConfig.loadFromDict(buildbot_config_dict,
-                                                 filename=filename)
+                                                 filename=source)
+
+
+@implementer(interfaces.IConfigLoader)
+class InMemoryLoader:
+
+    def __init__(self, config):
+        self.config = config
+
+    def loadConfig(self):
+        return self.config.as_buildbot('<memory>')
 
 
 @implementer(interfaces.IConfigLoader)

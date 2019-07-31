@@ -8,19 +8,25 @@ import io
 import sys
 import logging
 import toolz
-from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
+from contextlib import redirect_stdout, redirect_stderr
 
 import click
 from dockermap.api import DockerClientWrapper
+from twisted.internet import reactor, defer
+from twisted.python.log import PythonLoggingObserver
+from buildbot.util.logger import Logger
 from buildbot.config import ConfigErrors
+from buildbot.master import BuildMaster
+from buildbot.process.results import Results, SUCCESS, WARNINGS
 
-from .configs import Config, ProjectConfig, MasterConfig
+from .configs import Config, ProjectConfig, MasterConfig, InMemoryLoader
 from .utils import ensure_deferred
 
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
+logger_ = Logger()  # twisted's logger
 
 
 @click.group()
@@ -28,8 +34,8 @@ logger = logging.getLogger(__name__)
 @click.option('--config-path', '-c', default='master.cfg',
               help='Configuration file path')
 @click.option('--config-variable', '-cv', default='master',
-              help='Variable name in the configuration which is either an '
-                   ' instance of ProjectConfig or MasterConfig')
+              help='Variable name in the configuration which must be an '
+                   'instance of MasterConfig')
 @click.pass_context
 def ursabot(ctx, verbose, config_path, config_variable):
     if verbose:
@@ -46,11 +52,11 @@ def ursabot(ctx, verbose, config_path, config_variable):
         if stdout:
             click.echo(stdout)
 
-    if not isinstance(config, (ProjectConfig, MasterConfig)):
+    if not isinstance(config, MasterConfig):
         raise click.UsageError(
             f'The loaded variable `{config_variable}` from `{config_path}` '
-            f'has type `{type(config)}` whereis it needs to be an instance of '
-            f'either ProjectConfig or MasterConfig'
+            f'has type `{type(config)}` whereas it needs to be an instance of '
+            f'MasterConfig'
         )
 
     ctx.ensure_object(dict)
@@ -90,12 +96,11 @@ def upgrade_master(obj):
         except Exception as e:
             click.error(e)
 
-    verbose = obj['verbose']
     config = obj['config']
     config_path = obj['config_path']
     basedir = config_path.parent.absolute()
 
-    command_cfg = {'basedir': basedir, 'quiet': not verbose}
+    command_cfg = {'basedir': basedir, 'quiet': False}
     master_cfg = config.as_buildbot(filename=config_path.name)
 
     run(command_cfg, master_cfg)
@@ -201,7 +206,7 @@ def docker(obj, docker_host, docker_username, docker_password, **kwargs):
 
 @docker.command('list')
 @click.pass_obj
-def list_images(obj):
+def docker_list_images(obj):
     """List the docker images"""
     images = obj['images']
     for image in images:
@@ -209,13 +214,13 @@ def list_images(obj):
 
 
 # TODO(kszucs): option to push to another organization
-@docker.command()
+@docker.command('build')
 @click.option('--push/--no-push', '-p', default=False,
               help='Push the built images')
 @click.option('--no-cache/--cache', default=False,
               help='Do not use cache when building the images')
 @click.pass_obj
-def build(obj, push, no_cache):
+def docker_image_build(obj, push, no_cache):
     """Build docker images"""
     client = obj['client']
     images = obj['images']
@@ -225,11 +230,11 @@ def build(obj, push, no_cache):
         images.push(client=client)
 
 
-@docker.command()
+@docker.command('write-dockerfiles')
 @click.option('--directory', '-d', default='images',
               help='Path to the directory where the images should be written')
 @click.pass_obj
-def write_dockerfiles(obj, directory):
+def docker_write_dockerfiles(obj, directory):
     """Write the corresponding Dockerfile for the images"""
     images = obj['images']
     directory = Path(directory)
@@ -237,3 +242,200 @@ def write_dockerfiles(obj, directory):
 
     for image in images:
         image.save_dockerfile(directory)
+
+
+@ursabot.group()
+@click.option('--project', '-p', default=None,
+              help='If the master has multiple projects configured, one must '
+                   'be selected.')
+@click.pass_obj
+def project(obj, project):
+    # retrieve the master's and the selected project's configurations
+    try:
+        obj['project'] = obj['config'].project(name=project)
+    except Exception as e:
+        raise click.UsageError(str(e))
+
+
+class CLITestLoader(InMemoryLoader):
+
+    def loadConfig(self):
+        return self.config.as_clitest('CLI')
+
+
+@ensure_deferred
+async def _do_local_build(config, builder_name, sourcestamp, properties,
+                          log_handler, result_handler):
+    basedir = Path(__file__).parent.absolute()
+    loader = CLITestLoader(config)
+    master = BuildMaster(str(basedir), reactor=reactor, config_loader=loader)
+
+    offset = 0
+    buildset = defer.Deferred()
+    buildset_id = None  # set later, but a callback uses it
+
+    def on_buildset_complete(key, bs):
+        assert bs['bsid'] == buildset_id
+        buildset.callback(bs)
+
+    def on_log_creation(key, log):
+        nonlocal offset
+        offset = 0
+
+    @ensure_deferred
+    async def on_log_append(key, log):
+        nonlocal offset
+        contents = await master.data.get(('logs', log['logid'], 'contents'))
+        newlines = contents['content'][offset:]
+        offset += len(newlines)
+        log_handler(newlines.splitlines())
+
+    # start the master and its dependent services
+    await master.startService()
+
+    consumers = [
+        await master.mq.startConsuming(
+            callback=on_log_creation,
+            filter=('logs', None, 'new')
+        ),
+        await master.mq.startConsuming(
+            callback=on_log_append,
+            filter=('logs', None, 'append')
+        ),
+        await master.mq.startConsuming(
+            callback=on_buildset_complete,
+            filter=('buildsets', None, 'complete')
+        )
+    ]
+
+    try:
+        builder_id = await master.data.updates.findBuilderId(builder_name)
+        buildset_id, _ = await master.data.updates.addBuildset(
+            waited_for=False,
+            builderids=[builder_id],
+            properties={k: (v, 'CLI') for k, v in properties.items()},
+            sourcestamps=[sourcestamp]
+        )
+        result_handler(await buildset)
+    finally:
+        # stop all the running services then shut down the reactor
+        for c in consumers:
+            c.stopConsuming()
+        await master.stopService()
+        reactor.stop()
+
+
+def _handle_stdio_log(newlines):
+    # 'o': 'stdout',
+    # 'e': 'stderr',
+    # 'h': 'header'
+    for l in newlines:
+        if l.startswith('h'):
+            click.echo(click.style(l[1:], fg='blue'))
+        elif l.startswith('e'):
+            click.echo(click.style(l[1:], fg='red'))
+        else:
+            click.echo(l[1:])
+
+
+def _handle_buildset_result(buildset):
+    if not buildset['complete']:
+        raise click.ClickException('Build has not completed')
+
+    # 'results' refers to the final state of the build
+    if buildset['results'] in (SUCCESS, WARNINGS):
+        click.echo(click.style('Build successful!', fg='green'))
+    else:
+        state = Results[buildset['results']]
+        raise click.ClickException(f'Build has failed with state {state}')
+
+
+# TODO(kszucs): mountable source directory (which kicks off the source steps)
+@project.command('build')
+@click.argument('builder_name', nargs=1)
+@click.option('--repo', '-r', default=None,
+              help='Repository to clone, defaults to the Project\'s repo.')
+@click.option('--branch', '-b', default='master', help='Branch to clone')
+@click.option('--commit', '-c', default=None, help='Commit to clone')
+@click.option('--pull-request', '-pr', type=int, default=None,
+              help='Github pull request to clone, owerwrites the branch '
+                   'option')
+@click.option('--property', '-p', 'properties', multiple=True,
+              help='Arbitrary properties passed to the builds. It must be '
+                   'passed in form `name=value`')
+@click.pass_obj
+def project_build(obj, builder_name, repo, branch, commit, pull_request,
+                  properties):
+    # force twisted logger to use the cli module's python logger
+    observer = PythonLoggingObserver(loggerName=logger.name)
+    observer.start()
+
+    config, project = obj['config'], obj['project']
+
+    # construct the sourcestamp which will trigger the builders
+    if pull_request is not None:
+        branch = f'refs/pull/{pull_request}/merge'
+    sourcestamp = {
+        'codebase': '',
+        'repository': repo or project.repo,
+        'branch': branch,
+        'revision': commit,
+        'project': project.name
+    }
+    properties = dict(p.split('=') for p in properties)
+
+    # spin up a lightweight master with in-memory database and trigger the
+    # requested builders
+    reactor.callWhenRunning(
+        _do_local_build,
+        config=config,
+        builder_name=builder_name,
+        sourcestamp=sourcestamp,
+        properties=properties,
+        log_handler=_handle_stdio_log,
+        result_handler=_handle_buildset_result,
+    )
+    reactor.run()
+
+
+@ursabot.command('desc')
+@click.pass_obj
+def master_desc(obj):
+    """Describe master configuration"""
+
+    def ul(values):
+        return '\n'.join(f' - {v}' for v in values)
+
+    config = obj['config']
+
+    click.echo('Docker images:')
+    click.echo(ul(config.images))
+    click.echo()
+    click.echo('Workers:')
+    click.echo(ul(config.workers))
+    click.echo()
+    click.echo('Builders:')
+    click.echo(ul(config.builders))
+    click.echo()
+
+
+@project.command('desc')
+@click.pass_obj
+def project_desc(obj):
+    """Describe project configuration"""
+    def ul(values):
+        return '\n'.join(f' - {v}' for v in values)
+
+    project = obj['project']
+    click.echo(f'Name: {project.name}')
+    click.echo(f'Repo: {project.repo}')
+    click.echo()
+    click.echo('Docker images:')
+    click.echo(ul(project.images))
+    click.echo()
+    click.echo('Workers:')
+    click.echo(ul(project.workers))
+    click.echo()
+    click.echo('Builders:')
+    click.echo(ul(project.builders))
+    click.echo()
