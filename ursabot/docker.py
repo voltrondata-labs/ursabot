@@ -117,7 +117,8 @@ class DockerImage:
                     f"Given architecture `{arch}` is not equal with the base "
                     f"image's architecture `{base.arch}`"
                 )
-            os, arch, variant = base.os, base.arch, base.variant
+            os, arch = base.os, base.arch
+            variant = variant or base.variant
         elif not isinstance(base, str):
             raise TypeError(
                 '`tag` argument must be an instance of DockerImage or str'
@@ -402,3 +403,7 @@ def worker_image_for(image):
     cmd = [_worker_command] if image.variant == 'conda' else _worker_command
     steps = _worker_steps + [CMD(cmd)]
     return DockerImage(image.name, base=image, tag='worker', steps=steps)
+
+
+def worker_images_for(images):
+    return ImageCollection([worker_image_for(image) for image in images])

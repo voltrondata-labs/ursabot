@@ -13,20 +13,32 @@ from contextlib import redirect_stdout, redirect_stderr
 
 import click
 from dockermap.api import DockerClientWrapper
-from twisted.internet import reactor, defer
+from twisted.internet import reactor
 from twisted.python.log import PythonLoggingObserver
 from buildbot.util.logger import Logger
 from buildbot.config import ConfigErrors
-from buildbot.master import BuildMaster
 from buildbot.process.results import Results, SUCCESS, WARNINGS
 
-from .configs import Config, MasterConfig, InMemoryLoader
+from .configs import Config, MasterConfig
 from .utils import ensure_deferred
+from .master import TestMaster
 
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger_ = Logger()  # twisted's logger
+
+
+class UrsabotConfigErrors(click.ClickException):
+
+    def __init__(self, wrapped):
+        assert isinstance(wrapped, ConfigErrors)
+        self.wrapped = wrapped
+
+    def show(self):
+        click.echo(click.style('Configuration Errors:', fg='red'), err=True)
+        for e in self.wrapped.errors:
+            click.echo(click.style(f' - {e}'), err=True)
 
 
 @click.group()
@@ -65,6 +77,62 @@ def ursabot(ctx, verbose, config_path, config_variable):
     ctx.obj['config_path'] = Path(config_path)
 
 
+@ursabot.group()
+@click.option('--project', '-p', default=None,
+              help='If the master has multiple projects configured, one must '
+                   'be selected.')
+@click.pass_obj
+def project(obj, project):
+    # retrieve the master's and the selected project's configurations
+    try:
+        obj['project'] = obj['config'].project(name=project)
+    except Exception as e:
+        raise click.UsageError(str(e))
+
+
+@ursabot.command('desc')
+@click.pass_obj
+def master_desc(obj):
+    """Describe master configuration"""
+
+    def ul(values):
+        return '\n'.join(f' - {v}' for v in values)
+
+    config = obj['config']
+
+    click.echo('Docker images:')
+    click.echo(ul(config.images))
+    click.echo()
+    click.echo('Workers:')
+    click.echo(ul(config.workers))
+    click.echo()
+    click.echo('Builders:')
+    click.echo(ul(config.builders))
+    click.echo()
+
+
+@project.command('desc')
+@click.pass_obj
+def project_desc(obj):
+    """Describe project configuration"""
+    def ul(values):
+        return '\n'.join(f' - {v}' for v in values)
+
+    project = obj['project']
+    click.echo(f'Name: {project.name}')
+    click.echo(f'Repo: {project.repo}')
+    click.echo()
+    click.echo('Docker images:')
+    click.echo(ul(project.images))
+    click.echo()
+    click.echo('Workers:')
+    click.echo(ul(project.workers))
+    click.echo()
+    click.echo('Builders:')
+    click.echo(ul(project.builders))
+    click.echo()
+
+
 @ursabot.command()
 @click.pass_obj
 def checkconfig(obj):
@@ -74,10 +142,7 @@ def checkconfig(obj):
     try:
         config.as_buildbot(source=config_path.name)
     except ConfigErrors as e:
-        click.echo(click.style('Configuration Errors:', err=True, fg='red'))
-        for e in e.errors:
-            click.echo(click.style(f' {e}', err=True, fg='red'))
-        sys.exit(1)
+        raise UrsabotConfigErrors(e)
 
     click.echo(click.style('Config file is good!', fg='green'))
 
@@ -101,20 +166,20 @@ def upgrade_master(obj):
     basedir = config_path.parent.absolute()
 
     command_cfg = {'basedir': basedir, 'quiet': False}
-    master_cfg = config.as_buildbot(filename=config_path.name)
+    master_cfg = config.as_buildbot(config_path.name)
 
     run(command_cfg, master_cfg)
     click.echo(click.style('Upgrade complete!', fg='green'))
 
 
-@ursabot.command()
+@ursabot.command('start')
 @click.option('--no-daemon', '-nd', is_flag=True, default=False,
               help="Don't daemonize (stay in foreground)")
 @click.option('--start-timeout', is_flag=True, default=None,
               help='The amount of time the script waits for the master to '
                    'start until it declares the operation as failure')
 @click.pass_obj
-def start(obj, no_daemon, start_timeout):
+def start_master(obj, no_daemon, start_timeout):
     from buildbot.scripts.start import start
 
     command_cfg = {
@@ -126,13 +191,13 @@ def start(obj, no_daemon, start_timeout):
     start(command_cfg)  # loads the config through the buildbot.tac
 
 
-@ursabot.command()
+@ursabot.command('stop')
 @click.option('--clean', '-c', is_flag=True, default=True,
               help='Clean shutdown master')
 @click.option('--no-wait', is_flag=True, default=False,
               help="Don't wait for complete master shutdown")
 @click.pass_obj
-def stop(obj, clean, no_wait):
+def stop_master(obj, clean, no_wait):
     from buildbot.scripts.stop import stop
     command_cfg = {
         'basedir': obj['config_path'].parent.absolute(),
@@ -143,7 +208,7 @@ def stop(obj, clean, no_wait):
     stop(command_cfg)
 
 
-@ursabot.command()
+@ursabot.command('restart')
 @click.option('--no-daemon', '-nd', is_flag=True, default=False,
               help="Don't daemonize (stay in foreground)")
 @click.option('--start-timeout', is_flag=True, default=None,
@@ -154,7 +219,7 @@ def stop(obj, clean, no_wait):
 @click.option('--no-wait', is_flag=True, default=False,
               help="Don't wait for complete master shutdown")
 @click.pass_obj
-def restart(obj, no_daemon, start_timeout, clean, no_wait):
+def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
     from buildbot.scripts.restart import restart
     command_cfg = {
         'basedir': obj['config_path'].parent.absolute(),
@@ -244,87 +309,6 @@ def docker_write_dockerfiles(obj, directory):
         image.save_dockerfile(directory)
 
 
-@ursabot.group()
-@click.option('--project', '-p', default=None,
-              help='If the master has multiple projects configured, one must '
-                   'be selected.')
-@click.pass_obj
-def project(obj, project):
-    # retrieve the master's and the selected project's configurations
-    try:
-        obj['project'] = obj['config'].project(name=project)
-    except Exception as e:
-        raise click.UsageError(str(e))
-
-
-class CLITestLoader(InMemoryLoader):
-
-    def loadConfig(self):
-        return self.config.as_clitest('CLI')
-
-
-@ensure_deferred
-async def _do_local_build(config, builder_name, sourcestamp, properties,
-                          log_handler, result_handler):
-    basedir = Path(__file__).parent.absolute()
-    loader = CLITestLoader(config)
-    master = BuildMaster(str(basedir), reactor=reactor, config_loader=loader)
-
-    offset = 0
-    buildset = defer.Deferred()
-    buildset_id = None  # set later, but a callback uses it
-
-    def on_buildset_complete(key, bs):
-        assert bs['bsid'] == buildset_id
-        buildset.callback(bs)
-
-    def on_log_creation(key, log):
-        nonlocal offset
-        offset = 0
-
-    @ensure_deferred
-    async def on_log_append(key, log):
-        nonlocal offset
-        contents = await master.data.get(('logs', log['logid'], 'contents'))
-        newlines = contents['content'][offset:]
-        offset += len(newlines)
-        log_handler(newlines.splitlines())
-
-    # start the master and its dependent services
-    await master.startService()
-
-    consumers = [
-        await master.mq.startConsuming(
-            callback=on_log_creation,
-            filter=('logs', None, 'new')
-        ),
-        await master.mq.startConsuming(
-            callback=on_log_append,
-            filter=('logs', None, 'append')
-        ),
-        await master.mq.startConsuming(
-            callback=on_buildset_complete,
-            filter=('buildsets', None, 'complete')
-        )
-    ]
-
-    try:
-        builder_id = await master.data.updates.findBuilderId(builder_name)
-        buildset_id, _ = await master.data.updates.addBuildset(
-            waited_for=False,
-            builderids=[builder_id],
-            properties={k: (v, 'CLI') for k, v in properties.items()},
-            sourcestamps=[sourcestamp]
-        )
-        result_handler(await buildset)
-    finally:
-        # stop all the running services then shut down the reactor
-        for c in consumers:
-            c.stopConsuming()
-        await master.stopService()
-        reactor.stop()
-
-
 def _handle_stdio_log(newlines):
     # 'o': 'stdout',
     # 'e': 'stderr',
@@ -336,18 +320,6 @@ def _handle_stdio_log(newlines):
             click.echo(click.style(l[1:], fg='red'))
         else:
             click.echo(l[1:])
-
-
-def _handle_buildset_result(buildset):
-    if not buildset['complete']:
-        raise click.ClickException('Build has not completed')
-
-    # 'results' refers to the final state of the build
-    if buildset['results'] in (SUCCESS, WARNINGS):
-        click.echo(click.style('Build successful!', fg='green'))
-    else:
-        state = Results[buildset['results']]
-        raise click.ClickException(f'Build has failed with state {state}')
 
 
 # TODO(kszucs): mountable source directory (which kicks off the source steps)
@@ -382,60 +354,49 @@ def project_build(obj, builder_name, repo, branch, commit, pull_request,
         'revision': commit,
         'project': project.name
     }
+
+    # convert the properties to a plain mapping
     properties = dict(p.split('=') for p in properties)
 
-    # spin up a lightweight master with in-memory database and trigger the
-    # requested builders
-    reactor.callWhenRunning(
-        _do_local_build,
-        config=config,
-        builder_name=builder_name,
-        sourcestamp=sourcestamp,
-        properties=properties,
-        log_handler=_handle_stdio_log,
-        result_handler=_handle_buildset_result,
-    )
+    # check that the triggerable builder exists
+    if not project.builders.filter(name=builder_name):
+        available = '\n'.join(f' - {b.name}' for b in project.builders)
+        raise click.ClickException(
+            f"Project {project.name} doesn't have a builder named "
+            f"`{builder_name}`.\n Select one from the following list: \n"
+            f"{available}"
+        )
+
+    result = {'complete': False}
+    try:
+        # configure a lightweight master with in-memory database
+        master = TestMaster(config, logger=_handle_stdio_log)
+    except ConfigErrors as e:
+        raise UrsabotConfigErrors(e)
+
+    @ensure_deferred
+    async def run():
+        """Start the master and trigger the requested builders"""
+        nonlocal result
+        try:
+            async with master:
+                result = await master.build(builder_name, sourcestamp,
+                                            properties=properties)
+        finally:
+            reactor.stop()
+
+    reactor.callWhenRunning(run)
     reactor.run()
 
+    if not result['complete']:
+        raise click.ClickException('Build has not completed!')
 
-@ursabot.command('desc')
-@click.pass_obj
-def master_desc(obj):
-    """Describe master configuration"""
-
-    def ul(values):
-        return '\n'.join(f' - {v}' for v in values)
-
-    config = obj['config']
-
-    click.echo('Docker images:')
-    click.echo(ul(config.images))
-    click.echo()
-    click.echo('Workers:')
-    click.echo(ul(config.workers))
-    click.echo()
-    click.echo('Builders:')
-    click.echo(ul(config.builders))
-    click.echo()
-
-
-@project.command('desc')
-@click.pass_obj
-def project_desc(obj):
-    """Describe project configuration"""
-    def ul(values):
-        return '\n'.join(f' - {v}' for v in values)
-
-    project = obj['project']
-    click.echo(f'Name: {project.name}')
-    click.echo(f'Repo: {project.repo}')
-    click.echo()
-    click.echo('Docker images:')
-    click.echo(ul(project.images))
-    click.echo()
-    click.echo('Workers:')
-    click.echo(ul(project.workers))
-    click.echo()
-    click.echo('Builders:')
-    click.echo(ul(project.builders))
-    click.echo()
+    # 'results' refers to the final state of the build
+    state = result['results']
+    if state in (SUCCESS, WARNINGS):
+        click.echo(click.style('Build successful!', fg='green'))
+    else:
+        statestring = Results[state]
+        raise click.ClickException(
+            f'Build has failed with state {statestring}'
+        )

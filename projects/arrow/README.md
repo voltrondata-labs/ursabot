@@ -47,19 +47,19 @@ $ ursabot project -p arrow desc  # for master configs with multiple projects
 
 ## Commands for local reproducibility
 
-Testing `Ursabot Python 3.7` builder on master:
+Testing `AMD64 Conda C++` builder on master:
 
 ```bash
-$ ursabot project build 'Ursabot Python 3.7'
+$ ursabot project build 'AMD64 Conda C++'
 ```
 
-Testing `Ursabot Python 3.7` builder with github pull request number 140:
+Testing `AMD64 Conda C++` builder with github pull request number 140:
 
 ```bash
-$ ursabot project build -pr 140 'Ursabot Python 3.7'
+$ ursabot project build -pr 140 'AMD64 Conda C++'
 ```
 
-Testing `Ursabot Python 3.7` with local repository:
+Testing `AMD64 Conda C++` with local repository:
 
 ```bash
 # upcoming feature
@@ -68,7 +68,7 @@ Testing `Ursabot Python 3.7` with local repository:
 Passing multiple buildbot properties for the build:
 
 ```bash
-$ ursabot project build -p prop=value -p myprop=myvalue 'Ursabot Python 3.7'
+$ ursabot project build -p prop=value -p myprop=myvalue 'AMD64 Conda C++'
 ```
 
 ## Commands operating on docker images

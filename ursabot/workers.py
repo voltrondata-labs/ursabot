@@ -8,6 +8,7 @@
 # derivative works of Buildbot. The above license only applies to code that
 # is not marked as such.
 
+import itertools
 from io import BytesIO
 
 import toolz
@@ -203,14 +204,14 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         return [instance['Id'], image]
 
 
-def docker_workers_from(worker_dicts, docker_host='unix://var/run/docker.sock',
-                        masterFQDN=None, auto_pull=True, always_pull=False,
-                        volumes=None, hostconfig=None, missing_timeout=120):
+def docker_worker_from(worker_dict, docker_host='unix://var/run/docker.sock',
+                       masterFQDN=None, auto_pull=True, always_pull=False,
+                       volumes=None, hostconfig=None, missing_timeout=120):
     """A thin helper function to reduce worker configuration boilerplate.
 
     Parameters
     ----------
-    worker_dicts: List[Dict]
+    worker_dict: Dict
         Mandatory keys:
             - name (use alphanumeric and hyphen)
             - arch (any of amd64, arm64v8, arm32v7)
@@ -245,31 +246,28 @@ def docker_workers_from(worker_dicts, docker_host='unix://var/run/docker.sock',
         the time required to pull the docker image and spin up the container.
     Return
     ------
-    docker_workers: Collection[DockerLatentWorker]
+    docker_worker: DockerLatentWorker
     """
+    w = worker_dict
+
     volumes = volumes or []
     hostconfig = {'network_mode': 'host'}
 
-    workers = Collection()
-    for w in worker_dicts:
-        worker = DockerLatentWorker(
-            w['name'],
-            password=None,  # auto generated
-            arch=w['arch'],
-            tags=w.get('tags', []),
-            max_builds=w.get('max_builds', 1),
-            properties={'ncpus': w.get('ncpus')},
-            autopull=w.get('auto_pull', auto_pull),
-            alwaysPull=w.get('always_pull', always_pull),
-            docker_host=w.get('docker_host', docker_host),
-            masterFQDN=w.get('masterFQDN', masterFQDN),
-            volumes=w.get('volumes', volumes),
-            hostconfig=w.get('hostconfig', hostconfig),
-            missing_timeout=w.get('missing_timeout', missing_timeout)
-        )
-        workers.append(worker)
-
-    return workers
+    return DockerLatentWorker(
+        w['name'],
+        password=None,  # auto generated
+        arch=w['arch'],
+        tags=w.get('tags', []),
+        max_builds=w.get('max_builds', 1),
+        properties={'ncpus': w.get('ncpus')},
+        autopull=w.get('auto_pull', auto_pull),
+        alwaysPull=w.get('always_pull', always_pull),
+        docker_host=w.get('docker_host', docker_host),
+        masterFQDN=w.get('masterFQDN', masterFQDN),
+        volumes=w.get('volumes', volumes),
+        hostconfig=w.get('hostconfig', hostconfig),
+        missing_timeout=w.get('missing_timeout', missing_timeout)
+    )
 
 
 def load_workers_from(config_path, **kwargs):
@@ -279,12 +277,16 @@ def load_workers_from(config_path, **kwargs):
     with config_path.open('r') as fp:
         worker_dicts = yaml.load(fp)['workers']
 
-    return docker_workers_from(worker_dicts, **kwargs)
+    return Collection([docker_worker_from(w, **kwargs) for w in worker_dicts])
 
 
-def docker_test_workers(**kwargs):
-    configs = [
-        dict(name='local-docker-1', arch='amd64'),
-        dict(name='local-docker-2', arch='amd64')
-    ]
-    return docker_workers_from(configs, **kwargs)
+_worker_id = itertools.count()
+
+
+def docker_workers_for(archs, **kwargs):
+    workers = Collection()
+    for wid, arch in zip(_worker_id, archs):
+        worker_dict = dict(name=f'local-docker-{wid}', arch=arch)
+        worker = docker_worker_from(worker_dict, **kwargs)
+        workers.append(worker)
+    return workers

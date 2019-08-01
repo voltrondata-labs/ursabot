@@ -43,6 +43,56 @@ def collection():
     )
 
 
+def test_basics():
+    mother = DockerImage('mother', base='ubuntu', os='ubuntu', arch='amd64')
+    assert mother.fqn == 'amd64-ubuntu-mother:latest'
+    assert mother.name == 'mother'
+    assert mother.base == 'ubuntu'
+    assert mother.os == 'ubuntu'
+    assert mother.arch == 'amd64'
+    assert mother.steps == tuple()
+    assert mother.variant is None
+
+    stepmother = DockerImage('mother', base='centos', os='centos',
+                             variant='step', arch='amd64')
+    assert stepmother.fqn == 'amd64-centos-step-mother:latest'
+    assert stepmother.name == 'mother'
+    assert stepmother.base == 'centos'
+    assert stepmother.os == 'centos'
+    assert stepmother.arch == 'amd64'
+    assert stepmother.steps == tuple()
+    assert stepmother.variant == 'step'
+
+    with pytest.raises(ValueError):
+        DockerImage('child', base=mother, arch='aarm64v8')
+    with pytest.raises(ValueError):
+        DockerImage('child', base=mother, os='debian')
+
+    child = DockerImage('child', base=mother)
+    assert child.fqn == 'amd64-ubuntu-child:latest'
+    assert child.name == 'child'
+    assert child.base == mother
+    assert child.os == 'ubuntu'
+    assert child.arch == 'amd64'
+    assert child.steps == tuple()
+
+    variant = DockerImage('variant', base=mother, variant='conda')
+    assert variant.fqn == 'amd64-ubuntu-conda-variant:latest'
+    assert variant.name == 'variant'
+    assert variant.base == mother
+    assert variant.os == 'ubuntu'
+    assert variant.arch == 'amd64'
+    assert variant.steps == tuple()
+
+    grandchild = DockerImage('grandchild', base=child, tag='awesome')
+    assert grandchild.fqn == 'amd64-ubuntu-grandchild:awesome'
+    assert grandchild.name == 'grandchild'
+    assert grandchild.base == child
+    assert grandchild.os == 'ubuntu'
+    assert grandchild.arch == 'amd64'
+    assert grandchild.steps == tuple()
+
+
 def test_apk():
     cmd = "apk add --no-cache -q \\\n"
     tab = ' ' * 8

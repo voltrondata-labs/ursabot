@@ -33,7 +33,6 @@ log = Logger()
 @contextmanager
 def collect_global_errors(and_raise=False):
     global _errors
-    print(_errors)
     _errors = errors = ConfigErrors()
 
     try:
@@ -172,7 +171,7 @@ class MasterConfig(Config):
     def reporters(self):
         return self._from_projects('reporters')
 
-    def as_clitest(self, source):
+    def as_testing(self, source):
         # TODO generate workers  based on the CLI options
         # TODO custom schedulers
         buildbot_config_dict = {
@@ -235,11 +234,13 @@ class MasterConfig(Config):
 @implementer(interfaces.IConfigLoader)
 class InMemoryLoader:
 
-    def __init__(self, config):
+    def __init__(self, config, source='<memory>'):
         self.config = config
+        self.source = source
 
     def loadConfig(self):
-        return self.config.as_buildbot('<memory>')
+        with collect_global_errors(and_raise=True):
+            return self.config.as_buildbot(self.source)
 
 
 @implementer(interfaces.IConfigLoader)
