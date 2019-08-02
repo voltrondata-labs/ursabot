@@ -123,7 +123,6 @@ setup(
                 'DockerFile',
                 'DockerImage',
                 'ImageCollection',
-                'DockerBuilder',
                 'worker_image_for',
                 'worker_images_for',
                 'ADD',
