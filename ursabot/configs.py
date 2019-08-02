@@ -26,6 +26,15 @@ from buildbot.util import ComparableMixin
 from .docker import ImageCollection
 from .utils import Collection
 
+__all__ = [
+    'Config',
+    'ProjectConfig',
+    'MasterConfig',
+    'InMemoryLoader',
+    'FileLoader',
+    'BuildmasterConfigLoader',
+    'collect_global_errors'
+]
 
 log = Logger()
 

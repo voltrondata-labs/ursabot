@@ -23,6 +23,12 @@ from buildbot.worker.docker import (DockerLatentWorker, _handle_stream_line,
 
 from .utils import Collection, ensure_deferred
 
+__all__ = [
+    'DockerLatentWorker',
+    'docker_worker_from',
+    'load_workers_from',
+    'docker_workers_for',
+]
 
 log = Logger()
 
@@ -83,17 +89,17 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         #    copied from the original implementation with minor modification
         #    to pass runtime configuration to the containers
 
-        self._log_start_stop_locked('stopService')
-        self._start_stop_lock.acquire()
-        try:
-            if self.conn is not None or self.state in [States.SUBSTANTIATING,
-                                                       States.SUBSTANTIATED]:
-                await self._soft_disconnect(stopping_service=True)
-            self._clearBuildWaitTimer()
-            res = await super(AbstractLatentWorker, self).stopService()
-        finally:
-            self._start_stop_lock.release()
+        # the worker might be insubstantiating from buildWaitTimeout
+        if self.state in [States.INSUBSTANTIATING,
+                          States.INSUBSTANTIATING_SUBSTANTIATING]:
+            # yield self._insubstantiation_notifier.wait()
+            pass
 
+        if self.conn is not None or self.state in [States.SUBSTANTIATING,
+                                                   States.SUBSTANTIATED]:
+            await self._soft_disconnect(stopping_service=True)
+        self._clearBuildWaitTimer()
+        res = await super(AbstractLatentWorker, self).stopService()
         return res
 
     def renderWorkerProps(self, build):

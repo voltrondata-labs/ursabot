@@ -19,7 +19,7 @@ script:
   - flake8 ursabot
 
   # run the worker tests (docker utilities for now)
-  - pytest -v ursabot
+  - pytest -v --run-integration ursabot
 
   # run the arrow project tests
   - pytest -sv projects/arrow

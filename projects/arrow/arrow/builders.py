@@ -4,10 +4,11 @@ from buildbot.plugins import util
 from ursabot.builders import DockerBuilder
 from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
                            Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip,
-                           GitHub, Archery, Crossbow, Maven, Go, Cargo, Npm, R)
+                           GitHub, Maven, Go, Cargo, Npm, R)
 from ursabot.utils import startswith, slugify
 
 from .docker import images
+from .steps import Archery, Crossbow
 
 
 # prefer GitHub over Git step

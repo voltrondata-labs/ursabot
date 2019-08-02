@@ -18,6 +18,8 @@ from .docker import DockerImage
 from .workers import DockerLatentWorker
 from .utils import Collection, slugify
 
+__all__ = ['BuildFactory', 'Builder', 'DockerBuilder']
+
 
 class BuildFactory(util.BuildFactory):
 

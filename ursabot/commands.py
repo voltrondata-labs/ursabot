@@ -9,6 +9,8 @@ from functools import partial
 
 import click
 
+__all__ = ['CommandError', 'Command', 'Group', 'command', 'group']
+
 
 class CommandError(Exception):
 

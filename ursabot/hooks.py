@@ -14,6 +14,7 @@ from buildbot.process.properties import Properties
 from .utils import ensure_deferred, GithubClientService
 from .commands import CommandError
 
+__all__ = ['GithubHook', 'UrsabotHook']
 
 log = Logger()
 

@@ -6,6 +6,8 @@ from buildbot.master import BuildMaster
 from .configs import MasterConfig, collect_global_errors
 from .utils import ensure_deferred
 
+__all__ = ['TestMaster']
+
 
 @implementer(interfaces.IConfigLoader)
 class EagerLoader:

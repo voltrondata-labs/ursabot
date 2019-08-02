@@ -15,6 +15,18 @@ from twisted.internet import defer
 from buildbot.util import httpclientservice
 from buildbot.util.logger import Logger
 
+__all__ = [
+    'ensure_deferred',
+    'read_dependency_list',
+    'slugify',
+    'Filter',
+    'startswith',
+    'any_of',
+    'has',
+    'Collection',
+    'HTTPClientService',
+    'GithubClientService',
+]
 
 log = Logger()
 

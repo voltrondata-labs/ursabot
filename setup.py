@@ -12,6 +12,10 @@ if sys.version_info < (3, 6):
     sys.exit('Python < 3.6 is not supported due to missing asyncio support')
 
 
+def plugins(module, symbols):
+    return ['{1} = {0}:{1}'.format(module, symbol) for symbol in symbols]
+
+
 # TODO(kszucs): add package data, change maintainer
 setup(
     name='ursabot',
@@ -41,9 +45,113 @@ setup(
         'twisted[tls]'
     ],
     tests_require=['pytest>=3.9', 'mock'],
-    entry_points="""
-        [console_scripts]
-        ursabot=ursabot.cli:ursabot
-    """,
+    entry_points={
+        'console_scripts': [
+            'ursabot = ursabot.cli:ursabot'
+        ],
+        'buildbot.changes': plugins(module='ursabot.changes', symbols=[
+            'ChangeFilter',
+            'GitPoller',
+            'GitHubPullrequestPoller'
+        ]),
+        'buildbot.steps': plugins(module='ursabot.steps', symbols=[
+            'Mkdir',
+            'GitHub',
+            'Cargo',
+            'CMake',
+            'CTest',
+            'Env',
+            'Go',
+            'Make',
+            'Maven',
+            'Ninja',
+            'Npm',
+            'Pip',
+            'PyTest',
+            'R',
+            'ResultLogMixin',
+            'SetPropertiesFromEnv',
+            'SetPropertyFromCommand',
+            'SetupPy',
+            'ShellCommand',
+        ]),
+        'buildbot.schedulers': plugins(module='ursabot.schedulers', symbols=[
+            'ForceScheduler',
+            'TryScheduler',
+            'AnyBranchScheduler',
+            'SingleBranchScheduler',
+        ]),
+        'buildbot.worker': plugins(module='ursabot.worker', symbols=[
+            'DockerLatentWorker',
+        ]),
+        'buildbot.webhooks': plugins(module='ursabot.hooks', symbols=[
+            'GithubHoook',
+            'UrsabotHook',
+        ]),
+        'buildbot.secrets': plugins(module='ursabot.secrets', symbols=[
+            'SecretInPass',
+        ]),
+        'buildbot.reporters': (
+            plugins(module='ursabot.reporters', symbols=[
+                'HttpStatusPush',
+                'GitHubReporter',
+                'GitHubStatusPush',
+                'GitHubReviewPush',
+                'GitHubCommentPush',
+                'ZulipStatusPush',
+            ]) +
+            plugins(module='ursabot.formatters', symbols=[
+                'Formatter',
+                'MarkdownFormatter',
+            ])
+        ),
+        'buildbot.util': (
+            plugins(module='ursabot.configs', symbols=[
+                'Config',
+                'MasterConfig',
+                'ProjectConfig',
+                'InMemoryLoader',
+                'FileLoader',
+                'collect_global_errors',
+            ]) +
+            plugins(module='ursabot.builders', symbols=[
+                'BuildFactory',
+                'Builder',
+                'DockerBuilder',
+            ]) +
+            plugins(module='ursabot.docker', symbols=[
+                'DockerFile',
+                'DockerImage',
+                'ImageCollection',
+                'DockerBuilder',
+                'worker_image_for',
+                'worker_images_for',
+                'ADD',
+                'COPY',
+                'RUN',
+                'ENV',
+                'WORKDIR',
+                'USER',
+                'CMD',
+                'SHELL',
+                'ENTRYPOINT',
+                'symlink',
+                'apt',
+                'apk',
+                'pip',
+                'conda',
+            ]) +
+            plugins(module='ursabot.utils', symbols=[
+                'GithubClientService',
+                'Collection',
+                'Filter',
+                'ensure_deferred',
+                'read_dependency_list',
+                'startswith',
+                'any_of',
+                'has',
+            ])
+        )
+    },
     zip_safe=False,
 )

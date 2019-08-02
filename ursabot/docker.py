@@ -19,6 +19,27 @@ from dockermap.build.dockerfile import format_command
 
 from .utils import Collection
 
+__all__ = [
+    'DockerFile',
+    'DockerImage',
+    'ImageCollection',
+    'worker_image_for',
+    'worker_images_for',
+    'ADD',
+    'COPY',
+    'RUN',
+    'ENV',
+    'WORKDIR',
+    'USER',
+    'CMD',
+    'ENTRYPOINT',
+    'SHELL',
+    'symlink',
+    'apt',
+    'apk',
+    'pip',
+    'conda'
+]
 
 logger = logging.getLogger(__name__)
 

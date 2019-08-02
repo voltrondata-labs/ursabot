@@ -5,7 +5,6 @@
 # license that can be found in the LICENSE_BSD file.
 
 import io
-import sys
 import logging
 import toolz
 from pathlib import Path

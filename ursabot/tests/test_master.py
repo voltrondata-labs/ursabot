@@ -56,26 +56,26 @@ class TestMasterTestcase(TestReactorMixin, unittest.TestCase):
         images.build()
         self.setUpTestReactor()
 
-    # @pytest.mark.slow
-    # @pytest.mark.docker
-    # @ensure_deferred
-    # async def test_simple(self):
-    #     config = MasterConfig(
-    #         title='Test',
-    #         worker_port=9888,  # randomize
-    #         projects=[project]
-    #     )
-    #     sourcestamp = {
-    #         'codebase': '',
-    #         'project': project.name,
-    #         'repository': project.repo,
-    #         'branch': 'master',
-    #         'revision': None
-    #     }
-    #
-    #     async with _TestMaster(config, reactor=self.reactor) as master:
-    #         result = await master.build(builders[0].name, sourcestamp)
-    #
-    #     assert result['complete'] is True
-    #     assert result['results'] == 0
-    #     assert result['bsid'] == 1
+    @pytest.mark.docker
+    @pytest.mark.integration
+    @ensure_deferred
+    async def test_simple(self):
+        config = MasterConfig(
+            title='Test',
+            worker_port=9888,  # randomize
+            projects=[project]
+        )
+        sourcestamp = {
+            'codebase': '',
+            'project': project.name,
+            'repository': project.repo,
+            'branch': 'master',
+            'revision': None
+        }
+
+        async with _TestMaster(config, reactor=self.reactor) as master:
+            result = await master.build(builders[0].name, sourcestamp)
+
+        assert result['complete'] is True
+        assert result['results'] == 0
+        assert result['bsid'] == 1
