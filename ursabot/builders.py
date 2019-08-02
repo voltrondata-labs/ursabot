@@ -12,7 +12,6 @@ from collections import defaultdict
 
 from buildbot import interfaces
 from buildbot.plugins import util
-from codenamize import codenamize
 
 from .docker import DockerImage
 from .workers import DockerLatentWorker
@@ -89,15 +88,12 @@ class Builder(util.BuilderConfig):
         self._traverse_properties()
 
     @classmethod
-    def _generate_name(cls, prefix=None, slug=True, ids=True, codename=None):
+    def _generate_name(cls, prefix=None, slug=True, ids=True):
         name = prefix or cls.__name__
         if slug:
             name = slugify(name)
         if ids:
             name += '#{}'.format(next(cls._ids[name]))
-        if codename is not None:
-            # generates codename like: pushy-idea
-            name += ' ({})'.format(codenamize(codename, max_item_chars=5))
         return name
 
     def _traverse_properties(self):
