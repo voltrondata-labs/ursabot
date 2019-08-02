@@ -4,43 +4,147 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
-language: python
 services:
   - docker
+
+language: python
+
 python:
   - 3.6
-script:
-  # --no-binary buildbot is required because buildbot doesn't bundle its tests
-  # to binary wheels, but ursabot's test suite depends on buildbot's so install
-  # it from source
-  - pip install --no-binary buildbot "pytest>=3.9" mock flake8 -e .
 
-  # run linter
-  - flake8 ursabot
+before_script:
+  # install ursabot itself
+  - pip install -e .
 
-  # run the worker tests (docker utilities for now)
-  - pytest -v --run-integration ursabot
+matrix:
+  include:
+    - name: "Ursabot Tests"
+      before_script:
+        # --no-binary buildbot is required because buildbot doesn't bundle its
+        # tests to binary wheels, but ursabot's test suite depends on
+        # buildbot's so install it from source
+        - pip install --no-binary buildbot "pytest>=3.9" mock flake8 -e .
+      script:
+        # run linter
+        - flake8 ursabot
 
-  # run the arrow project tests
-  - pytest -sv projects/arrow
+        # run the worker tests (docker utilities for now)
+        - pytest -v --run-integration ursabot
 
-  # check the ursabot buildbot configurations
-  - pushd projects/ursabot
-  - ursabot -v checkconfig
-  - popd
+        # run the arrow project tests
+        - pytest -sv projects/arrow
 
-  # check the arrow buildbot configurations
-  - pushd projects/arrow
-  - ursabot -v checkconfig
-  - popd
+        # check the ursabot buildbot configurations
+        - pushd projects/ursabot
+        - ursabot -v checkconfig
+        - popd
 
-  # check the top level "ubrella" config, this is the production config, so it
-  # requires both ~/.uralabs-pass to be present and pass to be installed
-  - sudo apt-get install pass
-  - mkdir ~/.ursalabs-pass
-  - ursabot -v checkconfig
+        # check the arrow buildbot configurations
+        - pushd projects/arrow
+        - ursabot -v checkconfig
+        - popd
 
-  # run one of the arrow builders locally
-  - pushd projects/arrow
-  - ursabot project build 'AMD64 Ubuntu 18.04 C++'
-  - popd
+        # check the top level "ubrella" config, this is the production config,
+        # so it requires both ~/.uralabs-pass to be present and pass to be
+        # installed
+        - sudo apt-get install pass
+        - mkdir ~/.ursalabs-pass
+        - ursabot -v checkconfig
+
+    ##################### Test the Arrow Builders ################
+
+    - name: "AMD64 Ubuntu 18.04 C++"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Ubuntu 18.04 C++'
+        - popd
+    - name: "AMD64 Ubuntu 18.04 R"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Ubuntu 18.04 R'
+        - popd
+    - name: "AMD64 Ubuntu 18.04 Python 3"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Ubuntu 18.04 Python 3'
+        - popd
+    - name: "AMD64 Conda C++"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Conda C++'
+        - popd
+    - name: "AMD64 Conda R"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Conda R'
+        - popd
+    - name: "AMD64 Conda Python 2.7"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Conda Python 2.7'
+        - popd
+    - name: "AMD64 Conda Python 3.6"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Conda Python 3.6'
+        - popd
+    - name: "AMD64 Conda Python 3.7"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Conda Python 3.7'
+        - popd
+    - name: "AMD64 Nvidia Cuda 10.0 C++"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Nvidia Cuda 10.0 C++'
+        - popd
+    - name: "AMD64 Nvidia Cuda 10.0 Python 3"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Nvidia Cuda 10.0 Python 3'
+        - popd
+    - name: "AMD64 Java OpenJDK 8"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Java OpenJDK 8'
+        - popd
+    - name: "AMD64 Java OpenJDK 11"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Java OpenJDK 11'
+        - popd
+    - name: "AMD64 Debian 9 Rust 1.35"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Debian 9 Rust 1.35'
+        - popd
+    - name: "AMD64 Debian 9 Go 1.12.6"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Debian 9 Go 1.12.6'
+        - popd
+    - name: "AMD64 Debian 9 Go 1.11.11"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Debian 9 Go 1.11.11'
+        - popd
+    - name: "AMD64 Debian 9 NodeJS 11"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Debian 9 NodeJS 11'
+        - popd
+    - name: "AMD64 Ubuntu 18.04 C++ Benchmark"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Ubuntu 18.04 C++ Benchmark'
+        - popd
+    - name: "AMD64 Conda Crossbow"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Conda Crossbow'
+        - popd
+    - name: "Ursabot Python 3.7"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'Ursabot Python 3.7'
+        - popd
