@@ -187,8 +187,7 @@ class MasterConfig(Config):
             'builders': self.builders,
             'schedulers': self.schedulers,
             'db': {'db_url': 'sqlite://'},
-            'protocols': {'pb': {'port': "tcp:0:interface=127.0.0.1"}}
-            # 'www': {'avatar_methods': []},  # disable avatars
+            'protocols': {'pb': {'port': 'tcp:0:interface=127.0.0.1'}}
         }
         return BuildbotMasterConfig.loadFromDict(buildbot_config_dict,
                                                  filename=source)
