@@ -143,8 +143,3 @@ matrix:
         - pushd projects/arrow
         - ursabot project build 'AMD64 Conda Crossbow'
         - popd
-    - name: "Ursabot Python 3.7"
-      script:
-        - pushd projects/arrow
-        - ursabot project build 'Ursabot Python 3.7'
-        - popd
