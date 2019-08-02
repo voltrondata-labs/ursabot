@@ -30,13 +30,26 @@ class EagerLoader:
 
 class TestMaster:
 
-    def __init__(self, config, reactor=None, source=None, logger=None):
-        """Construct TestMaster
+    def __init__(self, config, reactor=None, source='TestMaster', logger=None):
+        """Lightweight in-process BuildMaster
+
+        Spins up a lightweight BuildMaster in the same process and can trigger
+        builders defined in the configuration. The TestMaster only pays
+        attention to the `workers`, `builders` and `schedulers` configuration
+        keys, so it doesn't configure non-essential services like the
+        reporters.
+        It is used in the CLI interface to locally reproduce specific builds,
+        but it is also suitable for general integration testing of the
+        builders.
 
         Parameters
         ----------
         config: MasterConfig
-
+        reactor: twisted.reactor, default None
+        source: str, default `TestMaster`
+            Used for highligting the origin or the build properties.
+        logger: Callable[[unseen_log_lines], None], default lambda _: None
+            A callback to handle the logs produced by the builder's buildsteps.
         """
         assert isinstance(config, MasterConfig)
         self.config = config
@@ -45,7 +58,7 @@ class TestMaster:
         if reactor is None:
             from twisted.internet import reactor
 
-        self._source = source or 'TestMaster'
+        self._source = source
         self._master = BuildMaster('.', reactor=reactor, config_loader=loader)
         self._log_handler = logger or (lambda _: None)
 
