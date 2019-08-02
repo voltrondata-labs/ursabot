@@ -54,7 +54,10 @@ def ursabot(ctx, verbose, config_path, config_variable):
 
     stderr, stdout = io.StringIO(), io.StringIO()
     with redirect_stderr(stderr), redirect_stdout(stdout):
-        config = Config.load_from(config_path, variable=config_variable)
+        try:
+            config = Config.load_from(config_path, variable=config_variable)
+        except ConfigErrors as e:
+            raise UrsabotConfigErrors(e)
     stderr, stdout = stderr.getvalue(), stdout.getvalue()
 
     if verbose:

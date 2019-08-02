@@ -13,10 +13,10 @@ from .hooks import *
 from .master import *
 from .reporters import *
 from .schedulers import *
-from .steps import *
 from .workers import *
 
 # The following imports could pollute the namespace
 # from .commands import *
 # from .docker import *
 # from .utils import *
+# from .steps import *

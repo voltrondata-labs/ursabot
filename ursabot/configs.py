@@ -181,17 +181,13 @@ class MasterConfig(Config):
         return self._from_projects('reporters')
 
     def as_testing(self, source):
-        # TODO generate workers  based on the CLI options
-        # TODO custom schedulers
         buildbot_config_dict = {
             'buildbotNetUsageData': None,
-
             'workers': self.workers,
             'builders': self.builders,
             'schedulers': self.schedulers,
             'db': {'db_url': 'sqlite://'},
-            'protocols': {'pb': {'port': 9000}},
-            # 'protocols': {'pb': {'port': "tcp:0:interface=127.0.0.1"}}
+            'protocols': {'pb': {'port': "tcp:0:interface=127.0.0.1"}}
             # 'www': {'avatar_methods': []},  # disable avatars
         }
         return BuildbotMasterConfig.loadFromDict(buildbot_config_dict,
