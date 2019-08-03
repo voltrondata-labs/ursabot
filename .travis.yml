@@ -93,16 +93,6 @@ matrix:
         - pushd projects/arrow
         - ursabot project build 'AMD64 Conda Python 3.7'
         - popd
-    - name: "AMD64 Nvidia Cuda 10.0 C++"
-      script:
-        - pushd projects/arrow
-        - ursabot project build 'AMD64 Nvidia Cuda 10.0 C++'
-        - popd
-    - name: "AMD64 Nvidia Cuda 10.0 Python 3"
-      script:
-        - pushd projects/arrow
-        - ursabot project build 'AMD64 Nvidia Cuda 10.0 Python 3'
-        - popd
     - name: "AMD64 Java OpenJDK 8"
       script:
         - pushd projects/arrow
@@ -132,14 +122,4 @@ matrix:
       script:
         - pushd projects/arrow
         - ursabot project build 'AMD64 Debian 9 NodeJS 11'
-        - popd
-    - name: "AMD64 Ubuntu 18.04 C++ Benchmark"
-      script:
-        - pushd projects/arrow
-        - ursabot project build 'AMD64 Ubuntu 18.04 C++ Benchmark'
-        - popd
-    - name: "AMD64 Conda Crossbow"
-      script:
-        - pushd projects/arrow
-        - ursabot project build 'AMD64 Conda Crossbow'
         - popd
