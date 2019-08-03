@@ -339,10 +339,10 @@ def _handle_stdio_log(newlines):
               help='Arbitrary properties passed to the builds. It must be '
                    'passed in form `name=value`')
 @click.option('--attach-on-failure', '-a', is_flag=True, default=False,
-             help='If a build fails and it is executed withing a '
-                  'DockerLatentWorker then start an interactive shell session '
-                  'in the container. Note that it blocks the event loop until '
-                  'the shell is running.')
+              help='If a build fails and it is executed withing a '
+                   'DockerLatentWorker then start an interactive shell '
+                   'session in the container. Note that it blocks the event '
+                   'loop until the shell is running.')
 @click.pass_obj
 def project_build(obj, builder_name, repo, branch, commit, pull_request,
                   properties, attach_on_failure):
