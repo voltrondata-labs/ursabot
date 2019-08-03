@@ -31,6 +31,7 @@ setup(
         'click',
         'docker-map',
         'docker',
+        'dockerpty',
         'python-dotenv',
         'ruamel.yaml',
         'tabulate',

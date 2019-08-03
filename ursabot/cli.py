@@ -16,7 +16,8 @@ from twisted.internet import reactor
 from twisted.python.log import PythonLoggingObserver
 from buildbot.util.logger import Logger
 from buildbot.config import ConfigErrors
-from buildbot.process.results import Results, SUCCESS, WARNINGS
+from buildbot.process.results import Results
+from buildbot.process.results import SUCCESS, WARNINGS, FAILURE, EXCEPTION
 
 from .configs import Config, MasterConfig
 from .utils import ensure_deferred
@@ -337,9 +338,14 @@ def _handle_stdio_log(newlines):
 @click.option('--property', '-p', 'properties', multiple=True,
               help='Arbitrary properties passed to the builds. It must be '
                    'passed in form `name=value`')
+@click.option('--attach-on-failure', '-a', is_flag=True, default=False,
+             help='If a build fails and it is executed withing a '
+                  'DockerLatentWorker then start an interactive shell session '
+                  'in the container. Note that it blocks the event loop until '
+                  'the shell is running.')
 @click.pass_obj
 def project_build(obj, builder_name, repo, branch, commit, pull_request,
-                  properties):
+                  properties, attach_on_failure):
     # force twisted logger to use the cli module's python logger
     observer = PythonLoggingObserver(loggerName=logger.name)
     observer.start()
@@ -369,10 +375,12 @@ def project_build(obj, builder_name, repo, branch, commit, pull_request,
             f"{available}"
         )
 
+    attach_on = {FAILURE, EXCEPTION} if attach_on_failure else set()
     result = {'complete': False}
     try:
         # configure a lightweight master with in-memory database
-        master = TestMaster(config, logger=_handle_stdio_log)
+        master = TestMaster(config, attach_on=attach_on,
+                            log_handler=_handle_stdio_log)
     except ConfigErrors as e:
         raise UrsabotConfigErrors(e)
 

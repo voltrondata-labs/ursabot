@@ -2,11 +2,15 @@ from twisted.internet import defer
 from zope.interface import implementer
 from buildbot import interfaces
 from buildbot.master import BuildMaster
+from buildbot.util.logger import Logger
+from buildbot.process.results import ALL_RESULTS
 
 from .configs import MasterConfig, collect_global_errors
 from .utils import ensure_deferred
 
 __all__ = ['TestMaster']
+
+log = Logger()
 
 
 @implementer(interfaces.IConfigLoader)
@@ -30,7 +34,8 @@ class EagerLoader:
 
 class TestMaster:
 
-    def __init__(self, config, reactor=None, source='TestMaster', logger=None):
+    def __init__(self, config, reactor=None, source='TestMaster',
+                 log_handler=None, attach_on=tuple()):
         """Lightweight in-process BuildMaster
 
         Spins up a lightweight BuildMaster in the same process and can trigger
@@ -48,11 +53,18 @@ class TestMaster:
         reactor: twisted.reactor, default None
         source: str, default `TestMaster`
             Used for highligting the origin or the build properties.
-        logger: Callable[[unseen_log_lines], None], default lambda _: None
+        log_handler: Callable[[unseen_log_lines], None], default lambda _: None
             A callback to handle the logs produced by the builder's buildsteps.
+        attach_on: List[Results], default []
+            If a build finishes with any of the listed states and it is
+            executed withing a DockerLatentWorker then start an interactive
+            shell session in the container. Use it with caution, because it
+            blocks the event loop.
         """
         assert isinstance(config, MasterConfig)
+        assert all(result in ALL_RESULTS for result in attach_on)
         self.config = config
+        self.attach_on = set(attach_on)
 
         loader = EagerLoader(config, source=source)
         if reactor is None:
@@ -60,7 +72,7 @@ class TestMaster:
 
         self._source = source
         self._master = BuildMaster('.', reactor=reactor, config_loader=loader)
-        self._log_handler = logger or (lambda _: None)
+        self._log_handler = log_handler or (lambda _: None)
 
         # state variable updated by the event handlers below
         self._buildset = None
@@ -68,12 +80,24 @@ class TestMaster:
         self._log_offset = 0
 
     async def _setup_consumers(self):
-        start = self._master.mq.startConsuming
+        start_consuming = self._master.mq.startConsuming
         self._consumers = [
-            await start(self._on_log_creation, filter=('logs', None, 'new')),
-            await start(self._on_log_append, filter=('logs', None, 'append')),
-            await start(self._on_buildset_complete,
-                        filter=('buildsets', None, 'complete'))
+            await start_consuming(
+                callback=self._on_log_creation,
+                filter=('logs', None, 'new')
+            ),
+            await start_consuming(
+                callback=self._on_log_append,
+                filter=('logs', None, 'append')
+            ),
+            await start_consuming(
+                callback=self._on_build_finished,
+                filter=('builds', None, 'finished')
+            ),
+            await start_consuming(
+                callback=self._on_buildset_complete,
+                filter=('buildsets', None, 'complete')
+            )
         ]
 
     async def _stop_consumers(self):
@@ -92,11 +116,6 @@ class TestMaster:
         await self._master.stopService()
 
     @ensure_deferred
-    async def _on_buildset_complete(self, key, buildset):
-        assert buildset['bsid'] == self._buildset_id
-        self._buildset.callback(buildset)
-
-    @ensure_deferred
     async def _on_log_creation(self, key, log):
         self._log_offset = 0
 
@@ -108,6 +127,25 @@ class TestMaster:
         unseen = contents['content'][self._log_offset:]
         self._log_offset += len(unseen)
         self._log_handler(unseen.splitlines())
+
+    @ensure_deferred
+    async def _on_build_finished(self, key, build):
+        if build['results'] not in self.attach_on:
+            return
+
+        for registration in self._master.workers.registrations.values():
+            worker = registration.worker
+            if worker.workerid == build['workerid']:
+                if not hasattr(worker, 'attach_interactive_shell'):
+                    log.error(f"{worker} doesn't support interactive shell "
+                              f"attachment.")
+                else:
+                    worker.attach_interactive_shell()
+
+    @ensure_deferred
+    async def _on_buildset_complete(self, key, buildset):
+        assert buildset['bsid'] == self._buildset_id
+        self._buildset.callback(buildset)
 
     async def build(self, builder_name, sourcestamp, properties=None):
         # the build's outcome is stored in this deferred, set by the

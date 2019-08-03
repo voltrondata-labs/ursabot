@@ -56,6 +56,9 @@ class TestMasterTestcase(TestReactorMixin, unittest.TestCase):
         images.build()
         self.setUpTestReactor()
 
+    # TODO(kszucs): test for attaching to a failing build with mocking
+    #               worker.attach_interactive_shell
+
     @pytest.mark.docker
     @pytest.mark.integration
     @ensure_deferred

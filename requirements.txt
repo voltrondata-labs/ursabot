@@ -16,6 +16,7 @@ buildbot-www
 click
 docker
 docker-map
+dockerpty
 flake8
 mock
 pytest

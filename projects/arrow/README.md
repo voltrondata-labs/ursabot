@@ -71,6 +71,17 @@ Passing multiple buildbot properties for the build:
 $ ursabot project build -p prop=value -p myprop=myvalue 'AMD64 Conda C++'
 ```
 
+### Attach on failure
+
+Ursabot supports debugging failed builds with attach attaching ordinary shells
+to the still running workers - where the build has previously failed.
+
+Use the `--attach-on-failure` or `-a` flags.
+
+```bash
+$ ursabot project build --attach-on-failure `AMD64 Conda C++`
+```
+
 ## Commands operating on docker images
 
 Listing images:

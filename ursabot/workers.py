@@ -110,6 +110,20 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             (self.image, self.dockerfile, self.hostconfig, self.volumes)
         )
 
+    def attach_interactive_shell(self, shell='/bin/bash'):
+        import dockerpty
+
+        instance_id, image = self.instance['Id'][:12], self.instance['image']
+        log.info(f"Attaching an interactive shell '{shell}' to container with "
+                 f"id '{instance_id}' and image '{image}'")
+
+        dockerpty.exec_command(
+            client=self._getDockerClient(),
+            container=self.instance,
+            command=shell,
+            interactive=True
+        )
+
     @ensure_deferred
     async def start_instance(self, build):
         # License note:
