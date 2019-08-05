@@ -15,6 +15,7 @@ from ursabot.docker import DockerImage, worker_images_for
 from ursabot.steps import ShellCommand
 
 
+# loading MASTER_FQDN from .env file, required for OSX
 load_dotenv()
 
 

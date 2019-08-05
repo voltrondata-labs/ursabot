@@ -56,8 +56,14 @@ class Builder(BuilderConfig):
     # merged with default_properties argument
     default_properties = None
 
-    def __init__(self, name, steps=None, factory=None, workers=None, tags=None,
-                 properties=None, default_properties=None, env=None, **kwargs):
+    def __init__(self, name=None, steps=None, factory=None, workers=None,
+                 tags=None, properties=None, default_properties=None, env=None,
+                 **kwargs):
+        name = name or '{}#{}'.format(
+            self.__class__.__name__,
+            next(self._ids[name])
+        )
+
         if isinstance(steps, (list, tuple)):
             # replace the class' steps
             steps = steps
@@ -100,7 +106,7 @@ class DockerBuilder(Builder):
         if not isinstance(image, DockerImage):
             raise ValueError('Image must be an instance of DockerImage')
 
-        name = image.title
+        name = name or image.title
         tags = tags or [image.name]
         tags += list(image.platform)
         super().__init__(name=name, tags=tags, **kwargs)
