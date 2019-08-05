@@ -4,7 +4,6 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
-import re
 import pathlib
 import itertools
 import functools
