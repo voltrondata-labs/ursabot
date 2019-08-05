@@ -18,7 +18,6 @@ from buildbot.util.logger import Logger
 __all__ = [
     'ensure_deferred',
     'read_dependency_list',
-    'slugify',
     'Filter',
     'startswith',
     'any_of',
@@ -45,10 +44,6 @@ def read_dependency_list(path):
     path = pathlib.Path(path)
     lines = (l.strip() for l in path.read_text().splitlines())
     return [l for l in lines if not l.startswith('#')]
-
-
-def slugify(s):
-    return re.sub(r'[\W_]+', '-', s)
 
 
 class Filter:
@@ -93,7 +88,21 @@ def has(*needles):
 
 class Collection(list):
 
+    def get(self, **kwargs):
+        """Retrieves a single entry from the collection."""
+        results = self.filter(**kwargs)
+        if len(results) == 0:
+            raise KeyError('No entry can be found by the filter conditions')
+        elif len(results) > 1:
+            raise KeyError('Multiple entries can be found by the conditions')
+        else:
+            return results[0]
+
     def filter(self, **kwargs):
+        """Filters the values based on the passed conditions.
+
+        The filters can be passed as property=(value or filter function) form.
+        """
         items = self
         for by, value in kwargs.items():
             if callable(value):

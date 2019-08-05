@@ -214,6 +214,10 @@ class DockerImage:
         df.finalize()
         return df
 
+    @property
+    def workdir(self):
+        return self.dockerfile.command_workdir
+
     def save_dockerfile(self, directory):
         path = Path(directory) / f'{self.repo}.{self.tag}.dockerfile'
         self.dockerfile.save(path)

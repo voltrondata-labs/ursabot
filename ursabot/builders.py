@@ -3,6 +3,10 @@
 #
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
+#
+# This file contains function or sections of code that are marked as being
+# derivative works of Buildbot. The above license only applies to code that
+# is not marked as such.
 
 import copy
 import toolz
@@ -11,16 +15,18 @@ import warnings
 from collections import defaultdict
 
 from buildbot import interfaces
-from buildbot.plugins import util
+from buildbot.config import BuilderConfig
+from buildbot.process.factory import BuildFactory
+from buildbot.process.properties import Properties
 
 from .docker import DockerImage
 from .workers import DockerLatentWorker
-from .utils import Collection, slugify
+from .utils import Collection
 
 __all__ = ['BuildFactory', 'Builder', 'DockerBuilder']
 
 
-class BuildFactory(util.BuildFactory):
+class BuildFactory(BuildFactory):
 
     def clone(self):
         return copy.deepcopy(self)
@@ -35,7 +41,7 @@ class BuildFactory(util.BuildFactory):
         self.steps.insert(0, interfaces.IBuildStepFactory(step))
 
 
-class Builder(util.BuilderConfig):
+class Builder(BuilderConfig):
 
     # used for generating unique default names
     _ids = defaultdict(itertools.count)
@@ -45,16 +51,13 @@ class Builder(util.BuilderConfig):
     tags = tuple()
     # default for steps argument so it gets overwritten if steps is passed
     steps = tuple()
-    # prefix for name argument
-    name_prefix = ''
     # merged with properties argument
     properties = None
     # merged with default_properties argument
     default_properties = None
 
-    def __init__(self, name=None, steps=None, factory=None, workers=None,
-                 tags=None, properties=None, default_properties=None, env=None,
-                 **kwargs):
+    def __init__(self, name, steps=None, factory=None, workers=None, tags=None,
+                 properties=None, default_properties=None, env=None, **kwargs):
         if isinstance(steps, (list, tuple)):
             # replace the class' steps
             steps = steps
@@ -70,51 +73,17 @@ class Builder(util.BuilderConfig):
         elif tags is not None:
             raise TypeError('Tags must be a list')
 
-        name = name or self._generate_name()
-        if self.name_prefix:
-            name = f'{self.name_prefix} {name}'
         factory = factory or BuildFactory(steps)
+        workernames = None if workers is None else [w.name for w in workers]
+
         env = toolz.merge(self.env or {}, env or {})
         properties = toolz.merge(self.properties or {}, properties or {})
         default_properties = toolz.merge(self.default_properties or {},
                                          default_properties or {})
-        workernames = None if workers is None else [w.name for w in workers]
 
         super().__init__(name=name, tags=tags, properties=properties,
                          defaultProperties=default_properties, env=env,
                          workernames=workernames, factory=factory, **kwargs)
-        # traverse properties and defaultProperties and call any callables with
-        # self as argument
-        self._traverse_properties()
-
-    @classmethod
-    def _generate_name(cls, prefix=None, slug=True, ids=True):
-        name = prefix or cls.__name__
-        if slug:
-            name = slugify(name)
-        if ids:
-            name += '#{}'.format(next(cls._ids[name]))
-        return name
-
-    def _traverse_properties(self):
-        """A small utility function to generate properties dynamically
-
-        The builder configuration is all set up after __init__. In order to
-        dynamically change values based on other values of the instance the
-        base BuilderConfig class should be refactored.
-        """
-        def render(value):
-            if callable(value):
-                return value(self)
-            elif isinstance(value, (list, tuple)):
-                return list(map(render, value))
-            elif isinstance(value, dict):
-                return toolz.valmap(render, value)
-            else:
-                return value
-
-        self.properties = render(self.properties)
-        self.defaultProperties = render(self.defaultProperties)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} '{self.name}'>"
@@ -126,22 +95,70 @@ class DockerBuilder(Builder):
     volumes = tuple()
     hostconfig = None
 
-    def __init__(self, name=None, image=None, properties=None, tags=None,
-                 hostconfig=None, volumes=tuple(), **kwargs):
+    def __init__(self, name=None, image=None, tags=None, hostconfig=None,
+                 volumes=tuple(), **kwargs):
         if not isinstance(image, DockerImage):
             raise ValueError('Image must be an instance of DockerImage')
 
         name = image.title
         tags = tags or [image.name]
         tags += list(image.platform)
-        volumes = list(toolz.concat([self.volumes, volumes]))
-        hostconfig = toolz.merge(self.hostconfig or {}, hostconfig or {})
+        super().__init__(name=name, tags=tags, **kwargs)
 
-        props = properties or {}
-        props['docker_image'] = str(image)
-        props['docker_volumes'] = volumes
-        props['docker_hostconfig'] = hostconfig
-        super().__init__(name=name, properties=props, tags=tags, **kwargs)
+        self.image = image
+        self.volumes = list(toolz.concat([self.volumes, volumes]))
+        self.hostconfig = toolz.merge(self.hostconfig or {}, hostconfig or {})
+        self._render_docker_properties()
+
+    def _render_docker_properties(self):
+        """Render docker properties dinamically.
+
+        Docker specific configuration defined in the DockerBuilder instances
+        are passed as properties to the DockerLatentWorker.
+        Only scalar properies are allowed in BuilderConfig instances, so
+        defining docker volumes referring the builddir would require
+        boilerplate and deeper understanding how the build properties are
+        propegated through the buildbot objects.
+        So using traditional property interpolation with properties like the
+        docker image's workdir, builddir, or the buildername makes the volume
+        definition easier.
+
+        Note that the builddir and workerbuilddir variables of the builder
+        config are different from the ones we see on the buildbot ui under
+        the properties tab.
+
+        License note:
+           The property descriptions below are copied from the buildbot docs.
+
+        self.builddir:
+           Specifies the name of a subdirectory of the master’s basedir in
+           which everything related to this builder will be stored. This
+           holds build status information. If not set, this parameter
+           defaults to the builder name, with some characters escaped. Each
+           builder must have a unique build directory.
+        self.workerbuilddir:
+           Specifies the name of a subdirectory (under the worker’s
+           configured base directory) in which everything related to this
+           builder will be placed on the worker. This is where checkouts,
+           compiles, and tests are run. If not set, defaults to builddir.
+           If a worker is connected to multiple builders that share the same
+           workerbuilddir, make sure the worker is set to run one build at a
+           time or ensure this is fine to run multiple builds from the same
+           directory simultaneously.
+        """
+        props = Properties(
+            buildername=self.name,
+            builddir=self.builddir,
+            workerbuilddir=self.workerbuilddir,
+            docker_image=str(self.image),
+            docker_workdir=self.image.workdir
+        )
+        self.properties.update({
+            'docker_image': str(self.image),
+            'docker_workdir': self.image.workdir,
+            'docker_volumes': props.render(self.volumes).result,
+            'docker_hostconfig': props.render(self.hostconfig).result,
+        })
 
     @classmethod
     def builders_for(cls, workers, images=tuple(), **kwargs):

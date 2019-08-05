@@ -10,7 +10,7 @@ import pytest
 from dockermap.api import DockerClientWrapper
 
 from ursabot.docker import DockerImage, ImageCollection
-from ursabot.docker import RUN, CMD, apk, apt, pip, conda
+from ursabot.docker import RUN, CMD, WORKDIR, apk, apt, pip, conda
 
 
 @pytest.fixture
@@ -18,7 +18,8 @@ def image():
     steps = [
         RUN(apt('python', 'python-pip')),
         RUN(pip('six', 'toolz')),
-        CMD(['python'])
+        CMD(['python']),
+        WORKDIR('/buildbot')
     ]
     return DockerImage('worker-image', base='ubuntu', os='ubuntu',
                        arch='amd64', steps=steps)
@@ -114,6 +115,7 @@ def test_shortcuts_smoke():
 def test_dockerfile_dsl(image):
     assert image.repo == 'amd64-ubuntu-worker-image'
     assert image.base == 'ubuntu'
+    assert image.workdir == '/buildbot'
 
     dockerfile = str(image.dockerfile)
     expected = dedent("""
@@ -131,6 +133,7 @@ def test_dockerfile_dsl(image):
                 toolz
 
         CMD ["python"]
+        WORKDIR /buildbot
     """)
     assert dockerfile.strip() == expected.strip()
 

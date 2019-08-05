@@ -62,8 +62,12 @@ $ ursabot project build -pr 140 'AMD64 Conda C++'
 Testing `AMD64 Conda C++` with local repository:
 
 ```bash
-# upcoming feature
+$ ursabot project build -s ~/Workspace/arrow:. 'AMD64 Conda C++'
 ```
+
+Where `~/Workspace/arrow` is the path of the local Arrow repository and `.`
+is the destination directory under the worker's build directory (in this case:
+`/buildbot/AMD64_Conda_C__/.`)
 
 Passing multiple buildbot properties for the build:
 

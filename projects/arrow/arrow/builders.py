@@ -5,7 +5,7 @@ from ursabot.builders import DockerBuilder
 from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
                            Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip,
                            GitHub, Maven, Go, Cargo, Npm, R)
-from ursabot.utils import startswith, slugify
+from ursabot.utils import startswith
 
 from .docker import images
 from .steps import Archery, Crossbow
@@ -303,7 +303,7 @@ class CrossbowTrigger(DockerBuilder):
 class CppTest(DockerBuilder):
     tags = ['arrow', 'cpp', 'parquet', 'plasma']
     volumes = [
-        lambda builder: f'{slugify(builder.name)}:/root/.ccache:rw'
+        util.Interpolate('%(prop:builddir)s:/root/.ccache:rw')
     ]
     properties = {
         'ARROW_PARQUET': 'ON',
@@ -466,7 +466,7 @@ def as_system_includes(stdout, stderr):
 class CppCondaTest(DockerBuilder):
     tags = ['arrow', 'cpp', 'flight', 'gandiva', 'parquet', 'plasma']
     volumes = [
-        lambda builder: f'{slugify(builder.name)}:/root/.ccache:rw'
+        util.Interpolate('%(prop:builddir)s:/root/.ccache:rw')
     ]
     properties = {
         'ARROW_FLIGHT': 'ON',
@@ -568,7 +568,7 @@ class JavaTest(DockerBuilder):
 class JSTest(DockerBuilder):
     tags = ['arrow', 'js']
     volumes = [
-        lambda builder: f'{slugify(builder.name)}:/root/.npm:rw'
+        util.Interpolate('%(prop:builddir)s:/root/.npm:rw')
     ]
     steps = [
         checkout_arrow,
