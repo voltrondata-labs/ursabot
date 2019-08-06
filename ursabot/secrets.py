@@ -23,6 +23,7 @@ from buildbot.util.logger import Logger
 
 from .utils import ensure_deferred
 
+__all__ = ['SecretInPass']
 
 log = Logger()
 

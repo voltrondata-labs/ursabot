@@ -7,10 +7,10 @@
 from textwrap import dedent
 
 import pytest
-from dockermap.api import DockerFile, DockerClientWrapper
+from dockermap.api import DockerClientWrapper
 
-from ursabot.docker import DockerImage, ImageCollection, images
-from ursabot.docker import RUN, CMD, apk, apt, pip, conda
+from ursabot.docker import DockerImage, ImageCollection
+from ursabot.docker import RUN, CMD, WORKDIR, apk, apt, pip, conda
 
 
 @pytest.fixture
@@ -18,7 +18,8 @@ def image():
     steps = [
         RUN(apt('python', 'python-pip')),
         RUN(pip('six', 'toolz')),
-        CMD(['python'])
+        CMD(['python']),
+        WORKDIR('/buildbot')
     ]
     return DockerImage('worker-image', base='ubuntu', os='ubuntu',
                        arch='amd64', steps=steps)
@@ -43,6 +44,56 @@ def collection():
     )
 
 
+def test_basics():
+    mother = DockerImage('mother', base='ubuntu', os='ubuntu', arch='amd64')
+    assert mother.fqn == 'amd64-ubuntu-mother:latest'
+    assert mother.name == 'mother'
+    assert mother.base == 'ubuntu'
+    assert mother.os == 'ubuntu'
+    assert mother.arch == 'amd64'
+    assert mother.steps == tuple()
+    assert mother.variant is None
+
+    stepmother = DockerImage('mother', base='centos', os='centos',
+                             variant='step', arch='amd64')
+    assert stepmother.fqn == 'amd64-centos-step-mother:latest'
+    assert stepmother.name == 'mother'
+    assert stepmother.base == 'centos'
+    assert stepmother.os == 'centos'
+    assert stepmother.arch == 'amd64'
+    assert stepmother.steps == tuple()
+    assert stepmother.variant == 'step'
+
+    with pytest.raises(ValueError):
+        DockerImage('child', base=mother, arch='aarm64v8')
+    with pytest.raises(ValueError):
+        DockerImage('child', base=mother, os='debian')
+
+    child = DockerImage('child', base=mother)
+    assert child.fqn == 'amd64-ubuntu-child:latest'
+    assert child.name == 'child'
+    assert child.base == mother
+    assert child.os == 'ubuntu'
+    assert child.arch == 'amd64'
+    assert child.steps == tuple()
+
+    variant = DockerImage('variant', base=mother, variant='conda')
+    assert variant.fqn == 'amd64-ubuntu-conda-variant:latest'
+    assert variant.name == 'variant'
+    assert variant.base == mother
+    assert variant.os == 'ubuntu'
+    assert variant.arch == 'amd64'
+    assert variant.steps == tuple()
+
+    grandchild = DockerImage('grandchild', base=child, tag='awesome')
+    assert grandchild.fqn == 'amd64-ubuntu-grandchild:awesome'
+    assert grandchild.name == 'grandchild'
+    assert grandchild.base == child
+    assert grandchild.os == 'ubuntu'
+    assert grandchild.arch == 'amd64'
+    assert grandchild.steps == tuple()
+
+
 def test_apk():
     cmd = "apk add --no-cache -q \\\n"
     tab = ' ' * 8
@@ -64,12 +115,14 @@ def test_shortcuts_smoke():
 def test_dockerfile_dsl(image):
     assert image.repo == 'amd64-ubuntu-worker-image'
     assert image.base == 'ubuntu'
+    assert image.workdir == '/buildbot'
 
     dockerfile = str(image.dockerfile)
     expected = dedent("""
         FROM ubuntu
 
-        RUN apt-get update -y -q && \\
+        RUN export DEBIAN_FRONTEND=noninteractive && \\
+            apt-get update -y -q && \\
             apt-get install -y -q \\
                 python \\
                 python-pip && \\
@@ -80,6 +133,7 @@ def test_dockerfile_dsl(image):
                 toolz
 
         CMD ["python"]
+        WORKDIR /buildbot
     """)
     assert dockerfile.strip() == expected.strip()
 
@@ -95,8 +149,8 @@ def test_docker_image_save(tmp_path, image):
     assert target.read_text().startswith('FROM ubuntu')
 
 
-@pytest.mark.slow
 @pytest.mark.docker
+@pytest.mark.integration
 def test_docker_image_build(image):
     client = DockerClientWrapper()
     image.build(client=client)
@@ -114,16 +168,10 @@ def test_image_collection(collection):
     assert sorted(imgs) == ['b', 'f', 'g', 'h', 'i']
 
 
-@pytest.mark.slow
 @pytest.mark.docker
+@pytest.mark.integration
 def test_image_collection_build(collection):
     collection.build()
-
-
-def test_arrow_images():
-    dockerfiles = [img.dockerfile for img in images]
-    for df in dockerfiles:
-        assert isinstance(df, DockerFile)
 
 
 def test_readme_example():

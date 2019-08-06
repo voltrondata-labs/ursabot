@@ -12,8 +12,9 @@ from buildbot.www.hooks.github import GitHubEventHandler
 from buildbot.process.properties import Properties
 
 from .utils import ensure_deferred, GithubClientService
-from .commands import CommandError, ursabot as ursabot_command
+from .commands import CommandError
 
+__all__ = ['GithubHook', 'UrsabotHook']
 
 log = Logger()
 
@@ -71,6 +72,10 @@ class GithubHook(GitHubEventHandler):
     botname = 'buildbot'
     headers = {'User-Agent': 'Buildbot'}
     use_reactions = False
+
+    # comment_handler is a callback which receives a comment as plain
+    # string and should raise a commands.CommandError on parse failure
+    # otherwise should return a dictionary of properties
     comment_handler = None
 
     def __init__(self, *args, tokens=None, token=None,
@@ -101,6 +106,25 @@ class GithubHook(GitHubEventHandler):
         self._http = None
 
         super().__init__(*args, **kwargs)
+
+    def _as_hook_dialect_config(self):
+        # the change hooks can be configured in a bit twisted fashion
+        # return the dictionary required to configure this object through
+        # the buildmaster config
+        hook_arguments = {
+            'class': self.__class__,
+            'secret': self._secret,
+            'token': self._tokens,
+            'debug': self.debug,
+            'strict': self._strict,
+            'verify': self.verify,
+            'codebase': self._codebase,
+            'pullrequest_ref': self.pullrequest_ref,
+            'github_api_endpoint': self.github_api_endpoint,
+            'github_property_whitelist': self.github_property_whitelist,
+            'skips': self.skips
+        }
+        return {'github': hook_arguments}
 
     async def _client(self):
         # return if the service has been already initialized
@@ -335,4 +359,3 @@ class UrsabotHook(GithubHook):
     botname = 'ursabot'
     headers = {'User-Agent': 'Ursabot'}
     use_reactions = True
-    comment_handler = staticmethod(ursabot_command)

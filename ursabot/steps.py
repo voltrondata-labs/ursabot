@@ -18,6 +18,28 @@ from buildbot.interfaces import IRenderable
 
 from .utils import ensure_deferred
 
+__all__ = [
+    'Cargo',
+    'CMake',
+    'CTest',
+    'Env',
+    'GitHub',
+    'Go',
+    'Make',
+    'Maven',
+    'Mkdir',
+    'Ninja',
+    'Npm',
+    'Pip',
+    'PyTest',
+    'R',
+    'ResultLogMixin',
+    'SetPropertiesFromEnv',
+    'SetPropertyFromCommand',
+    'SetupPy',
+    'ShellCommand',
+]
+
 
 class ResultLogMixin(buildstep.BuildStep, CompositeStepMixin):
     """Saves the content of a json file as `log` with name `result`
@@ -246,6 +268,16 @@ class CTest(ShellCommand):
     name = 'CTest'
     command = ['ctest']
 
+    def __init__(self, output_on_failure=False, **kwargs):
+        args = []
+        if output_on_failure:
+            args.append('--output-on-failure')
+        for ctest_option in {'j', 'L', 'R', 'E'}:
+            value = kwargs.pop(ctest_option, None)
+            if value is not None:
+                args.extend([f'-{ctest_option}', value])
+        super().__init__(args=args, **kwargs)
+
 
 class SetupPy(ShellCommand):
     name = 'Setup.py'
@@ -264,18 +296,6 @@ class Pip(ShellCommand):
 
 Mkdir = steps.MakeDirectory
 GitHub = steps.GitHub
-
-
-class Archery(ResultLogMixin, ShellCommand):
-    name = 'Archery'
-    command = ['archery']
-    env = dict(LC_ALL='C.UTF-8', LANG='C.UTF-8')  # required for click
-
-
-class Crossbow(ResultLogMixin, ShellCommand):
-    name = 'Crossbow'
-    command = ['python', 'crossbow.py']
-    env = dict(LC_ALL='C.UTF-8', LANG='C.UTF-8')  # required for click
 
 
 class Maven(ShellCommand):

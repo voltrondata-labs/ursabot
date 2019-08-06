@@ -12,14 +12,34 @@ from functools import wraps
 from operator import methodcaller
 from textwrap import indent, dedent
 
-# from dask import delayed
 from toposort import toposort
 from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 from dockermap.build.dockerfile import format_command
 
-from .utils import Collection, read_dependency_list
+from .utils import Collection
 
+__all__ = [
+    'DockerFile',
+    'DockerImage',
+    'ImageCollection',
+    'worker_image_for',
+    'worker_images_for',
+    'ADD',
+    'COPY',
+    'RUN',
+    'ENV',
+    'WORKDIR',
+    'USER',
+    'CMD',
+    'ENTRYPOINT',
+    'SHELL',
+    'symlink',
+    'apt',
+    'apk',
+    'pip',
+    'conda'
+]
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +138,8 @@ class DockerImage:
                     f"Given architecture `{arch}` is not equal with the base "
                     f"image's architecture `{base.arch}`"
                 )
-            os, arch, variant = base.os, base.arch, base.variant
+            os, arch = base.os, base.arch
+            variant = variant or base.variant
         elif not isinstance(base, str):
             raise TypeError(
                 '`tag` argument must be an instance of DockerImage or str'
@@ -192,6 +213,10 @@ class DockerImage:
             callback(df)
         df.finalize()
         return df
+
+    @property
+    def workdir(self):
+        return self.dockerfile.command_workdir
 
     def save_dockerfile(self, directory):
         path = Path(directory) / f'{self.repo}.{self.tag}.dockerfile'
@@ -386,306 +411,24 @@ def conda(*packages, files=tuple()):
     return cmd.lstrip()
 
 
-# configure shell and entrypoint to load .bashrc
-docker_assets = Path(__file__).parent.parent / 'docker'
-python_symlinks = {'/usr/local/bin/python': '/usr/bin/python3',
-                   '/usr/local/bin/pip': '/usr/bin/pip3'}
-
-ubuntu_pkgs = read_dependency_list(docker_assets / 'pkgs-ubuntu.txt')
-alpine_pkgs = read_dependency_list(docker_assets / 'pkgs-alpine.txt')
-python_steps = [
-    ADD(docker_assets / 'requirements.txt'),
-    ADD(docker_assets / 'requirements-test.txt'),
-    RUN(pip('cython', files=['requirements.txt'])),
-    RUN(pip(files=['requirements-test.txt']))
-]
-
-# Note the python has a special treatment, because buildbot requires it.
-# So all of the following images must have a python interpreter and pip
-# pre-installed.
-images = ImageCollection()
-
-for arch in ['amd64', 'arm64v8', 'arm32v7']:
-    # UBUNTU
-    for ubuntu_version in ['18.04']:
-        basetitle = f'{arch.upper()} Ubuntu {ubuntu_version}'
-
-        cpp = DockerImage(
-            name='cpp',
-            base=f'{arch}/ubuntu:{ubuntu_version}',
-            arch=arch,
-            os=f'ubuntu-{ubuntu_version}',
-            org='ursalab',
-            title=f'{basetitle} C++',
-            steps=[
-                RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
-                RUN(symlink(python_symlinks))
-            ]
-        )
-        cpp_benchmark = DockerImage(
-            name='cpp-benchmark',
-            base=cpp,
-            title=f'{basetitle} C++ Benchmark',
-            steps=[
-                RUN(apt('libbenchmark-dev')),
-                RUN(pip('click', 'pandas'))
-            ]
-        )
-        r = DockerImage(
-            name='r',
-            base=cpp,
-            title=f'{basetitle} R',
-            steps=[
-                ADD(docker_assets / 'install_r.sh'),
-                RUN('/install_r.sh'),
-                RUN(apt('libxml2-dev', 'libcurl4-openssl-dev')),
-                ADD(docker_assets / 'install_r_deps.R'),
-                RUN('/install_r_deps.R'),
-            ]
-        )
-        python = DockerImage(
-            name='python-3',
-            base=cpp,
-            title=f'{basetitle} Python 3',
-            steps=python_steps
-        )
-        images.extend([cpp, cpp_benchmark, r, python])
-
-    # ALPINE
-    for alpine_version in ['3.9']:
-        basetitle = f'{arch.upper()} Alpine {alpine_version}'
-
-        cpp = DockerImage(
-            name='cpp',
-            base=f'{arch}/alpine:{alpine_version}',
-            arch=arch,
-            os=f'alpine-{alpine_version}',
-            title=f'{basetitle} C++',
-            org='ursalab',
-            steps=[
-                RUN(apk(*alpine_pkgs, 'ccache', 'python3-dev', 'py3-pip')),
-                RUN(symlink(python_symlinks))
-            ]
-        )
-        python = DockerImage(
-            name='python-3',
-            base=cpp,
-            title=f'{basetitle} Python 3',
-            steps=python_steps
-        )
-        images.extend([cpp, python])
-
-# CONDA
-for arch in ['amd64']:
-    basetitle = f'{arch.upper()} Conda'
-    miniconda_version = 'latest'
-
-    base = DockerImage(
-        name=f'base',
-        base=f'{arch}/ubuntu:18.04',
-        arch=arch,
-        os='ubuntu-18.04',
-        variant='conda',
-        org='ursalab',
-        title=basetitle,
-        steps=[
-            RUN(apt('wget')),
-            # install miniconda
-            ENV(PATH='/opt/conda/bin:$PATH'),
-            ADD(docker_assets / 'install_conda.sh'),
-            RUN('/install_conda.sh', miniconda_version, arch, '/opt/conda'),
-            # run conda activate
-            SHELL(['/bin/bash', '-l', '-c']),
-            ENTRYPOINT(['/bin/bash', '-l', '-c']),
-        ]
-    )
-
-    crossbow = DockerImage(
-        name='crossbow',
-        base=base,
-        title=f'{basetitle} Crossbow',
-        steps=[
-            # install crossbow dependencies
-            ADD(docker_assets / 'conda-crossbow.txt'),
-            RUN(conda('git', 'twisted', files=['conda-crossbow.txt'])),
-        ]
-    )
-    cpp = DockerImage(
-        name='cpp',
-        base=base,
-        title=f'{basetitle} C++',
-        steps=[
-            # install tzdata required for gandiva tests
-            RUN(apt('tzdata')),
-            # install cpp dependencies
-            ADD(docker_assets / 'conda-linux.txt'),
-            ADD(docker_assets / 'conda-cpp.txt'),
-            RUN(conda('ccache', files=['conda-linux.txt', 'conda-cpp.txt']))
-        ]
-    )
-    cpp_benchmark = DockerImage(
-        name='cpp-benchmark',
-        base=cpp,
-        title=f'{basetitle} C++ Benchmark',
-        steps=[
-            RUN(conda('benchmark', 'click', 'pandas'))
-        ]
-    )
-    r = DockerImage(
-        name='r',
-        base=cpp,
-        title=f'{basetitle} R',
-        steps=[
-            # install R dependencies
-            ADD(docker_assets / 'conda-r.txt'),
-            RUN(conda(files=['conda-r.txt']))
-        ]
-    )
-    images.extend([crossbow, cpp, cpp_benchmark, r])
-
-    for python_version in ['2.7', '3.6', '3.7']:
-        python = DockerImage(
-            name=f'python-{python_version}',
-            base=cpp,
-            title=f'{basetitle} Python {python_version}',
-            steps=[
-                ADD(docker_assets / 'conda-python.txt'),
-                RUN(conda(f'python={python_version}',
-                          files=['conda-python.txt']))
-            ]
-        )
-        images.append(python)
-
-# CUDA
-for arch in ['amd64']:
-    for toolkit_version in ['10.0']:
-        basetitle = f'{arch.upper()} Nvidia Cuda {toolkit_version}'
-
-        cpp = DockerImage(
-            name='cpp',
-            base=f'nvidia/cuda:{toolkit_version}-devel-ubuntu18.04',
-            arch=arch,
-            os=f'ubuntu-18.04',
-            org='ursalab',
-            variant='cuda',
-            # used to run containers with `docker run --runtime=nvidia`
-            runtime='nvidia',
-            title=f'{basetitle} C++',
-            steps=[
-                RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
-                RUN(symlink(python_symlinks))
-            ]
-        )
-        python = DockerImage(
-            name='python-3',
-            base=cpp,
-            title=f'{basetitle} Python 3',
-            steps=python_steps
-        )
-        images.extend([cpp, python])
-
-# JAVA
-for arch in ['amd64']:
-    maven_version = 3
-
-    for java_version in ['8', '11']:
-        java = DockerImage(
-            name=f'java-{java_version}',
-            base=f'{arch}/maven:{maven_version}-jdk-{java_version}',
-            arch=arch,
-            os=f'debian-9',
-            org='ursalab',
-            title=f'{arch.upper()} Java OpenJDK {java_version}',
-            steps=[
-                RUN(apt('python3', 'python3-pip')),
-                RUN(symlink(python_symlinks))
-            ]
-        )
-        images.append(java)
-
-# JAVASCRIPT
-for arch in ['amd64']:
-    for nodejs_version in ['11']:
-        js = DockerImage(
-            name=f'js-{nodejs_version}',
-            base=f'{arch}/node:{nodejs_version}-stretch',
-            arch=arch,
-            os=f'debian-9',
-            org='ursalab',
-            title=f'{arch.upper()} Debian 9 NodeJS {nodejs_version}',
-            steps=[
-                RUN(apt('python3', 'python3-pip')),
-                RUN(symlink(python_symlinks))
-            ]
-        )
-        images.append(js)
-
-# GO
-for arch in ['amd64']:
-    for go_version in ['1.12.6', '1.11.11']:
-        go = DockerImage(
-            name=f'go-{go_version}',
-            base=f'{arch}/golang:{go_version}-stretch',
-            arch=arch,
-            os=f'debian-9',
-            org='ursalab',
-            title=f'{arch.upper()} Debian 9 Go {go_version}',
-            steps=[
-                RUN(apt('python3', 'python3-pip')),
-                RUN(symlink(python_symlinks))
-            ]
-        )
-        images.append(go)
-
-# RUST
-for arch in ['amd64']:
-    for rust_version in ['1.35']:
-        rust = DockerImage(
-            name=f'rust-{rust_version}',
-            base=f'{arch}/rust:{rust_version}-stretch',
-            arch=arch,
-            os=f'debian-9',
-            org='ursalab',
-            title=f'{arch.upper()} Debian 9 Rust {rust_version}',
-            steps=[
-                RUN(apt('python3', 'python3-pip')),
-                RUN(symlink(python_symlinks))
-            ]
-        )
-        images.append(rust)
-
-# URSABOT
-ursabot = DockerImage(
-    name='ursabot',
-    base='python:3.7',
-    arch='amd64',
-    os='debian-9',
-    org='ursalab',
-    title='Ursabot Python 3.7',
-    steps=[
-        ADD(docker_assets / 'requirements-ursabot.txt'),
-        RUN(pip(files=['requirements-ursabot.txt']))
-    ]
-)
-images.append(ursabot)
-
 # none of the above images are usable as buildbot workers until We install,
 # configure and set it as the command of the docker image
-worker_command = 'twistd --pidfile= -ny buildbot.tac'
-worker_steps = [
+_pkg_root = Path(__file__).parent.parent
+_worker_command = 'twistd --pidfile= -ny buildbot.tac'
+_worker_steps = [
     RUN(pip('buildbot-worker')),
     RUN(mkdir('/buildbot')),
-    ADD(docker_assets / 'buildbot.tac', '/buildbot/buildbot.tac'),
+    ADD(_pkg_root / 'worker.tac', '/buildbot/buildbot.tac'),
     WORKDIR('/buildbot')
 ]
 
-# create worker images and add them to the list of arrow images
-worker_images = []
-for image in images:
-    # exec form is required for conda images becase of the bash entrypoint
-    cmd = [worker_command] if image.variant == 'conda' else worker_command
-    steps = worker_steps + [CMD(cmd)]
-    worker = DockerImage(image.name, base=image, tag='worker', steps=steps)
-    worker_images.append(worker)
 
-images.extend(worker_images)
+def worker_image_for(image):
+    # treat conda images specially because of environment activation
+    cmd = [_worker_command] if image.variant == 'conda' else _worker_command
+    steps = _worker_steps + [CMD(cmd)]
+    return DockerImage(image.name, base=image, tag='worker', steps=steps)
+
+
+def worker_images_for(images):
+    return ImageCollection([worker_image_for(image) for image in images])

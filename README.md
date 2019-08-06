@@ -187,24 +187,18 @@ Then open `http://localhost:8100` in the browser.
 
 ## Configuring Ursabot
 
-The buildbot configuration is implemented in `master.cfg`, however to turn
-services on and off more easily, add workers without touching any python
-file, and provide credentials without committing to git there is another
-static configuration layer constructed by `default.toml`, `test.toml`
-and `prod.toml` files.
-These files are loaded as plain dictionaries and merged upon each other
-depending on the `URSABOT_ENV` environment variable. The default value of
-`URSABOT_ENV` is `test`, the merge order is:
-
-1. [`default.toml`](default.toml)
-2. `$URSABOT_ENV.toml` like [`test.toml`](test.toml) or [`prod.toml`](prod.toml)
-3. `local.toml` [optional]
-4. `.secrets.toml` [optional]
-
-For the available configuration keys see [`default.toml`](default.toml).
-The preferred secret handling method is to setup a secret provider like
-`SecretInPass`, see the `secrets` configuration key in
-[`default.toml`](default.toml).
+The buildmaster configuration happens in the `master.cfg` files. Originally
+buildbot loads the dictionary called `BuildmasterConfig`, but to make it more
+flexible and moduler ursabot introduces the `ProjectConfig` and `MasterConfig`
+abstractions.
+`ProjectConfig` contains all the relevant information for testing a project
+like Apache Arrow or Ursabot itself. `ProjectConfig` can be run alone, it must
+be passed to a `MasterConfig` object which provides a thin abstraction over
+the original buildbot `BuildmasterConfig`. One `MasterConfig` can
+[contain multiple][multiple-configs] `ProjectConfig` objects.
+[Including other project configurations][Including-configs] makes it possible
+to maintain the project relevant settings within the projects' repositories
+instead of a decoupled one dedicated for the buildmaster.
 
 
 ### Adding a new build(er)s
@@ -280,7 +274,7 @@ miniconda = DockerImage(
 )
 
 
-class TestDockerBuilder(Builder):
+class TestDockerBuilder(DockerBuilder):
     tags = ['build-within-docker-container']
     steps = [
         # checkout the source code
@@ -454,7 +448,7 @@ $ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p
 
 Adding docker latent workers requires a worker entry in the configuration.
 Name, architecture and a docker host (accessable by the buildmaster) are
-required, see an example in [default.toml](default.toml).
+required, see an example in [default.yaml](default.yaml).
 Adding non-docker workers are also possible, but must register them in the
 [master.cfg](master.cfg).
 
@@ -508,3 +502,5 @@ More closely Ursabot related:
 [buildbot-docs]: https://docs.buildbot.net
 [github-reactions]: https://help.github.com/en/articles/about-conversations-on-github#reacting-to-ideas-in-comments
 [github-author-associations]: https://developer.github.com/v4/enum/commentauthorassociation/
+[multiple-configs]: master.cfg#L137
+[including-configs]: master.cfg#L36

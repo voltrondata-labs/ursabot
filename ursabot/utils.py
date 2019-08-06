@@ -4,20 +4,27 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
-import re
-import json
-import toml
 import pathlib
 import itertools
 import functools
 import operator
 
 import toolz
-from ruamel.yaml import YAML
 from twisted.internet import defer
 from buildbot.util import httpclientservice
 from buildbot.util.logger import Logger
 
+__all__ = [
+    'ensure_deferred',
+    'read_dependency_list',
+    'Filter',
+    'startswith',
+    'any_of',
+    'has',
+    'Collection',
+    'HTTPClientService',
+    'GithubClientService',
+]
 
 log = Logger()
 
@@ -36,10 +43,6 @@ def read_dependency_list(path):
     path = pathlib.Path(path)
     lines = (l.strip() for l in path.read_text().splitlines())
     return [l for l in lines if not l.startswith('#')]
-
-
-def slugify(s):
-    return re.sub(r'[\W_]+', '-', s)
 
 
 class Filter:
@@ -84,7 +87,21 @@ def has(*needles):
 
 class Collection(list):
 
+    def get(self, **kwargs):
+        """Retrieves a single entry from the collection."""
+        results = self.filter(**kwargs)
+        if len(results) == 0:
+            raise KeyError('No entry can be found by the filter conditions')
+        elif len(results) > 1:
+            raise KeyError('Multiple entries can be found by the conditions')
+        else:
+            return results[0]
+
     def filter(self, **kwargs):
+        """Filters the values based on the passed conditions.
+
+        The filters can be passed as property=(value or filter function) form.
+        """
         items = self
         for by, value in kwargs.items():
             if callable(value):
@@ -103,53 +120,6 @@ class Collection(list):
             return self.__class__(super().__add__(other))
         else:
             return NotImplemented
-
-
-class ConfigError(Exception):
-    pass
-
-
-class Config(dict):
-    __getattr__ = dict.__getitem__
-
-    @classmethod
-    def from_path(cls, path):
-        path = pathlib.Path(path)
-
-        if path.suffix == '.json':
-            loads = json.loads
-        elif path.suffix == '.toml':
-            loads = toml.loads
-        elif path.suffix in ['.yml', '.yaml']:
-            loads = YAML().load
-        else:
-            raise ValueError(f'Unsupported extension: `{path.suffix}`')
-
-        return cls(loads(path.read_text()))
-
-    @classmethod
-    def load(cls, *paths, optionals=tuple()):
-        configs = [cls.from_path(path) for path in paths]
-
-        for path in optionals:
-            try:
-                configs.append(cls.from_path(path))
-            except FileNotFoundError:
-                continue
-
-        return cls.merge(configs)
-
-    @classmethod
-    def merge(cls, args):
-        if any(isinstance(a, dict) for a in args):
-            return toolz.merge_with(cls.merge, *args, factory=cls)
-        elif any(isinstance(a, list) for a in args):
-            # TODO(kszucs): introduce a strategy argument to concatenate lists
-            #               instead of replacing
-            # don't merge lists but needs to propagate factory
-            return [cls.merge([a]) for a in toolz.last(args)]
-        else:
-            return toolz.last(args)
 
 
 class HTTPClientService(httpclientservice.HTTPClientService):

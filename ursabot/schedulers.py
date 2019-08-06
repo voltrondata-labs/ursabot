@@ -4,7 +4,17 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
-from buildbot.plugins import schedulers, util
+from buildbot.plugins import util
+from buildbot.schedulers.basic import AnyBranchScheduler, SingleBranchScheduler
+from buildbot.schedulers.trysched import Try_Userpass
+from buildbot.schedulers.forcesched import ForceScheduler
+
+__all__ = [
+    'ForceScheduler',
+    'TryScheduler',
+    'AnyBranchScheduler',
+    'SingleBranchScheduler'
+]
 
 
 class SchedulerMixin:
@@ -20,7 +30,7 @@ class SchedulerMixin:
         super().__init__(*args, builderNames=builder_names, **kwargs)
 
 
-class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
+class ForceScheduler(SchedulerMixin, ForceScheduler):
 
     def __init__(self, *args, project, repository, button_name=None,
                  label=None, **kwargs):
@@ -44,9 +54,13 @@ class ForceScheduler(SchedulerMixin, schedulers.ForceScheduler):
         super().__init__(*args, codebases=[codebase], **kwargs)
 
 
-class TryScheduler(SchedulerMixin, schedulers.Try_Userpass):
+class TryScheduler(SchedulerMixin, Try_Userpass):
     pass
 
 
-class AnyBranchScheduler(SchedulerMixin, schedulers.AnyBranchScheduler):
+class AnyBranchScheduler(SchedulerMixin, AnyBranchScheduler):
+    pass
+
+
+class SingleBranchScheduler(SchedulerMixin, SingleBranchScheduler):
     pass

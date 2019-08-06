@@ -29,20 +29,22 @@ setup(
         'buildbot-www',
         'buildbot',
         'click',
-        'codenamize',
-        'docker',
         'docker-map',
+        'docker',
+        'dockerpty',
+        'python-dotenv',
         'ruamel.yaml',
         'tabulate',
-        'toml',
         'toolz',
         'toposort',
         'treq',
+        'twisted[tls]'
     ],
     tests_require=['pytest>=3.9', 'mock'],
-    entry_points="""
-        [console_scripts]
-        ursabot=ursabot.cli:ursabot
-    """,
+    entry_points={
+        'console_scripts': [
+            'ursabot = ursabot.cli:ursabot'
+        ]
+    },
     zip_safe=False,
 )

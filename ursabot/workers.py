@@ -1,31 +1,34 @@
-# This file is mostly a derivative work of Buildbot.
+# Copyright 2019 RStudio, Inc.
+# All rights reserved.
 #
-# Buildbot is free software: you can redistribute it and/or modify it under the
-# terms of the GNU General Public License as published by the Free Software
-# Foundation, version 2.
+# Use of this source code is governed by a BSD 2-Clause
+# license that can be found in the LICENSE_BSD file.
 #
-# This program is distributed in the hope that it will be useful, but WITHOUT
-# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-# details.
-#
-# You should have received a copy of the GNU General Public License along with
-# this program; if not, write to the Free Software Foundation, Inc., 51
-# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-#
-# Copyright Buildbot Team Members
+# This file contains function or sections of code that are marked as being
+# derivative works of Buildbot. The above license only applies to code that
+# is not marked as such.
 
+import itertools
 from io import BytesIO
 
+import toolz
 from twisted.internet import threads
+from buildbot.plugins import util
 from buildbot.util.logger import Logger
 from buildbot.interfaces import LatentWorkerCannotSubstantiate
 from buildbot.interfaces import LatentWorkerFailedToSubstantiate
+from buildbot.worker.latent import States, AbstractLatentWorker
 from buildbot.worker.docker import (DockerLatentWorker, _handle_stream_line,
                                     docker_py_version, docker)
 
-from .utils import ensure_deferred
+from .utils import Collection, ensure_deferred
 
+__all__ = [
+    'DockerLatentWorker',
+    'docker_worker_from',
+    'load_workers_from',
+    'docker_workers_for',
+]
 
 log = Logger()
 
@@ -33,29 +36,108 @@ log = Logger()
 class WorkerMixin:
 
     def __init__(self, *args, arch=None, tags=tuple(), **kwargs):
+        """Bookkeep a bit of metadata to describe the workers"""
         self.arch = arch
         self.tags = tuple(tags)
         super().__init__(*args, **kwargs)
 
 
 class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
-    # License note:
-    #    copied from the original implementation with minor modification
-    #    to pass runtime configuration to the containers
+
+    def checkConfig(self, name, password, docker_host, image=None,
+                    command=None, volumes=None, hostconfig=None, **kwargs):
+        # Bypass the validation implemented in the parent class.
+        if image is None:
+            image = util.Property('docker_image', default=image)
+        super().checkConfig(
+            name, password, docker_host, image=image, command=command,
+            volumes=volumes, hostconfig=hostconfig, **kwargs
+        )
+
+    @ensure_deferred
+    async def reconfigService(self, name, password, docker_host, image=None,
+                              command=None, volumes=None, hostconfig=None,
+                              **kwargs):
+        # Set the default password to None so random one is generated.
+        # Let the DockerBuilder instances to lazily extend the docker volumes
+        # and hostconfig via the reserved docker_volumes and docker_hostconfig
+        # properties. The volumes are concatenated and the hostconfigs are
+        # merged. The image is overridden.
+        image = util.Property('docker_image', default=image)
+        volumes = util.Transform(
+            lambda a, b: list(toolz.concat([a, b])),
+            volumes or [],
+            util.Property('docker_volumes', [])
+        )
+        hostconfig = util.Transform(
+            toolz.merge,
+            hostconfig or {},
+            util.Property('docker_hostconfig', default={})
+        )
+        return await super().reconfigService(
+            name, password, docker_host, image=image, command=command,
+            volumes=volumes, hostconfig=hostconfig, **kwargs
+        )
+
+    @ensure_deferred
+    async def stopService(self):
+        # XXX: _insubstantiation_notifier is unset, probably left out from
+        #     a previous buildbot refactoring, so removed the check and use
+        #     the start_stop_lock instead.
+        #
+        # License note:
+        #    copied from the original implementation with minor modification
+        #    to pass runtime configuration to the containers
+
+        # the worker might be insubstantiating from buildWaitTimeout
+        if self.state in [States.INSUBSTANTIATING,
+                          States.INSUBSTANTIATING_SUBSTANTIATING]:
+            # yield self._insubstantiation_notifier.wait()
+            pass
+
+        if self.conn is not None or self.state in [States.SUBSTANTIATING,
+                                                   States.SUBSTANTIATED]:
+            await self._soft_disconnect(stopping_service=True)
+        self._clearBuildWaitTimer()
+        res = await super(AbstractLatentWorker, self).stopService()
+        return res
 
     def renderWorkerProps(self, build):
+        # License note:
+        #    copied from the original implementation with minor modification
+        #    to pass runtime configuration to the containers
         return build.render(
             (self.image, self.dockerfile, self.hostconfig, self.volumes)
         )
 
+    def attach_interactive_shell(self, shell='/bin/bash'):
+        import dockerpty
+
+        instance_id, image = self.instance['Id'][:12], self.instance['image']
+        log.info(f"Attaching an interactive shell '{shell}' to container with "
+                 f"id '{instance_id}' and image '{image}'")
+
+        dockerpty.exec_command(
+            client=self._getDockerClient(),
+            container=self.instance,
+            command=shell,
+            interactive=True
+        )
+
     @ensure_deferred
     async def start_instance(self, build):
+        # License note:
+        #    copied from the original implementation with minor modification
+        #    to pass runtime configuration to the containers
         if self.instance is not None:
             raise ValueError('instance active')
         args = await self.renderWorkerPropsOnStart(build)
         return await threads.deferToThread(self._thd_start_instance, *args)
 
     def _thd_start_instance(self, image, dockerfile, hostconfig, volumes):
+        # License note:
+        #    copied from the original implementation with minor modification
+        #    to pass runtime configuration to the containers
         docker_client = self._getDockerClient()
         container_name = self.getContainerName()
         # cleanup the old instances
@@ -124,6 +206,7 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             )
         shortid = instance['Id'][:6]
         log.info(f'Container created, Id: {shortid}...')
+
         instance['image'] = image
         self.instance = instance
         docker_client.start(instance)
@@ -137,4 +220,93 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
                 if self.conn:
                     break
             del logs
+
         return [instance['Id'], image]
+
+
+def docker_worker_from(worker_dict, docker_host='unix://var/run/docker.sock',
+                       masterFQDN=None, auto_pull=True, always_pull=False,
+                       volumes=None, hostconfig=None, missing_timeout=120):
+    """A thin helper function to reduce worker configuration boilerplate.
+
+    Parameters
+    ----------
+    worker_dict: Dict
+        Mandatory keys:
+            - name (use alphanumeric and hyphen)
+            - arch (any of amd64, arm64v8, arm32v7)
+        Optional keys:
+            - tags: List[str], default []
+            - ncpus: int, default None
+            - max_builds: int, default 1
+            - volumes: list, default []
+            - missing_timeout: int, default to the missing_timeout argument
+            - auto_pull: bool, defaults to the auto_pull argument
+            - always_pull: bool, defaults to the always_pull argument
+            - docker_host: str, defaults to the docker_host argument
+            - masterFQDN: str, defaults to the masterFQDN argument
+            - hostconfig: dict, defaults to the hostconfig argument
+    docker_host: str, default unix://var/run/docker.sock
+    masterFQDN: str, default None
+        Address of the master the worker should connect to. This value is
+        passed to the docker image via environment variable BUILDMASTER.
+        Note: Use 'host.docker.internal' on Docker for Mac.
+    auto_pull: bool, default True
+        Automatically pulls image if requested image is not on docker host.
+    always_pull: bool, default False
+        Always pulls image if autopull is set to True.
+    volumes: List[str], default []
+        List of volumes which should be attached to the docker container.
+    hostconfig: dict, default {'network_mode': 'host'}
+        Additional docker configurations, directly passed to the low-level
+        docker APIClient.create_host_config.
+        For more see https://docker-py.readthedocs.io/en/stable/api.html.
+    missing_timeout: int, default 120
+        Timeout for the worker preparation. In case of docker builders it is
+        the time required to pull the docker image and spin up the container.
+    Return
+    ------
+    docker_worker: DockerLatentWorker
+    """
+    w = worker_dict
+
+    volumes = volumes or []
+    hostconfig = {'network_mode': 'host'}
+
+    return DockerLatentWorker(
+        w['name'],
+        password=None,  # auto generated
+        arch=w['arch'],
+        tags=w.get('tags', []),
+        max_builds=w.get('max_builds', 1),
+        properties={'ncpus': w.get('ncpus')},
+        autopull=w.get('auto_pull', auto_pull),
+        alwaysPull=w.get('always_pull', always_pull),
+        docker_host=w.get('docker_host', docker_host),
+        masterFQDN=w.get('masterFQDN', masterFQDN),
+        volumes=w.get('volumes', volumes),
+        hostconfig=w.get('hostconfig', hostconfig),
+        missing_timeout=w.get('missing_timeout', missing_timeout)
+    )
+
+
+def load_workers_from(config_path, **kwargs):
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    with config_path.open('r') as fp:
+        worker_dicts = yaml.load(fp)['workers']
+
+    return Collection([docker_worker_from(w, **kwargs) for w in worker_dicts])
+
+
+_worker_id = itertools.count()
+
+
+def docker_workers_for(archs, **kwargs):
+    workers = Collection()
+    for wid, arch in zip(_worker_id, archs):
+        worker_dict = dict(name=f'local-docker-{wid}', arch=arch)
+        worker = docker_worker_from(worker_dict, **kwargs)
+        workers.append(worker)
+    return workers

@@ -119,10 +119,6 @@ dmypy.json
 *.log
 *.pid
 
-# Ursabot's local configuration files
-local.yaml
-.secrets.*
-
 # Ursabot testing database
 ursabot.sqlite
 

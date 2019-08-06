@@ -3,27 +3,30 @@
 #
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
+#
+# This file contains function or sections of code that are marked as being
+# derivative works of Buildbot. The above license only applies to code that
+# is not marked as such.
 
 import copy
 import toolz
 import itertools
-import textwrap
 import warnings
 from collections import defaultdict
 
 from buildbot import interfaces
-from buildbot.plugins import util
-from codenamize import codenamize
+from buildbot.config import BuilderConfig
+from buildbot.process.factory import BuildFactory
+from buildbot.process.properties import Properties
 
-from .docker import DockerImage, images
+from .docker import DockerImage
 from .workers import DockerLatentWorker
-from .steps import (ShellCommand, SetPropertiesFromEnv, SetPropertyFromCommand,
-                    Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip, GitHub,
-                    Archery, Crossbow, Maven, Go, Cargo, Npm, R)
-from .utils import Collection, startswith, slugify
+from .utils import Collection
+
+__all__ = ['BuildFactory', 'Builder', 'DockerBuilder']
 
 
-class BuildFactory(util.BuildFactory):
+class BuildFactory(BuildFactory):
 
     def clone(self):
         return copy.deepcopy(self)
@@ -38,7 +41,7 @@ class BuildFactory(util.BuildFactory):
         self.steps.insert(0, interfaces.IBuildStepFactory(step))
 
 
-class Builder(util.BuilderConfig):
+class Builder(BuilderConfig):
 
     # used for generating unique default names
     _ids = defaultdict(itertools.count)
@@ -48,8 +51,6 @@ class Builder(util.BuilderConfig):
     tags = tuple()
     # default for steps argument so it gets overwritten if steps is passed
     steps = tuple()
-    # prefix for name argument
-    name_prefix = ''
     # merged with properties argument
     properties = None
     # merged with default_properties argument
@@ -58,6 +59,11 @@ class Builder(util.BuilderConfig):
     def __init__(self, name=None, steps=None, factory=None, workers=None,
                  tags=None, properties=None, default_properties=None, env=None,
                  **kwargs):
+        name = name or '{}#{}'.format(
+            self.__class__.__name__,
+            next(self._ids[name])
+        )
+
         if isinstance(steps, (list, tuple)):
             # replace the class' steps
             steps = steps
@@ -73,54 +79,17 @@ class Builder(util.BuilderConfig):
         elif tags is not None:
             raise TypeError('Tags must be a list')
 
-        name = name or self._generate_name()
-        if self.name_prefix:
-            name = f'{self.name_prefix} {name}'
         factory = factory or BuildFactory(steps)
+        workernames = None if workers is None else [w.name for w in workers]
+
         env = toolz.merge(self.env or {}, env or {})
         properties = toolz.merge(self.properties or {}, properties or {})
         default_properties = toolz.merge(self.default_properties or {},
                                          default_properties or {})
-        workernames = None if workers is None else [w.name for w in workers]
 
         super().__init__(name=name, tags=tags, properties=properties,
                          defaultProperties=default_properties, env=env,
                          workernames=workernames, factory=factory, **kwargs)
-        # traverse properties and defaultProperties and call any callables with
-        # self as argument
-        self._traverse_properties()
-
-    @classmethod
-    def _generate_name(cls, prefix=None, slug=True, ids=True, codename=None):
-        name = prefix or cls.__name__
-        if slug:
-            name = slugify(name)
-        if ids:
-            name += '#{}'.format(next(cls._ids[name]))
-        if codename is not None:
-            # generates codename like: pushy-idea
-            name += ' ({})'.format(codenamize(codename, max_item_chars=5))
-        return name
-
-    def _traverse_properties(self):
-        """A small utility function to generate properties dynamically
-
-        The builder configuration is all set up after __init__. In order to
-        dynamically change values based on other values of the instance the
-        base BuilderConfig class should be refactored.
-        """
-        def render(value):
-            if callable(value):
-                return value(self)
-            elif isinstance(value, (list, tuple)):
-                return list(map(render, value))
-            elif isinstance(value, dict):
-                return toolz.valmap(render, value)
-            else:
-                return value
-
-        self.properties = render(self.properties)
-        self.defaultProperties = render(self.defaultProperties)
 
     def __repr__(self):
         return f"<{self.__class__.__name__} '{self.name}'>"
@@ -132,22 +101,70 @@ class DockerBuilder(Builder):
     volumes = tuple()
     hostconfig = None
 
-    def __init__(self, name=None, image=None, properties=None, tags=None,
-                 hostconfig=None, volumes=tuple(), **kwargs):
+    def __init__(self, name=None, image=None, tags=None, hostconfig=None,
+                 volumes=tuple(), **kwargs):
         if not isinstance(image, DockerImage):
             raise ValueError('Image must be an instance of DockerImage')
 
-        name = image.title
+        name = name or image.title
         tags = tags or [image.name]
         tags += list(image.platform)
-        volumes = list(toolz.concat([self.volumes, volumes]))
-        hostconfig = toolz.merge(self.hostconfig or {}, hostconfig or {})
+        super().__init__(name=name, tags=tags, **kwargs)
 
-        props = properties or {}
-        props['docker_image'] = str(image)
-        props['docker_volumes'] = volumes
-        props['docker_hostconfig'] = hostconfig
-        super().__init__(name=name, properties=props, tags=tags, **kwargs)
+        self.image = image
+        self.volumes = list(toolz.concat([self.volumes, volumes]))
+        self.hostconfig = toolz.merge(self.hostconfig or {}, hostconfig or {})
+        self._render_docker_properties()
+
+    def _render_docker_properties(self):
+        """Render docker properties dinamically.
+
+        Docker specific configuration defined in the DockerBuilder instances
+        are passed as properties to the DockerLatentWorker.
+        Only scalar properies are allowed in BuilderConfig instances, so
+        defining docker volumes referring the builddir would require
+        boilerplate and deeper understanding how the build properties are
+        propegated through the buildbot objects.
+        So using traditional property interpolation with properties like the
+        docker image's workdir, builddir, or the buildername makes the volume
+        definition easier.
+
+        Note that the builddir and workerbuilddir variables of the builder
+        config are different from the ones we see on the buildbot ui under
+        the properties tab.
+
+        License note:
+           The property descriptions below are copied from the buildbot docs.
+
+        self.builddir:
+           Specifies the name of a subdirectory of the master’s basedir in
+           which everything related to this builder will be stored. This
+           holds build status information. If not set, this parameter
+           defaults to the builder name, with some characters escaped. Each
+           builder must have a unique build directory.
+        self.workerbuilddir:
+           Specifies the name of a subdirectory (under the worker’s
+           configured base directory) in which everything related to this
+           builder will be placed on the worker. This is where checkouts,
+           compiles, and tests are run. If not set, defaults to builddir.
+           If a worker is connected to multiple builders that share the same
+           workerbuilddir, make sure the worker is set to run one build at a
+           time or ensure this is fine to run multiple builds from the same
+           directory simultaneously.
+        """
+        props = Properties(
+            buildername=self.name,
+            builddir=self.builddir,
+            workerbuilddir=self.workerbuilddir,
+            docker_image=str(self.image),
+            docker_workdir=self.image.workdir
+        )
+        self.properties.update({
+            'docker_image': str(self.image),
+            'docker_workdir': self.image.workdir,
+            'docker_volumes': props.render(self.volumes).result,
+            'docker_hostconfig': props.render(self.hostconfig).result,
+        })
 
     @classmethod
     def builders_for(cls, workers, images=tuple(), **kwargs):
@@ -168,6 +185,11 @@ class DockerBuilder(Builder):
         docker_builder : List[DockerBuilder]
             Builder instances.
         """
+        if not isinstance(workers, Collection):
+            workers = Collection(workers)
+        if not isinstance(images, Collection):
+            images = Collection(images)
+
         assert all(isinstance(i, DockerImage) for i in images)
         assert all(isinstance(w, DockerLatentWorker) for w in workers)
 
@@ -188,649 +210,3 @@ class DockerBuilder(Builder):
                 )
 
         return builders
-
-
-# prefer GitHub over Git step
-checkout_arrow = GitHub(
-    name='Clone Arrow',
-    repourl=util.Property('repository'),
-    workdir='.',
-    submodules=True,
-    mode='full'
-)
-
-# explicitly define build definitions, exported via cmake -LAH
-definitions = {
-    # CMake flags
-    'CMAKE_BUILD_TYPE': 'debug',
-    'CMAKE_INSTALL_PREFIX': None,
-    'CMAKE_INSTALL_LIBDIR': None,
-    'CMAKE_CXX_FLAGS': None,
-    'CMAKE_AR': None,
-    'CMAKE_RANLIB': None,
-    'PYTHON_EXECUTABLE': None,
-    # Build Arrow with Altivec
-    'ARROW_ALTIVEC': 'ON',
-    # Rely on boost shared libraries where relevant
-    'ARROW_BOOST_USE_SHARED': 'ON',
-    # Build the Arrow micro benchmarks
-    'ARROW_BUILD_BENCHMARKS': 'OFF',
-    # Build the Arrow examples
-    'ARROW_BUILD_EXAMPLES': 'OFF',
-    # Build shared libraries
-    'ARROW_BUILD_SHARED': 'ON',
-    # Build static libraries
-    'ARROW_BUILD_STATIC': 'ON',
-    # Build the Arrow googletest unit tests
-    'ARROW_BUILD_TESTS': 'ON',
-    # Build Arrow commandline utilities
-    'ARROW_BUILD_UTILITIES': 'ON',
-    # Build the Arrow Compute Modules
-    'ARROW_COMPUTE': 'ON',
-    # Build the Arrow CUDA extensions (requires CUDA toolkit)
-    'ARROW_CUDA': 'OFF',
-    # Compiler flags to append when compiling Arrow
-    'ARROW_CXXFLAGS': '',
-    # Compile with extra error context (line numbers, code)
-    'ARROW_EXTRA_ERROR_CONTEXT': 'ON',
-    # Build the Arrow Flight RPC System (requires GRPC, Protocol Buffers)
-    'ARROW_FLIGHT': 'OFF',
-    # Build Arrow Fuzzing executables
-    # 'ARROW_FUZZING': 'OFF',
-    # Build the Gandiva libraries
-    'ARROW_GANDIVA': 'OFF',
-    # Build the Gandiva JNI wrappers
-    'ARROW_GANDIVA_JAVA': 'OFF',
-    # Compiler flags to append when pre-compiling Gandiva operations
-    'ARROW_GANDIVA_PC_CXX_FLAGS': None,
-    # Include -static-libstdc++ -static-libgcc when linking with Gandiva
-    # static libraries
-    # 'ARROW_GANDIVA_STATIC_LIBSTDCPP': 'OFF',
-    # Build with C++ code coverage enabled
-    # 'ARROW_GENERATE_COVERAGE': 'OFF',
-    # Rely on GFlags shared libraries where relevant
-    # 'ARROW_GFLAGS_USE_SHARED': 'ON',
-    # Pass -ggdb flag to debug builds
-    # 'ARROW_GGDB_DEBUG': 'ON',
-    # Build the Arrow HDFS bridge
-    'ARROW_HDFS': 'OFF',
-    # Build the HiveServer2 client and Arrow adapter
-    # 'ARROW_HIVESERVER2': 'OFF',
-    # Build Arrow libraries with install_name set to @rpath
-    # 'ARROW_INSTALL_NAME_RPATH': 'ON',
-    # Build the Arrow IPC extensions
-    'ARROW_IPC': 'ON',
-    # Build the Arrow jemalloc-based allocator
-    'ARROW_JEMALLOC': 'ON',
-    # Exclude deprecated APIs from build
-    # 'ARROW_NO_DEPRECATED_API': 'OFF',
-    # Only define the lint and check-format targets
-    # 'ARROW_ONLY_LINT': 'OFF',
-    # If enabled install ONLY targets that have already been built.
-    # Please be advised that if this is enabled 'install' will fail silently
-    # on components that have not been built.
-    # 'ARROW_OPTIONAL_INSTALL': 'OFF',
-    # Build the Arrow ORC adapter
-    'ARROW_ORC': 'OFF',
-    # Build the Parquet libraries
-    'ARROW_PARQUET': 'OFF',
-    # Build the plasma object store along with Arrow
-    'ARROW_PLASMA': 'OFF',
-    # Build the plasma object store java client
-    'ARROW_PLASMA_JAVA_CLIENT': 'OFF',
-    # Rely on Protocol Buffers shared libraries where relevant
-    'ARROW_PROTOBUF_USE_SHARED': 'ON',
-    # Build the Arrow CPython extensions
-    'ARROW_PYTHON': 'OFF',
-    # How to link the re2 library. static|shared
-    # 'ARROW_RE2_LINKAGE': 'static',
-    # Build Arrow libraries with RATH set to $ORIGIN
-    # 'ARROW_RPATH_ORIGIN': 'OFF',
-    # Build Arrow with TensorFlow support enabled
-    'ARROW_TENSORFLOW': 'OFF',
-    # Linkage of Arrow libraries with unit tests executables. static|shared
-    'ARROW_TEST_LINKAGE': 'shared',
-    # Run the test suite using valgrind --tool=memcheck
-    # 'ARROW_TEST_MEMCHECK': 'OFF',
-    # Enable Address Sanitizer checks
-    # 'ARROW_USE_ASAN': 'OFF',
-    # Use ccache when compiling (if available)
-    # 'ARROW_USE_CCACHE': 'ON',
-    # Build libraries with glog support for pluggable logging
-    # 'ARROW_USE_GLOG': 'ON',
-    # Use ld.gold for linking on Linux (if available)
-    # 'ARROW_USE_LD_GOLD': 'OFF',
-    # Build with SIMD optimizations
-    # 'ARROW_USE_SIMD': 'ON',
-    # Enable Thread Sanitizer checks
-    # 'ARROW_USE_TSAN': 'OFF',
-    # If off, 'quiet' flags will be passed to linting tools
-    # 'ARROW_VERBOSE_LINT': 'OFF',
-    # If off, output from ExternalProjects will be logged to files rather
-    # than shown
-    'ARROW_VERBOSE_THIRDPARTY_BUILD': 'ON',
-    # Build with backtrace support
-    'ARROW_WITH_BACKTRACE': 'ON',
-    # Build with Brotli compression
-    'ARROW_WITH_BROTLI': 'ON',
-    # Build with BZ2 compression
-    'ARROW_WITH_BZ2': 'OFF',
-    # Build with lz4 compression
-    'ARROW_WITH_LZ4': 'ON',
-    # Build with Snappy compression
-    'ARROW_WITH_SNAPPY': 'ON',
-    # Build with zlib compression
-    'ARROW_WITH_ZLIB': 'ON',
-    # Build with zstd compression, turned off until
-    # https://issues.apache.org/jira/browse/ARROW-4831 is resolved
-    'ARROW_WITH_ZSTD': 'ON',
-    # Build the Parquet examples. Requires static libraries to be built.
-    'PARQUET_BUILD_EXAMPLES': 'OFF',
-    # Build the Parquet executable CLI tools.
-    # Requires static libraries to be built.
-    'PARQUET_BUILD_EXECUTABLES': 'OFF',
-    # Depend only on Thirdparty headers to build libparquet.
-    # Always OFF if building binaries
-    'PARQUET_MINIMAL_DEPENDENCY': 'OFF'
-}
-definitions = {k: util.Property(k, default=v) for k, v in definitions.items()}
-
-ld_library_path = util.Interpolate(
-    '%(prop:CMAKE_INSTALL_PREFIX)s/%(prop:CMAKE_INSTALL_LIBDIR)s'
-)
-arrow_test_data_path = util.Interpolate(
-    '%(prop:builddir)s/testing/data'
-)
-parquet_test_data_path = util.Interpolate(
-    '%(prop:builddir)s/cpp/submodules/parquet-testing/data'
-)
-
-cpp_mkdir = Mkdir(
-    dir='cpp/build',
-    name='Create C++ build directory'
-)
-cpp_cmake = CMake(
-    path='..',
-    workdir='cpp/build',
-    generator='Ninja',
-    definitions=definitions
-)
-cpp_compile = Ninja(
-    j=util.Property('ncpus', 6),
-    name='Compile C++',
-    workdir='cpp/build'
-)
-cpp_test = CTest(
-    args=['--output-on-failure'],
-    workdir='cpp/build'
-)
-cpp_install = Ninja(
-    'install',
-    name='Install C++',
-    workdir='cpp/build'
-)
-python_install = SetupPy(
-    args=['develop'],
-    name='Build PyArrow',
-    workdir='python',
-    env={
-        'ARROW_HOME': util.Property('CMAKE_INSTALL_PREFIX'),
-        'PYARROW_CMAKE_GENERATOR': util.Property('CMAKE_GENERATOR'),
-        'PYARROW_BUILD_TYPE': util.Property('CMAKE_BUILD_TYPE'),
-        'PYARROW_WITH_ORC': util.Property('ARROW_ORC'),
-        'PYARROW_WITH_CUDA': util.Property('ARROW_CUDA'),
-        'PYARROW_WITH_FLIGHT': util.Property('ARROW_FLIGHT'),
-        'PYARROW_WITH_PLASMA': util.Property('ARROW_PLASMA'),
-        'PYARROW_WITH_GANDIVA': util.Property('ARROW_GANDIVA'),
-        'PYARROW_WITH_PARQUET': util.Property('ARROW_PARQUET'),
-    }
-)
-python_test = PyTest(
-    name='Test PyArrow',
-    args=['pyarrow'],
-    workdir='python',
-    env={'LD_LIBRARY_PATH': ld_library_path}
-)
-r_deps = R(
-    args=[
-        '-e',
-        textwrap.dedent('''
-            install.packages(
-                "remotes",
-                repo = "http://cran.rstudio.com/"
-            )
-            remotes::install_deps(
-                dependencies = TRUE,
-                upgrade = "never",
-                repos = "https://cran.rstudio.com"
-            )
-        ''')
-    ],
-    name='Install dependencies',
-    workdir='r'
-)
-r_build = R(
-    args=['CMD', 'build', '.'],
-    name='Build',
-    workdir='r'
-)
-r_install = R(
-    args=['CMD', 'INSTALL', 'arrow_*tar.gz'],
-    as_shell=True,
-    name='Install',
-    workdir='r',
-    env={
-        'LD_LIBRARY_PATH': ld_library_path
-    }
-)
-r_check = R(
-    args=['CMD', 'check', 'arrow_*tar.gz', '--no-manual'],
-    as_shell=True,  # to expand *
-    name='Check',
-    workdir='r',
-    env={
-        'LD_LIBRARY_PATH': ld_library_path,
-        '_R_CHECK_FORCE_SUGGESTS_': 'false'
-    }
-)
-
-
-class UrsabotTest(DockerBuilder):
-    tags = ['ursabot']
-    steps = [
-        GitHub(
-            name='Clone Ursabot',
-            repourl=util.Property('repository'),
-            mode='full'
-        ),
-        Pip(['install', '-e', '.']),
-        PyTest(args=['-m', 'not docker', 'ursabot']),
-        ShellCommand(
-            command=['flake8', 'ursabot'],
-            name='Flake8'
-        ),
-        ShellCommand(
-            command=['buildbot', 'checkconfig', '.'],
-            env={'URSABOT_ENV': 'test'},
-            name='Checkconfig'
-        )
-    ]
-    images = images.filter(
-        name='ursabot',
-        tag='worker'
-    )
-
-
-class CrossbowTrigger(DockerBuilder):
-    tags = ['crossbow']
-    steps = [
-        GitHub(
-            name='Clone Arrow',
-            repourl=util.Property('repository'),
-            workdir='arrow',
-            mode='full'
-        ),
-        GitHub(
-            name='Clone Crossbow',
-            # TODO(kszucs): read it from the comment and set as a property
-            repourl='https://github.com/ursa-labs/crossbow',
-            workdir='crossbow',
-            branch='master',
-            mode='full',
-            # quite misleasing option, but it prevents checking out the branch
-            # set in the sourcestamp by the pull request, which refers to arrow
-            alwaysUseLatest=True
-        ),
-        Crossbow(
-            args=util.FlattenList([
-                '--github-token', util.Secret('ursabot/github_token'),
-                'submit',
-                '--output', 'job.yml',
-                '--job-prefix', 'ursabot',
-                '--arrow-remote', util.Property('repository'),
-                util.Property('crossbow_args', [])
-            ]),
-            workdir='arrow/dev/tasks',
-            result_file='job.yml'
-        )
-    ]
-    images = images.filter(
-        name='crossbow',
-        tag='worker'
-    )
-
-
-class ArrowCppTest(DockerBuilder):
-    tags = ['arrow', 'cpp', 'parquet', 'plasma']
-    volumes = [
-        lambda builder: f'{slugify(builder.name)}:/root/.ccache:rw'
-    ]
-    properties = {
-        'ARROW_PARQUET': 'ON',
-        'ARROW_PLASMA': 'ON',
-        'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
-    }
-    env = {
-        'PARQUET_TEST_DATA': parquet_test_data_path  # for parquet
-    }
-    steps = [
-        checkout_arrow,
-        cpp_mkdir,
-        cpp_cmake,
-        cpp_compile,
-        cpp_install,
-        cpp_test
-    ]
-    images = (
-        images.filter(
-            name='cpp',
-            arch='amd64',
-            os=startswith('ubuntu'),
-            variant=None,  # plain linux images, not conda
-            tag='worker'
-        ) +
-        images.filter(
-            name='cpp',
-            arch='arm64v8',
-            os='ubuntu-18.04',
-            variant=None,  # plain linux images, not conda
-            tag='worker'
-        )
-    )
-
-
-class ArrowCppCudaTest(ArrowCppTest):
-    tags = ['arrow', 'cpp', 'cuda', 'parquet', 'plasma']
-    hostconfig = {
-        'runtime': 'nvidia'
-    }
-    properties = {
-        **ArrowCppTest.properties,
-        'ARROW_CUDA': 'ON',
-    }
-    images = images.filter(
-        name='cpp',
-        arch='amd64',
-        variant='cuda',
-        tag='worker'
-    )
-
-
-class ArrowCppBenchmark(DockerBuilder):
-    tags = ['arrow', 'cpp', 'benchmark']
-    properties = {
-        'CMAKE_INSTALL_PREFIX': '/usr/local',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
-    }
-    steps = [
-        checkout_arrow,
-        Pip(['install', '-e', '.'], workdir='dev/archery'),
-        Archery(
-            args=util.FlattenList([
-                'benchmark',
-                'diff',
-                '--output=diff.json',
-                util.Property('benchmark_options', []),
-                'WORKSPACE',
-                util.Property('benchmark_baseline', 'master')
-            ]),
-            result_file='diff.json'
-        )
-    ]
-    images = images.filter(
-        name='cpp-benchmark',
-        os=startswith('ubuntu'),
-        arch='amd64',  # until ARROW-5382: SSE on ARM NEON gets resolved
-        variant=None,  # plain linux images, not conda
-        tag='worker'
-    )
-
-
-class ArrowRTest(ArrowCppTest):
-    tags = ['arrow', 'r']
-    steps = [
-        *ArrowCppTest.steps[:-1],  # excluding the last test step
-        r_deps,
-        r_build,
-        r_install,
-        r_check
-    ]
-    images = images.filter(
-        name='r',
-        arch='amd64',
-        variant=None,  # plain linux images, not conda
-        tag='worker'
-    )
-
-
-class ArrowPythonTest(ArrowCppTest):
-    tags = ['arrow', 'python', 'parquet', 'plasma']
-    hostconfig = {
-        'shm_size': '2G',  # required for plasma
-    }
-    properties = {
-        **ArrowCppTest.properties,
-        'ARROW_PYTHON': 'ON',
-    }
-    steps = [
-        *ArrowCppTest.steps[:-1],  # excluding the last test step
-        python_install,
-        python_test
-    ]
-    images = (
-        images.filter(
-            name=startswith('python'),
-            arch='amd64',
-            os=startswith('ubuntu'),
-            variant=None,  # plain linux images, not conda
-            tag='worker'
-        ) +
-        images.filter(
-            name=startswith('python'),
-            arch='arm64v8',
-            os='ubuntu-18.04',
-            variant=None,  # plain linux images, not conda
-            tag='worker'
-        )
-    )
-
-
-class ArrowPythonCudaTest(ArrowPythonTest):
-    tags = ['arrow', 'python', 'cuda', 'parquet', 'plasma']
-    hostconfig = {
-        'shm_size': '2G',  # required for plasma
-        'runtime': 'nvidia',  # required for cuda
-    }
-    properties = {
-        **ArrowPythonTest.properties,
-        'ARROW_CUDA': 'ON',  # also sets PYARROW_WITH_CUDA
-    }
-    images = images.filter(
-        name=startswith('python'),
-        arch='amd64',
-        variant='cuda',
-        tag='worker'
-    )
-
-
-def as_system_includes(stdout, stderr):
-    """Parse the output of `c++ -E -Wp,-v -xc++ -`"""
-    args = []
-    for line in stderr.splitlines():
-        if line.startswith(' '):
-            args.extend(('-isystem', line.strip()))
-    return ';'.join(args)
-
-
-class ArrowCppCondaTest(DockerBuilder):
-    tags = ['arrow', 'cpp', 'flight', 'gandiva', 'parquet', 'plasma']
-    volumes = [
-        lambda builder: f'{slugify(builder.name)}:/root/.ccache:rw'
-    ]
-    properties = {
-        'ARROW_FLIGHT': 'ON',
-        'ARROW_PLASMA': 'ON',
-        'ARROW_PARQUET': 'ON',
-        'ARROW_GANDIVA': 'ON',
-        'CMAKE_INSTALL_LIBDIR': 'lib'
-    }
-    env = {
-        'ARROW_TEST_DATA': arrow_test_data_path,  # for flight
-        'PARQUET_TEST_DATA': parquet_test_data_path  # for parquet
-    }
-    steps = [
-        SetPropertiesFromEnv({
-            'CXX': 'CXX',
-            'CMAKE_AR': 'AR',
-            'CMAKE_RANLIB': 'RANLIB',
-            'CMAKE_INSTALL_PREFIX': 'CONDA_PREFIX',
-            'ARROW_BUILD_TOOLCHAIN': 'CONDA_PREFIX'
-        }),
-        # pass system includes paths to clang
-        SetPropertyFromCommand(
-            'ARROW_GANDIVA_PC_CXX_FLAGS',
-            extract_fn=as_system_includes,
-            command=[util.Property('CXX', 'c++')],
-            args=['-E', '-Wp,-v', '-xc++', '-'],
-            collect_stdout=False,
-            collect_stderr=True,
-            workdir='.'
-        ),
-        checkout_arrow,
-        cpp_mkdir,
-        cpp_cmake,
-        cpp_compile,
-        cpp_install,
-        cpp_test
-    ]
-    images = images.filter(
-        name='cpp',
-        variant='conda',
-        tag='worker'
-    )
-
-
-class ArrowRCondaTest(ArrowCppCondaTest):
-    tags = ['arrow', 'r']
-    steps = [
-        *ArrowCppCondaTest.steps[:-1],  # excluding the test step
-        r_deps,
-        r_build,
-        r_install,
-        r_check
-    ]
-    images = images.filter(
-        name='r',
-        variant='conda',
-        tag='worker'
-    )
-
-
-class ArrowPythonCondaTest(ArrowCppCondaTest):
-    tags = ['arrow', 'cpp', 'flight', 'gandiva', 'parquet', 'plasma', 'python']
-    hostconfig = {
-        'shm_size': '2G',  # required for plasma
-    }
-    properties = {
-        **ArrowCppCondaTest.properties,
-        'ARROW_PYTHON': 'ON'
-    }
-    steps = [
-        *ArrowCppCondaTest.steps[:-1],
-        python_install,
-        python_test
-    ]
-    images = images.filter(
-        name=startswith('python'),
-        variant='conda',
-        tag='worker'
-    )
-
-
-class ArrowJavaTest(DockerBuilder):
-    tags = ['arrow', 'java']
-    steps = [
-        checkout_arrow,
-        Maven(
-            args=['-B', 'test'],
-            workdir='java',
-            name='Maven Test',
-        )
-    ]
-    images = images.filter(
-        name=startswith('java'),
-        arch='amd64',
-        tag='worker'
-    )
-
-
-class ArrowJSTest(DockerBuilder):
-    tags = ['arrow', 'js']
-    volumes = [
-        lambda builder: f'{slugify(builder.name)}:/root/.npm:rw'
-    ]
-    steps = [
-        checkout_arrow,
-        Npm(['install', '-g', 'npm@latest'], workdir='js', name='Update NPM'),
-        Npm(['install'], workdir='js', name='Install Dependencies'),
-        Npm(['run', 'lint'], workdir='js', name='Lint'),
-        Npm(['run', 'build'], workdir='js', name='Build'),
-        Npm(['run', 'test'], workdir='js', name='Test')
-    ]
-    images = images.filter(
-        name=startswith('js'),
-        arch='amd64',
-        tag='worker'
-    )
-
-
-class ArrowGoTest(DockerBuilder):
-    tags = ['arrow', 'go']
-    env = {
-        'GO111MODULE': 'on',
-    }
-    steps = [
-        checkout_arrow,
-        Go(
-            args=['get', '-v', '-t', './...'],
-            workdir='go/arrow',
-            name='Go Build',
-        ),
-        Go(
-            args=['test', './...'],
-            workdir='go/arrow',
-            name='Go Test',
-        )
-    ]
-    images = images.filter(
-        name=startswith('go'),
-        arch='amd64',
-        tag='worker'
-    )
-
-
-class ArrowRustTest(DockerBuilder):
-    tags = ['arrow', 'rust']
-    env = {
-        'ARROW_TEST_DATA': arrow_test_data_path,
-        'PARQUET_TEST_DATA': parquet_test_data_path
-    }
-    steps = [
-        checkout_arrow,
-        Cargo(
-            args=['build'],
-            workdir='rust',
-            name='Rust Build'
-        ),
-        Cargo(
-            args=['test'],
-            workdir='rust',
-            name='Rust Test'
-        )
-    ]
-    images = images.filter(
-        name=startswith('rust'),
-        arch='amd64',
-        tag='worker'
-    )
