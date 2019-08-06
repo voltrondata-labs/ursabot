@@ -67,6 +67,9 @@ class TestMasterTestcase(TestReactorMixin, unittest.TestCase):
         self.timeout = 120
         images.build()
         self.setUpTestReactor()
+        # import mock
+        # stop = mock.create_autospec(self.reactor.stop)
+        # self.patch(self.reactor, 'stop', stop)
 
     @pytest.mark.docker
     @pytest.mark.integration

@@ -152,9 +152,9 @@ def test_docker_image_save(tmp_path, image):
 @pytest.mark.docker
 @pytest.mark.integration
 def test_docker_image_build(image):
-    client = DockerClientWrapper()
-    image.build(client=client)
-    assert len(client.images(image.fqn))
+    with DockerClientWrapper() as client:
+        image.build(client=client)
+        assert len(client.images(image.fqn))
 
 
 def test_image_collection(collection):
