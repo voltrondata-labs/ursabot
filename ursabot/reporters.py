@@ -181,9 +181,6 @@ class HttpStatusPush(HttpStatusPushBase):
                 )
 
 
-# TODO(kszucs): buildset handling is not yet implemented in HttpStatusPush,
-# so We can only handle single builds. We need to fetch and group builds to
-# buildsets manually on long term.
 class GitHubReporter(HttpStatusPush):
     """Base class for reporters interacting with GitHub's API"""
 

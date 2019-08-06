@@ -9,6 +9,7 @@
 # is not marked as such.
 
 import textwrap
+from buildbot.plugins import util
 from buildbot.process.results import FAILURE, SUCCESS
 from buildbot.test.fake import fakedb
 from ursabot.utils import ensure_deferred
@@ -110,7 +111,9 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
 class TestCrossbowCommentFormatter(TestFormatterBase):
 
     def setupFormatter(self):
-        return CrossbowCommentFormatter(crossbow_repo='ursa-labs/crossbow')
+        return CrossbowCommentFormatter(
+            crossbow_repo=util.Property('crossbow_repo')
+        )
 
     def setupDb(self, current, previous):
         super().setupDb(current, previous)
@@ -126,6 +129,11 @@ class TestCrossbowCommentFormatter(TestFormatterBase):
             fakedb.LogChunk(logid=60, first_line=0, last_line=len(job),
                             compressed=0, content=job)
         ])
+        for _id in (20, 21):
+            self.db.insertTestData([
+                fakedb.BuildProperty(buildid=_id, name='crossbow_repo',
+                                     value='ursa-labs/crossbow')
+            ])
 
     @ensure_deferred
     async def test_success(self):

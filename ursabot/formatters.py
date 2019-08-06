@@ -114,33 +114,33 @@ class Formatter:
             method = self.render_started
 
         default = self.default_context(build, master)
-        context = method(build, master)
+        context = await method(build, master)
         context = toolz.merge(context, default)
 
         return self.layout.format(**context).strip()
 
-    def render_started(self, build, master):
+    async def render_started(self, build, master):
         return dict(message='Build started.')
 
-    def render_success(self, build, master):
+    async def render_success(self, build, master):
         return dict(message='Build succeeded.')
 
-    def render_warnings(self, build, master):
+    async def render_warnings(self, build, master):
         return dict(message='Build has warnings.')
 
-    def render_skipped(self, build, master):
+    async def render_skipped(self, build, master):
         return dict(message='Build skipped.')
 
-    def render_exception(self, build, master):
+    async def render_exception(self, build, master):
         return dict(message='Build failed with an exception.')
 
-    def render_cancelled(self, build, master):
+    async def render_cancelled(self, build, master):
         return dict(message='Build has been cancelled.')
 
-    def render_failure(self, build, master):
+    async def render_failure(self, build, master):
         return dict(message='Build failed.')
 
-    def render_retry(self, build, master):
+    async def render_retry(self, build, master):
         return dict(message='Build is retried.')
 
 
@@ -154,7 +154,7 @@ class MarkdownFormatter(Formatter):
         {context}
     """)
 
-    def render_failure(self, build, master):
+    async def render_failure(self, build, master):
         template = textwrap.dedent("""
             {step_name}: `{state_string}` step's stderr:
             ```
@@ -177,7 +177,7 @@ class MarkdownFormatter(Formatter):
 
         return dict(status='failed', context='\n\n'.join(errors))
 
-    def render_exception(self, build, master):
+    async def render_exception(self, build, master):
         template = textwrap.dedent("""
             {step_name}: `{state_string}` step's traceback:
             ```pycon
@@ -204,20 +204,20 @@ class MarkdownFormatter(Formatter):
             context='\n\n'.join(errors)
         )
 
-    def render_started(self, build, master):
+    async def render_started(self, build, master):
         return dict(status='is started', context='')
 
-    def render_success(self, build, master):
+    async def render_success(self, build, master):
         return dict(status='has been succeeded', context='')
 
-    def render_warnings(self, build, master):
+    async def render_warnings(self, build, master):
         return dict(status='has been succeeded with warnings', context='')
 
-    def render_skipped(self, build, master):
+    async def render_skipped(self, build, master):
         return dict(status='was skipped', context='')
 
-    def render_cancelled(self, build, master):
+    async def render_cancelled(self, build, master):
         return dict(status='was cancelled', context='')
 
-    def render_retry(self, build, master):
+    async def render_retry(self, build, master):
         return dict(status='is retried', context='')

@@ -22,8 +22,12 @@ from buildbot.config import ConfigErrors, error, _errors  # noqa
 from buildbot.config import MasterConfig as BuildbotMasterConfig
 from buildbot.util.logger import Logger
 from buildbot.util import ComparableMixin
+from buildbot.worker.base import AbstractWorker
+from buildbot.config import BuilderConfig
+from buildbot.schedulers.base import BaseScheduler
+from buildbot.changes.base import PollingChangeSource
 
-from .docker import ImageCollection
+from .docker import ImageCollection, DockerImage
 from .utils import Collection
 
 __all__ = [
@@ -81,7 +85,14 @@ class ProjectConfig(Config):
 
     def __init__(self, name, repo, workers, builders, schedulers, pollers=None,
                  reporters=None, images=None, commands=None):
-        # TODO(kszucs): validation
+        assert isinstance(name, str)
+        assert isinstance(repo, str)
+        assert all(callable(c) for c in commands)
+        assert all(isinstance(b, BuilderConfig) for b in builders)
+        assert all(isinstance(i, DockerImage) for i in images)
+        assert all(isinstance(p, PollingChangeSource) for p in pollers)
+        assert all(isinstance(s, BaseScheduler) for s in schedulers)
+        assert all(isinstance(w, AbstractWorker) for w in workers)
         self.name = name
         self.repo = repo
         self.workers = Collection(workers)
@@ -115,6 +126,7 @@ class MasterConfig(Config):
                  webui_port=8100, worker_port=9989, auth=None, authz=None,
                  database_url='sqlite:///ursabot.sqlite', projects=None,
                  change_hook=None, secret_providers=None):
+        assert all(isinstance(p, ProjectConfig) for p in projects)
         self.title = title
         self.url = url
         self.auth = auth

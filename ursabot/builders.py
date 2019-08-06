@@ -14,10 +14,11 @@ import itertools
 import warnings
 from collections import defaultdict
 
-from buildbot import interfaces
+from buildbot import interfaces, config
 from buildbot.config import BuilderConfig
 from buildbot.process.factory import BuildFactory
 from buildbot.process.properties import Properties
+from buildbot.worker.base import AbstractWorker
 
 from .docker import DockerImage
 from .workers import DockerLatentWorker
@@ -80,7 +81,18 @@ class Builder(BuilderConfig):
             raise TypeError('Tags must be a list')
 
         factory = factory or BuildFactory(steps)
-        workernames = None if workers is None else [w.name for w in workers]
+        if workers is None:
+            workernames = None
+        else:
+            workernames = []
+            for w in workers:
+                if isinstance(w, AbstractWorker):
+                    workernames.append(w.name)
+                elif isinstance(w, str):
+                    workernames.append(w)
+                else:
+                    config.error('`workers` must be a list of strings or '
+                                 'a list of worker objects')
 
         env = toolz.merge(self.env or {}, env or {})
         properties = toolz.merge(self.properties or {}, properties or {})

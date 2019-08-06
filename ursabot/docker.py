@@ -234,9 +234,9 @@ class DockerImage:
         if client is None:
             client = DockerClientWrapper()
 
-        # wrap it in a try catch and serialize the failing dockerfile
-        # also consider to use add an `org` argument to directly tag the image
-        # TODO(kszucs): pass platform argument
+        # TODO(kszucs): wrap it in a try catch and serialize the failing
+        #               dockerfile also consider to use add an `org` argument
+        #               to directly tag the image
         logger.info(f'Start building {self.fqn}')
         client.build_from_file(self.dockerfile, self.fqn, **kwargs)
         logger.info(f'Image has been built successfully: {self.fqn}')

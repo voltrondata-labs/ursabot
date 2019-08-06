@@ -22,6 +22,7 @@ from ursabot.reporters import (HttpStatusPush, ZulipStatusPush,
                                GitHubStatusPush, GitHubReviewPush,
                                GitHubCommentPush)
 from ursabot.formatters import Formatter
+from ursabot.builders import Builder
 from ursabot.utils import ensure_deferred
 from ursabot.tests.mocks import GithubClientService
 
@@ -84,8 +85,6 @@ class TestHttpStatusPush(HttpReporterTestCase):
         await reporter.setServiceParent(self.master)
         return reporter
 
-    # TODO(kszucs): have a test for builders argument
-
     async def check_report_on(self, whitelist, blacklist, expected):
         reporter = await self.setupReporter(report_on=whitelist,
                                             dont_report_on=blacklist)
@@ -100,6 +99,16 @@ class TestHttpStatusPush(HttpReporterTestCase):
             build = await self.setupBuildResults(Results.index(result),
                                                  complete=True)
             assert reporter.filterBuilds(build) is expected[result]
+
+    @ensure_deferred
+    async def test_builders_argument(self):
+        with pytest.raises(ConfigErrors):
+            HttpStatusPush(name='test', baseURL=self.BASEURL, builders=[1, 2])
+
+        HttpStatusPush(name='test', baseURL=self.BASEURL, builders=['a', 'b'])
+        HttpStatusPush(name='test', baseURL=self.BASEURL, builders=[
+            Builder(workers=['a'])
+        ])
 
     @ensure_deferred
     async def test_report_on_everything_by_default(self):
