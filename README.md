@@ -313,12 +313,15 @@ from ursabot.builders import Builder
 from ursabot.schedulers import AnyBranchScheduler
 
 
+repo = 'https://github.com/example/repo'
+
+
 class TestBuilder(Builder):
     tags = ['example-build', 'arbitrary-tag']
     steps = [
         GitHub(
             name='Clone the test repository',
-            repourl='https://github.com/example/repo'
+            repourl=repo,
             mode='full'
         ),
         ShellCommand(
@@ -346,12 +349,18 @@ scheduler = AnyBranchScheduler(
     builders=[simple_builder]
 )
 
-BuildmasterConfig = {
-    # ...
-    'workers': [local_worker],
-    'schedulers': [scheduler]
-    # ...
-}
+project = ProjectConfig([
+    name='example/repo',
+    repo='https://github.com/example/repo'
+    workers=[local_worker],
+    builders=[simple_builder],
+    schedulers=[scheduler]
+])
+
+master = MasterConfig(
+    title='TestConfig',
+    projects=[project]
+)
 ```
 
 The `DockerBuilder` provides more flexibility, faster builds and better worker
@@ -388,12 +397,7 @@ docker_worker = DockerLatentWorker(
     name='my-docker-worker'
     arch='amd64'
     password=None,
-    max_builds=2,
-    docker_host='unix://var/run/docker.sock',
-    # `docker_image` property is set by the DockerBuilder, but image can be
-    # passed explicitly and used in conjunction with a simple builder like the
-    #  TestBuilder from the previous example
-    image=util.Property('docker_image')
+    max_builds=2
 )
 
 # instantiates builders based on the available workers, the Builder's
@@ -407,12 +411,19 @@ scheduler = AnyBranchScheduler(
     builders=docker_builders
 )
 
-BuildmasterConfig = {
-    # ...
-    'workers': [docker_worker],
-    'schedulers': [scheduler]
-    # ...
-}
+project = ProjectConfig([
+    name='example/repo',
+    repo='https://github.com/example/repo'
+    images=[miniconda],
+    workers=[docker_worker],
+    builders=docker_builders,
+    schedulers=[scheduler]
+])
+
+master = MasterConfig(
+    title='TestConfig',
+    projects=[project]
+)
 ```
 
 
@@ -523,42 +534,6 @@ ursabot --verbose \
   build --push
 ```
 
-
-### Adding a new dependency to the docker images
-
-Most of the dependency requirements are factored out to easily editable text
-files under the [docker](docker) directory.
-
-For plain (non-conda) docker images append the appropiate package to
-[pkgs-alpine.txt](docker/pkgs-alpine.txt) and
-[pkgs-ubuntu.txt](docker/pkgs-ubuntu.txt).
-
-For conda images add the newly introduced dependency either to
-[conda-linux.txt](docker/conda-linux.txt),
-[conda-cpp.txt](docker/conda-cpp.txt),
-[conda-python.txt](docker/conda-cpp.txt) or
-[conda-sphinx.txt](docker/conda-sphinx.txt)
-depending on which images should contain the new dependency.
-
-In order to add a new pip dependency to the python images edit
-[requirements.txt](docker/requirements.txt) or
-[requirements-test.txt](docker/requirements-test.txt).
-
-Then build and push the new images:
-
-```bash
-$ ursabot -v docker -dh tcp://amd64-host:2375 -a amd64 build -p
-$ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p
-```
-
-### Adding new workers to the cluster
-
-Adding docker latent workers requires a worker entry in the configuration.
-Name, architecture and a docker host (accessable by the buildmaster) are
-required, see an example in [default.yaml](default.yaml).
-Adding non-docker workers are also possible, but must register them in the
-[master.cfg](master.cfg).
-
 ## Developing Ursabot
 
 Buildbot doesn't distribute its testing suite with binary wheels, so in order
@@ -575,6 +550,15 @@ Install [pre-commit](https://pre-commit.com/) then to setup the git
 [hooks](.pre-commit-config.yaml) run `pre-commit install`.
 
 
+### Adding new workers to ci.ursalabs.org
+
+Adding docker latent workers requires a worker entry in the `workers.yaml` configuration.
+Name, architecture and a docker host (accessable by the buildmaster) are
+required, see an example in [workers.yaml](workers.yaml).
+Adding non-docker workers are also possible, but must register them in the
+[master.cfg](master.cfg).
+
+
 ## Possible further improvements
 
 
@@ -587,13 +571,10 @@ These have been discussed and would be valuable, but they are definitely
 
 More closely Ursabot related:
 
-- Project abstraction to reduce the complexity of [master.cfg](master.cfg)
 - Multi-master setup for scaling
 - Setup WAMP/Crossbar to restart the buildmaster without cancelling the running
   builds
 - Windows containers and workers (docker in virtualized nodes)
-- Enable CUDA docker runtime (builder is already added)
-- Crossbow poller to report back crossbow task statuses
 
 
 [arrow-repo]: https://github.com/apache/arrow
