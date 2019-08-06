@@ -85,23 +85,23 @@ class ProjectConfig(Config):
 
     def __init__(self, name, repo, workers, builders, schedulers, pollers=None,
                  reporters=None, images=None, commands=None):
-        assert isinstance(name, str)
-        assert isinstance(repo, str)
-        assert all(callable(c) for c in commands)
-        assert all(isinstance(b, BuilderConfig) for b in builders)
-        assert all(isinstance(i, DockerImage) for i in images)
-        assert all(isinstance(p, PollingChangeSource) for p in pollers)
-        assert all(isinstance(s, BaseScheduler) for s in schedulers)
-        assert all(isinstance(w, AbstractWorker) for w in workers)
         self.name = name
         self.repo = repo
         self.workers = Collection(workers)
         self.builders = Collection(builders)
         self.schedulers = Collection(schedulers)
         self.images = ImageCollection(images or [])
-        self.commands = Collection(images or [])
+        self.commands = Collection(commands or [])
         self.pollers = Collection(pollers or [])
         self.reporters = Collection(reporters or [])
+        assert isinstance(self.name, str)
+        assert isinstance(self.repo, str)
+        assert all(callable(c) for c in self.commands)
+        assert all(isinstance(b, BuilderConfig) for b in self.builders)
+        assert all(isinstance(i, DockerImage) for i in self.images)
+        assert all(isinstance(p, PollingChangeSource) for p in self.pollers)
+        assert all(isinstance(s, BaseScheduler) for s in self.schedulers)
+        assert all(isinstance(w, AbstractWorker) for w in self.workers)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'

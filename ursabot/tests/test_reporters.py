@@ -199,28 +199,28 @@ class DumbFormatter(Formatter):
 
     layout = '{message}'
 
-    def render_success(self, build, master):
+    async def render_success(self, build, master):
         return dict(message='success')
 
-    def render_warnings(self, build, master):
+    async def render_warnings(self, build, master):
         return dict(message='warnings')
 
-    def render_skipped(self, build, master):
+    async def render_skipped(self, build, master):
         return dict(message='skipped')
 
-    def render_exception(self, build, master):
+    async def render_exception(self, build, master):
         return dict(message='exception')
 
-    def render_cancelled(self, build, master):
+    async def render_cancelled(self, build, master):
         return dict(message='cancelled')
 
-    def render_failure(self, build, master):
+    async def render_failure(self, build, master):
         return dict(message='failure')
 
-    def render_retry(self, build, master):
+    async def render_retry(self, build, master):
         return dict(message='retry')
 
-    def render_started(self, build, master):
+    async def render_started(self, build, master):
         return dict(message='started')
 
 
