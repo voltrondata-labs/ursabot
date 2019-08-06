@@ -163,7 +163,7 @@ buildbot try \
 If someone wants to use this feature then please raise an issue, because it
 requires custom credentials.
 
-## Run a local instance of Ursabot
+## Install ursabot and the CLI
 
 Running it locally helps with the development and testing new feature and/or
 debugging issues without touching the production instance.
@@ -172,6 +172,59 @@ Installation requires at least Python 3.6:
 
 ```bash
 pip install -e ursabot
+```
+
+Now the `ursabot` command is available which looks for a `master.cfg` file in
+the current directory. `master.cfg` can be passed explicitly via the `--config`
+option:
+
+```bash
+$ ursabot -c path/to/master.cfg
+```
+
+Describe the loaded master configuration:
+
+```bash
+$ ursabot desc
+```
+
+Describe the loaded project configuration:
+
+```bash
+$ ursabot project desc  # for master configs with a single project
+$ ursabot project -p arrow desc  # for master configs with multiple projects
+```
+
+## How to validate the configurations
+
+The `checkconfig` command runs sanity checks and various validations on the
+master configuration. Most of the time is `checkconfig` passes then the master
+can be run successfully (unless there are some variables only available at
+runtime).
+
+```bash
+$ ursabot checkconfig
+```
+
+`ursabot` command loads `master.cfg` from the current directory by default, but
+`--config` argument can be passed to explicitly define a configuration file.
+
+```bash
+$ ursabot -c arrow/master.cfg checkconfig
+```
+
+## Run a local instance of Ursabot
+
+After installation master's database must be initialized:
+
+```bash
+$ ursabot -v upgrade-master
+```
+
+Start/stop/restart the master:
+
+```bash
+$ ursabot -v start|stop|restart
 ```
 
 Define the configuration environment (prod|test) and start the service:
@@ -183,6 +236,50 @@ $ tail -f ursabot/twisted.log
 ```
 
 Then open `http://localhost:8100` in the browser.
+
+## Commands for local reproducibility
+
+Builders can be run locally without the web interface using the
+`ursabot project build` command.
+
+Testing `AMD64 Conda C++` builder on master:
+
+```bash
+$ ursabot project build 'AMD64 Conda C++'
+```
+
+Testing `AMD64 Conda C++` builder with github pull request number 140:
+
+```bash
+$ ursabot project build -pr 140 'AMD64 Conda C++'
+```
+
+Testing `AMD64 Conda C++` with local repository:
+
+```bash
+$ ursabot project build -s ~/Workspace/arrow:. 'AMD64 Conda C++'
+```
+
+Where `~/Workspace/arrow` is the path of the local Arrow repository and `.`
+is the destination directory under the worker's build directory (in this case:
+`/buildbot/AMD64_Conda_C__/.`)
+
+Passing multiple buildbot properties for the build:
+
+```bash
+$ ursabot project build -p prop=value -p myprop=myvalue 'AMD64 Conda C++'
+```
+
+### Attach on failure
+
+Ursabot supports debugging failed builds with attach attaching ordinary shells
+to the still running workers - where the build has previously failed.
+
+Use the `--attach-on-failure` or `-a` flags.
+
+```bash
+$ ursabot project build --attach-on-failure `AMD64 Conda C++`
+```
 
 
 ## Configuring Ursabot
@@ -400,6 +497,16 @@ To list Arrow C++ `amd64` `conda` `cpp` images:
 
 ```bash
 ursabot --verbose docker --arch amd64 --variant conda --name cpp list
+```
+
+Additional filtering:
+
+```bash
+$ ursabot docker --arch amd64 list
+$ ursabot docker --arch amd64 --variant conda list
+$ ursabot docker --arch amd64 --variant conda --name cpp list
+$ ursabot docker --arch amd64 --variant conda --name cpp --tag worker list
+$ ursabot docker --arch amd64 --variant conda --name cpp --os debian-9 list
 ```
 
 To build and push Arrow C++ `amd64` `conda` `cpp` images:
