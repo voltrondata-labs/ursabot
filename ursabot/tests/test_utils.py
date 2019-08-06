@@ -15,8 +15,6 @@ from contextlib import contextmanager
 
 from twisted.internet import reactor
 from twisted.trial import unittest
-from treq.testing import StubTreq, HasHeaders
-from treq.testing import RequestSequence, StringStubbingResource
 from buildbot.util import httpclientservice
 from buildbot.util import service
 
@@ -56,6 +54,10 @@ class GithubClientServiceTest(unittest.TestCase):
 
     @contextmanager
     def responses(self, responses):
+        # otherwise it bails pytest because of a DeprecationWarning
+        from treq.testing import StubTreq
+        from treq.testing import RequestSequence, StringStubbingResource
+
         failures = []
         responses = RequestSequence(responses, failures.append)
         stub = StubTreq(StringStubbingResource(responses))
@@ -69,6 +71,8 @@ class GithubClientServiceTest(unittest.TestCase):
 
     @ensure_deferred
     async def test_fetching_rate_limit(self):
+        from treq.testing import HasHeaders
+
         responses = [
             (
                 Request(
@@ -105,6 +109,8 @@ class GithubClientServiceTest(unittest.TestCase):
 
     @ensure_deferred
     async def test_basic(self):
+        from treq.testing import HasHeaders
+
         responses = [
             (
                 Request(
@@ -126,6 +132,8 @@ class GithubClientServiceTest(unittest.TestCase):
 
     @ensure_deferred
     async def test_rotation_because_of_reaching_limit(self):
+        from treq.testing import HasHeaders
+
         self.http.rotate_at = 1000  # this id the default
         responses = [
             (
@@ -180,6 +188,8 @@ class GithubClientServiceTest(unittest.TestCase):
 
     @ensure_deferred
     async def test_rotation_becasue_of_forbidden_access(self):
+        from treq.testing import HasHeaders
+
         self.http.rotate_at = 1000  # this id the default
         responses = [
             (
