@@ -1,6 +1,8 @@
 workers:
   - name: 'dgx1-1'
     arch: 'amd64'
+    tags:
+      - cuda
     ncpus: 8
     docker:
       host: 'tcp://ursa-dgx1:2375'
@@ -10,6 +12,8 @@ workers:
 
   - name: 'dgx1-2'
     arch: 'amd64'
+    tags:
+      - cuda
     ncpus: 8
     docker:
       host: 'tcp://ursa-dgx1:2375'
@@ -19,6 +23,8 @@ workers:
 
   - name: 'dgx1-3'
     arch: 'amd64'
+    tags:
+      - cuda
     ncpus: 8
     docker:
       host: 'tcp://ursa-dgx1:2375'
@@ -28,6 +34,8 @@ workers:
 
   - name: 'dgx1-4'
     arch: 'amd64'
+    tags:
+      - cuda
     ncpus: 8
     docker:
       host: 'tcp://ursa-dgx1:2375'
@@ -37,6 +45,9 @@ workers:
 
   - name: 'dgx1-5'
     arch: 'amd64'
+    tags:
+      - cuda
+    ncpus: 8
     docker:
       host: 'tcp://ursa-dgx1:2375'
       hostconfig:
