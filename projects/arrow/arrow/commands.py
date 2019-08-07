@@ -84,10 +84,13 @@ def benchmark(baseline, suite_filter, benchmark_filter):
 
 
 @ursabot.group()
+@click.option('--repo', '-r', default='ursa-labs/crossbow',
+              help='Crossbow repository on github to use')
 @click.pass_obj
-def crossbow(props):
+def crossbow(props, repo):
     """Trigger crossbow builds for this pull request"""
     props['command'] = 'crossbow'
+    props['crossbow_repo'] = f'https://github.com/{repo}'
 
 
 @crossbow.command()

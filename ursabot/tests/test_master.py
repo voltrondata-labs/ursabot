@@ -1,8 +1,10 @@
 import os
+from unittest.mock import patch
 
 import pytest
 from twisted.trial import unittest
 from buildbot.test.util.misc import TestReactorMixin
+from buildbot.process.results import FAILURE, EXCEPTION
 
 from dotenv import load_dotenv
 from ursabot.master import TestMaster as _TestMaster
@@ -10,7 +12,7 @@ from ursabot.utils import ensure_deferred
 from ursabot.configs import MasterConfig, ProjectConfig
 from ursabot.builders import DockerBuilder
 from ursabot.schedulers import AnyBranchScheduler
-from ursabot.workers import docker_workers_for
+from ursabot.workers import docker_workers_for, DockerLatentWorker
 from ursabot.docker import DockerImage, worker_images_for
 from ursabot.steps import ShellCommand
 
@@ -19,35 +21,44 @@ from ursabot.steps import ShellCommand
 load_dotenv()
 
 
-class Echoer(DockerBuilder):
-    steps = [
-        ShellCommand(command='echo 1337', as_shell=True)
-    ]
-
-
 name = 'test'
 repo = 'https://github.com/ursa-labs/ursabot'
 
-testimg = DockerImage('test', base='python:3.7', os='debian-9', arch='amd64')
-images = worker_images_for(images=[testimg])
-workers = docker_workers_for(archs=['amd64'],
-                             masterFQDN=os.getenv('MASTER_FQDN'))
-builders = Echoer.builders_for(workers, images=images)
-
+images = worker_images_for([
+    DockerImage('test', base='python:3.7', os='debian-9', arch='amd64')
+])
+workers = docker_workers_for(
+    archs=['amd64'],
+    masterFQDN=os.getenv('MASTER_FQDN')
+)
+echoer = DockerBuilder('echoer', image=images[0], workers=workers, steps=[
+    ShellCommand(command='echo 1337', as_shell=True)
+])
+failer = DockerBuilder('failer', image=images[0], workers=workers, steps=[
+    ShellCommand(command='unknown-command', as_shell=True)
+])
+builders = [echoer, failer]
 schedulers = [
-    AnyBranchScheduler(
-        name='TestScheduler',
-        builders=builders
-    )
+    AnyBranchScheduler(name='TestScheduler', builders=builders)
 ]
 
 project = ProjectConfig(
     name=name,
     repo=repo,
+    images=images,
     workers=workers,
     builders=builders,
     schedulers=schedulers
 )
+master = MasterConfig(title='Test', projects=[project])
+
+sourcestamp = {
+    'codebase': '',
+    'project': project.name,
+    'repository': project.repo,
+    'branch': 'master',
+    'revision': None
+}
 
 
 class TestMasterTestcase(TestReactorMixin, unittest.TestCase):
@@ -57,29 +68,26 @@ class TestMasterTestcase(TestReactorMixin, unittest.TestCase):
         images.build()
         self.setUpTestReactor()
 
-    # TODO(kszucs): test for attaching to a failing build with mocking
-    #               worker.attach_interactive_shell
-
     @pytest.mark.docker
     @pytest.mark.integration
     @ensure_deferred
     async def test_simple(self):
-        config = MasterConfig(
-            title='Test',
-            worker_port=9888,  # randomize
-            projects=[project]
-        )
-        sourcestamp = {
-            'codebase': '',
-            'project': project.name,
-            'repository': project.repo,
-            'branch': 'master',
-            'revision': None
-        }
-
-        async with _TestMaster(config, reactor=self.reactor) as master:
-            result = await master.build(builders[0].name, sourcestamp)
+        async with _TestMaster(master, reactor=self.reactor) as m:
+            result = await m.build(echoer.name, sourcestamp)
 
         assert result['complete'] is True
         assert result['results'] == 0
         assert result['bsid'] == 1
+
+    @pytest.mark.docker
+    @pytest.mark.integration
+    @ensure_deferred
+    async def test_attach_on_failure(self):
+        attach_on = {FAILURE, EXCEPTION}
+        method = 'attach_interactive_shell'
+
+        with patch.object(DockerLatentWorker, method) as method:
+            async with _TestMaster(master, reactor=self.reactor,
+                                   attach_on=attach_on) as m:
+                await m.build(failer.name, sourcestamp)
+            method.assert_called_once()

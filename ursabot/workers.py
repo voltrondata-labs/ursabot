@@ -10,6 +10,7 @@
 
 import itertools
 from io import BytesIO
+from contextlib import contextmanager
 
 import toolz
 from twisted.internet import threads
@@ -92,15 +93,15 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         # the worker might be insubstantiating from buildWaitTimeout
         if self.state in [States.INSUBSTANTIATING,
                           States.INSUBSTANTIATING_SUBSTANTIATING]:
-            # yield self._insubstantiation_notifier.wait()
+            # await self._insubstantiation_notifier.wait()
             pass
 
         if self.conn is not None or self.state in [States.SUBSTANTIATING,
                                                    States.SUBSTANTIATED]:
             await self._soft_disconnect(stopping_service=True)
         self._clearBuildWaitTimer()
-        res = await super(AbstractLatentWorker, self).stopService()
-        return res
+
+        return await super(AbstractLatentWorker, self).stopService()
 
     def renderWorkerProps(self, build):
         # License note:
@@ -110,19 +111,31 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
             (self.image, self.dockerfile, self.hostconfig, self.volumes)
         )
 
+    @contextmanager
+    def docker_client(self):
+        # Note that this is a blocking function, use it from threads
+        client = self._getDockerClient()
+        try:
+            yield client
+        finally:
+            client.close()
+
     def attach_interactive_shell(self, shell='/bin/bash'):
+        # Note that this is blocking the event loop, but it's fine because it
+        # is used for debugging purposes from the CLI.
         import dockerpty
 
         instance_id, image = self.instance['Id'][:12], self.instance['image']
         log.info(f"Attaching an interactive shell '{shell}' to container with "
                  f"id '{instance_id}' and image '{image}'")
 
-        dockerpty.exec_command(
-            client=self._getDockerClient(),
-            container=self.instance,
-            command=shell,
-            interactive=True
-        )
+        with self.docker_client() as client:
+            dockerpty.exec_command(
+                client=client,
+                container=self.instance,
+                command=shell,
+                interactive=True
+            )
 
     @ensure_deferred
     async def start_instance(self, build):
@@ -138,90 +151,103 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         # License note:
         #    copied from the original implementation with minor modification
         #    to pass runtime configuration to the containers
-        docker_client = self._getDockerClient()
-        container_name = self.getContainerName()
-        # cleanup the old instances
-        instances = docker_client.containers(
-            all=1,
-            filters=dict(name=container_name))
-        container_name = '/{0}'.format(container_name)
-        for instance in instances:
-            if container_name not in instance['Names']:
-                continue
-            try:
-                docker_client.remove_container(instance['Id'], v=True,
-                                               force=True)
-            except docker.errors.NotFound:
-                pass  # that's a race condition
+        with self.docker_client() as docker_client:
+            container_name = self.getContainerName()
+            # cleanup the old instances
+            instances = docker_client.containers(
+                all=1,
+                filters=dict(name=container_name))
+            container_name = '/{0}'.format(container_name)
+            for instance in instances:
+                if container_name not in instance['Names']:
+                    continue
+                try:
+                    docker_client.remove_container(instance['Id'], v=True,
+                                                   force=True)
+                except docker.errors.NotFound:
+                    pass  # that's a race condition
 
-        found = False
-        if image is not None:
-            found = self._image_exists(docker_client, image)
-        else:
-            worker_id = id(self)
-            worker_name = self.workername
-            image = f'{worker_name}_{worker_id}_image'
-        if (not found) and (dockerfile is not None):
-            log.info(f'Image {image} not found, building it from scratch')
-            for line in docker_client.build(
-                fileobj=BytesIO(dockerfile.encode('utf-8')),
-                tag=image
-            ):
-                for streamline in _handle_stream_line(line):
-                    log.info(streamline)
+            found = False
+            if image is not None:
+                found = self._image_exists(docker_client, image)
+            else:
+                worker_id = id(self)
+                worker_name = self.workername
+                image = f'{worker_name}_{worker_id}_image'
+            if (not found) and (dockerfile is not None):
+                log.info(f'Image {image} not found, building it from scratch')
+                for line in docker_client.build(
+                    fileobj=BytesIO(dockerfile.encode('utf-8')),
+                    tag=image
+                ):
+                    for streamline in _handle_stream_line(line):
+                        log.info(streamline)
 
-        imageExists = self._image_exists(docker_client, image)
-        if ((not imageExists) or self.alwaysPull) and self.autopull:
-            if (not imageExists):
-                log.info(f'Image {image} not found, pulling from registry')
-            docker_client.pull(image)
+            imageExists = self._image_exists(docker_client, image)
+            if ((not imageExists) or self.alwaysPull) and self.autopull:
+                if (not imageExists):
+                    log.info(f'Image {image} not found, pulling from registry')
+                docker_client.pull(image)
 
-        if (not self._image_exists(docker_client, image)):
-            log.info(f'Image {image} not found')
-            raise LatentWorkerCannotSubstantiate(
-                f'Image {image} not found on docker host.'
+            if (not self._image_exists(docker_client, image)):
+                log.info(f'Image {image} not found')
+                raise LatentWorkerCannotSubstantiate(
+                    f'Image {image} not found on docker host.'
+                )
+
+            volumes, binds = self._thd_parse_volumes(volumes)
+
+            hostconfig['binds'] = binds
+            if docker_py_version >= 2.2:
+                hostconfig['init'] = True
+
+            instance = docker_client.create_container(
+                image,
+                self.command,
+                name=self.getContainerName(),
+                volumes=volumes,
+                environment=self.createEnvironment(),
+                host_config=docker_client.create_host_config(
+                    **hostconfig
+                )
             )
 
-        volumes, binds = self._thd_parse_volumes(volumes)
+            if instance.get('Id') is None:
+                log.info('Failed to create the container')
+                raise LatentWorkerFailedToSubstantiate(
+                    'Failed to start container'
+                )
+            shortid = instance['Id'][:6]
+            log.info(f'Container created, Id: {shortid}...')
 
-        hostconfig['binds'] = binds
-        if docker_py_version >= 2.2:
-            hostconfig['init'] = True
-
-        instance = docker_client.create_container(
-            image,
-            self.command,
-            name=self.getContainerName(),
-            volumes=volumes,
-            environment=self.createEnvironment(),
-            host_config=docker_client.create_host_config(
-                **hostconfig
-            )
-        )
-
-        if instance.get('Id') is None:
-            log.info('Failed to create the container')
-            raise LatentWorkerFailedToSubstantiate(
-                'Failed to start container'
-            )
-        shortid = instance['Id'][:6]
-        log.info(f'Container created, Id: {shortid}...')
-
-        instance['image'] = image
-        self.instance = instance
-        docker_client.start(instance)
-        log.info('Container started')
-        if self.followStartupLogs:
-            logs = docker_client.attach(
-                container=instance, stdout=True, stderr=True, stream=True)
-            for line in logs:
-                line = line.strip()
-                log.info(f'docker VM {shortid}: {line}')
-                if self.conn:
-                    break
-            del logs
+            instance['image'] = image
+            self.instance = instance
+            docker_client.start(instance)
+            log.info('Container started')
+            if self.followStartupLogs:
+                logs = docker_client.attach(
+                    container=instance, stdout=True, stderr=True, stream=True)
+                for line in logs:
+                    line = line.strip()
+                    log.info(f'docker VM {shortid}: {line}')
+                    if self.conn:
+                        break
+                del logs
 
         return [instance['Id'], image]
+
+    def _thd_stop_instance(self, instance, fast):
+        with self.docker_client() as docker_client:
+            log.info('Stopping container %s...' % instance['Id'][:6])
+            docker_client.stop(instance['Id'])
+            if not fast:
+                docker_client.wait(instance['Id'])
+            docker_client.remove_container(instance['Id'], v=True, force=True)
+            if self.image is None:
+                try:
+                    docker_client.remove_image(image=instance['image'])
+                except docker.errors.APIError as e:
+                    log.info('Error while removing the image: %s', e)
 
 
 def docker_worker_from(worker_dict, docker_host='unix://var/run/docker.sock',

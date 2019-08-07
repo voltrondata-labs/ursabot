@@ -1,3 +1,5 @@
+import copy
+
 from twisted.internet import defer
 from zope.interface import implementer
 from buildbot import interfaces
@@ -9,6 +11,7 @@ from .configs import MasterConfig, collect_global_errors
 from .utils import ensure_deferred
 
 __all__ = ['TestMaster']
+
 
 log = Logger()
 
@@ -25,6 +28,9 @@ class EagerLoader:
         twisted reactor (event loop).
         """
         assert isinstance(config, MasterConfig)
+        # deepcopy the whole configuration unless multiple TestMaster cannot
+        # be used with the same configuration withing the same process
+        config = copy.deepcopy(config)
         with collect_global_errors(and_raise=True):
             self.config = config.as_testing(source)
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from functools import wraps
 from operator import methodcaller
 from textwrap import indent, dedent
+from contextlib import contextmanager
 
 from toposort import toposort
 from dockermap.api import DockerFile, DockerClientWrapper
@@ -42,6 +43,15 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+class DockerClientWrapper(DockerClientWrapper):
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.close()
 
 
 class DockerFile(DockerFile):
@@ -222,6 +232,14 @@ class DockerImage:
         path = Path(directory) / f'{self.repo}.{self.tag}.dockerfile'
         self.dockerfile.save(path)
 
+    @contextmanager
+    def _client(self, client=None):
+        if client is None:
+            with DockerClientWrapper() as client:
+                yield client
+        else:
+            yield client
+
     def build(self, client=None, **kwargs):
         """Build the docker images
 
@@ -231,23 +249,16 @@ class DockerImage:
             Docker client to build the images with. For example it can be
             used to build images on another host.
         """
-        if client is None:
-            client = DockerClientWrapper()
-
-        # wrap it in a try catch and serialize the failing dockerfile
-        # also consider to use add an `org` argument to directly tag the image
-        # TODO(kszucs): pass platform argument
         logger.info(f'Start building {self.fqn}')
-        client.build_from_file(self.dockerfile, self.fqn, **kwargs)
+        with self._client(client) as client:
+            client.build_from_file(self.dockerfile, self.fqn, **kwargs)
         logger.info(f'Image has been built successfully: {self.fqn}')
 
         return self
 
     def push(self, client=None, **kwargs):
-        if client is None:
-            client = DockerClientWrapper()
-
-        client.push(self.fqn, **kwargs)
+        with self._client(client) as client:
+            client.push(self.fqn, **kwargs)
         return self
 
 

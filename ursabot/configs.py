@@ -22,8 +22,12 @@ from buildbot.config import ConfigErrors, error, _errors  # noqa
 from buildbot.config import MasterConfig as BuildbotMasterConfig
 from buildbot.util.logger import Logger
 from buildbot.util import ComparableMixin
+from buildbot.worker.base import AbstractWorker
+from buildbot.config import BuilderConfig
+from buildbot.schedulers.base import BaseScheduler
+from buildbot.changes.base import PollingChangeSource
 
-from .docker import ImageCollection
+from .docker import ImageCollection, DockerImage
 from .utils import Collection
 
 __all__ = [
@@ -81,16 +85,23 @@ class ProjectConfig(Config):
 
     def __init__(self, name, repo, workers, builders, schedulers, pollers=None,
                  reporters=None, images=None, commands=None):
-        # TODO(kszucs): validation
         self.name = name
         self.repo = repo
         self.workers = Collection(workers)
         self.builders = Collection(builders)
         self.schedulers = Collection(schedulers)
         self.images = ImageCollection(images or [])
-        self.commands = Collection(images or [])
+        self.commands = Collection(commands or [])
         self.pollers = Collection(pollers or [])
         self.reporters = Collection(reporters or [])
+        assert isinstance(self.name, str)
+        assert isinstance(self.repo, str)
+        assert all(callable(c) for c in self.commands)
+        assert all(isinstance(b, BuilderConfig) for b in self.builders)
+        assert all(isinstance(i, DockerImage) for i in self.images)
+        assert all(isinstance(p, PollingChangeSource) for p in self.pollers)
+        assert all(isinstance(s, BaseScheduler) for s in self.schedulers)
+        assert all(isinstance(w, AbstractWorker) for w in self.workers)
 
     def __repr__(self):
         return f'<{self.__class__.__name__}: {self.name}>'
@@ -115,6 +126,7 @@ class MasterConfig(Config):
                  webui_port=8100, worker_port=9989, auth=None, authz=None,
                  database_url='sqlite:///ursabot.sqlite', projects=None,
                  change_hook=None, secret_providers=None):
+        assert all(isinstance(p, ProjectConfig) for p in projects)
         self.title = title
         self.url = url
         self.auth = auth

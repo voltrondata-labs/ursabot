@@ -1,3 +1,10 @@
+from pathlib import Path
+
+from ursabot.docker import ImageCollection, DockerImage, worker_image_for
+from ursabot.docker import ENTRYPOINT, ADD, RUN, ENV, SHELL
+from ursabot.docker import pip, apt, apk, symlink, conda
+from ursabot.utils import read_dependency_list
+
 """
 There is a small docker utility in ursabot.docker module to define
 hierachical images. It uses a DSL implemented in python instead of plain
@@ -6,14 +13,6 @@ the DockerBuilder abstractions. The DockerBuilder can specify which
 DockerImage(s) it requires to run the build(s).
 For more see https://github.com/ursa-labs/ursabot#define-docker-images
 """
-
-from pathlib import Path
-
-from ursabot.docker import ImageCollection, DockerImage, worker_image_for
-from ursabot.docker import ENTRYPOINT, ADD, RUN, ENV, SHELL
-from ursabot.docker import pip, apt, apk, symlink, conda
-from ursabot.utils import read_dependency_list
-
 
 # configure shell and entrypoint to load .bashrc
 docker_assets = Path(__file__).parent.parent / 'docker'

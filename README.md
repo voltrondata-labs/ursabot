@@ -163,7 +163,7 @@ buildbot try \
 If someone wants to use this feature then please raise an issue, because it
 requires custom credentials.
 
-## Run a local instance of Ursabot
+## Install ursabot and the CLI
 
 Running it locally helps with the development and testing new feature and/or
 debugging issues without touching the production instance.
@@ -172,6 +172,59 @@ Installation requires at least Python 3.6:
 
 ```bash
 pip install -e ursabot
+```
+
+Now the `ursabot` command is available which looks for a `master.cfg` file in
+the current directory. `master.cfg` can be passed explicitly via the `--config`
+option:
+
+```bash
+$ ursabot -c path/to/master.cfg
+```
+
+Describe the loaded master configuration:
+
+```bash
+$ ursabot desc
+```
+
+Describe the loaded project configuration:
+
+```bash
+$ ursabot project desc  # for master configs with a single project
+$ ursabot project -p arrow desc  # for master configs with multiple projects
+```
+
+## How to validate the configurations
+
+The `checkconfig` command runs sanity checks and various validations on the
+master configuration. Most of the time is `checkconfig` passes then the master
+can be run successfully (unless there are some variables only available at
+runtime).
+
+```bash
+$ ursabot checkconfig
+```
+
+`ursabot` command loads `master.cfg` from the current directory by default, but
+`--config` argument can be passed to explicitly define a configuration file.
+
+```bash
+$ ursabot -c arrow/master.cfg checkconfig
+```
+
+## Run a local instance of Ursabot
+
+After installation master's database must be initialized:
+
+```bash
+$ ursabot -v upgrade-master
+```
+
+Start/stop/restart the master:
+
+```bash
+$ ursabot -v start|stop|restart
 ```
 
 Define the configuration environment (prod|test) and start the service:
@@ -183,6 +236,50 @@ $ tail -f ursabot/twisted.log
 ```
 
 Then open `http://localhost:8100` in the browser.
+
+## Commands for local reproducibility
+
+Builders can be run locally without the web interface using the
+`ursabot project build` command.
+
+Testing `AMD64 Conda C++` builder on master:
+
+```bash
+$ ursabot project build 'AMD64 Conda C++'
+```
+
+Testing `AMD64 Conda C++` builder with github pull request number 140:
+
+```bash
+$ ursabot project build -pr 140 'AMD64 Conda C++'
+```
+
+Testing `AMD64 Conda C++` with local repository:
+
+```bash
+$ ursabot project build -s ~/Workspace/arrow:. 'AMD64 Conda C++'
+```
+
+Where `~/Workspace/arrow` is the path of the local Arrow repository and `.`
+is the destination directory under the worker's build directory (in this case:
+`/buildbot/AMD64_Conda_C__/.`)
+
+Passing multiple buildbot properties for the build:
+
+```bash
+$ ursabot project build -p prop=value -p myprop=myvalue 'AMD64 Conda C++'
+```
+
+### Attach on failure
+
+Ursabot supports debugging failed builds with attach attaching ordinary shells
+to the still running workers - where the build has previously failed.
+
+Use the `--attach-on-failure` or `-a` flags.
+
+```bash
+$ ursabot project build --attach-on-failure `AMD64 Conda C++`
+```
 
 
 ## Configuring Ursabot
@@ -216,12 +313,15 @@ from ursabot.builders import Builder
 from ursabot.schedulers import AnyBranchScheduler
 
 
+repo = 'https://github.com/example/repo'
+
+
 class TestBuilder(Builder):
     tags = ['example-build', 'arbitrary-tag']
     steps = [
         GitHub(
             name='Clone the test repository',
-            repourl='https://github.com/example/repo'
+            repourl=repo,
             mode='full'
         ),
         ShellCommand(
@@ -249,12 +349,18 @@ scheduler = AnyBranchScheduler(
     builders=[simple_builder]
 )
 
-BuildmasterConfig = {
-    # ...
-    'workers': [local_worker],
-    'schedulers': [scheduler]
-    # ...
-}
+project = ProjectConfig([
+    name='example/repo',
+    repo='https://github.com/example/repo'
+    workers=[local_worker],
+    builders=[simple_builder],
+    schedulers=[scheduler]
+])
+
+master = MasterConfig(
+    title='TestConfig',
+    projects=[project]
+)
 ```
 
 The `DockerBuilder` provides more flexibility, faster builds and better worker
@@ -291,12 +397,7 @@ docker_worker = DockerLatentWorker(
     name='my-docker-worker'
     arch='amd64'
     password=None,
-    max_builds=2,
-    docker_host='unix://var/run/docker.sock',
-    # `docker_image` property is set by the DockerBuilder, but image can be
-    # passed explicitly and used in conjunction with a simple builder like the
-    #  TestBuilder from the previous example
-    image=util.Property('docker_image')
+    max_builds=2
 )
 
 # instantiates builders based on the available workers, the Builder's
@@ -310,12 +411,19 @@ scheduler = AnyBranchScheduler(
     builders=docker_builders
 )
 
-BuildmasterConfig = {
-    # ...
-    'workers': [docker_worker],
-    'schedulers': [scheduler]
-    # ...
-}
+project = ProjectConfig([
+    name='example/repo',
+    repo='https://github.com/example/repo'
+    images=[miniconda],
+    workers=[docker_worker],
+    builders=docker_builders,
+    schedulers=[scheduler]
+])
+
+master = MasterConfig(
+    title='TestConfig',
+    projects=[project]
+)
 ```
 
 
@@ -402,6 +510,16 @@ To list Arrow C++ `amd64` `conda` `cpp` images:
 ursabot --verbose docker --arch amd64 --variant conda --name cpp list
 ```
 
+Additional filtering:
+
+```bash
+$ ursabot docker --arch amd64 list
+$ ursabot docker --arch amd64 --variant conda list
+$ ursabot docker --arch amd64 --variant conda --name cpp list
+$ ursabot docker --arch amd64 --variant conda --name cpp --tag worker list
+$ ursabot docker --arch amd64 --variant conda --name cpp --os debian-9 list
+```
+
 To build and push Arrow C++ `amd64` `conda` `cpp` images:
 
 ```bash
@@ -415,42 +533,6 @@ ursabot --verbose \
   docker --docker-host tcp://arm-machine:2375 --arch arm64v8 --os alpine-3.9 \
   build --push
 ```
-
-
-### Adding a new dependency to the docker images
-
-Most of the dependency requirements are factored out to easily editable text
-files under the [docker](docker) directory.
-
-For plain (non-conda) docker images append the appropiate package to
-[pkgs-alpine.txt](docker/pkgs-alpine.txt) and
-[pkgs-ubuntu.txt](docker/pkgs-ubuntu.txt).
-
-For conda images add the newly introduced dependency either to
-[conda-linux.txt](docker/conda-linux.txt),
-[conda-cpp.txt](docker/conda-cpp.txt),
-[conda-python.txt](docker/conda-cpp.txt) or
-[conda-sphinx.txt](docker/conda-sphinx.txt)
-depending on which images should contain the new dependency.
-
-In order to add a new pip dependency to the python images edit
-[requirements.txt](docker/requirements.txt) or
-[requirements-test.txt](docker/requirements-test.txt).
-
-Then build and push the new images:
-
-```bash
-$ ursabot -v docker -dh tcp://amd64-host:2375 -a amd64 build -p
-$ ursabot -v docker -dh tcp://arm64-host:2375 -a arm64v8 build -p
-```
-
-### Adding new workers to the cluster
-
-Adding docker latent workers requires a worker entry in the configuration.
-Name, architecture and a docker host (accessable by the buildmaster) are
-required, see an example in [default.yaml](default.yaml).
-Adding non-docker workers are also possible, but must register them in the
-[master.cfg](master.cfg).
 
 ## Developing Ursabot
 
@@ -468,6 +550,15 @@ Install [pre-commit](https://pre-commit.com/) then to setup the git
 [hooks](.pre-commit-config.yaml) run `pre-commit install`.
 
 
+### Adding new workers to ci.ursalabs.org
+
+Adding docker latent workers requires a worker entry in the `workers.yaml` configuration.
+Name, architecture and a docker host (accessable by the buildmaster) are
+required, see an example in [workers.yaml](workers.yaml).
+Adding non-docker workers are also possible, but must register them in the
+[master.cfg](master.cfg).
+
+
 ## Possible further improvements
 
 
@@ -480,13 +571,10 @@ These have been discussed and would be valuable, but they are definitely
 
 More closely Ursabot related:
 
-- Project abstraction to reduce the complexity of [master.cfg](master.cfg)
 - Multi-master setup for scaling
 - Setup WAMP/Crossbar to restart the buildmaster without cancelling the running
   builds
 - Windows containers and workers (docker in virtualized nodes)
-- Enable CUDA docker runtime (builder is already added)
-- Crossbow poller to report back crossbow task statuses
 
 
 [arrow-repo]: https://github.com/apache/arrow

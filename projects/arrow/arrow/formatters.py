@@ -6,6 +6,7 @@ from tabulate import tabulate
 from ruamel.yaml import YAML
 from buildbot.util.logger import Logger
 from buildbot.process.results import SUCCESS
+from buildbot.process.properties import Properties
 
 from ursabot.formatters import MarkdownFormatter
 
@@ -35,7 +36,7 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
 
         return f'```diff\n{table}\n```'
 
-    def render_success(self, build, master):
+    async def render_success(self, build, master):
         # extract logs named as `result`
         results = {}
         for step, log_lines in self.extract_logs(build, logname='result'):
@@ -58,7 +59,6 @@ class BenchmarkCommentFormatter(MarkdownFormatter):
         return dict(status='has been succeeded', context=context)
 
 
-# 2a3e076a-0cff-409a-87ab-3f3adb390ea7
 class CrossbowCommentFormatter(MarkdownFormatter):
 
     _markdown_badge = '[![{title}]({badge})]({url})'
@@ -95,14 +95,12 @@ class CrossbowCommentFormatter(MarkdownFormatter):
         )
     }
 
-    def __init__(self, *args, crossbow_repo, azure_id=None, **kwargs):
-        # TODO(kszucs): format validation
+    def __init__(self, *args, crossbow_repo, **kwargs):
         self.crossbow_repo = crossbow_repo
-        self.azure_id = azure_id
         self.yaml_parser = YAML()
         super().__init__(*args, **kwargs)
 
-    def _render_message(self, yaml_lines):
+    def _render_message(self, yaml_lines, crossbow_repo):
         yaml_content = '\n'.join(yaml_lines)
         job = self.yaml_parser.load(yaml_content)
 
@@ -117,8 +115,8 @@ class CrossbowCommentFormatter(MarkdownFormatter):
             try:
                 template = self.badges[task['ci']]
                 badge = template.format(
-                    repo=self.crossbow_repo,
-                    repo_dotted=self.crossbow_repo.replace('/', '.'),
+                    repo=crossbow_repo,
+                    repo_dotted=crossbow_repo.replace('/', '.'),
                     branch=branch
                 )
             except KeyError:
@@ -126,22 +124,32 @@ class CrossbowCommentFormatter(MarkdownFormatter):
 
             msg += f'\n|{key}|{badge}|'
 
-        return msg.format(repo=self.crossbow_repo, branch=job['branch'])
+        return msg.format(repo=crossbow_repo, branch=job['branch'])
 
-    def render_success(self, build, master):
+    async def render_success(self, build, master):
         # extract logs named as `result`
         results = {}
         for step, log_lines in self.extract_logs(build, logname='result'):
             if step['results'] == SUCCESS:
                 results[step['stepid']] = (line for _, line in log_lines)
 
+        # render the crossbow repo, becuase it might be passed as a Property
+        props = Properties.fromDict(build['properties'])
+        props.master = master
+        crossbow_repo = await props.render(self.crossbow_repo)
+        if not isinstance(crossbow_repo, str):
+            raise ValueError('crossbow_repo argument must be a string')
+
         try:
             # decode yaml objects and render the results as a github links
             # pointing to the pushed crossbow branches
-            messages = toolz.valmap(self._render_message, results)
+            messages = [
+                self._render_message(yaml_lines, crossbow_repo=crossbow_repo)
+                for yaml_lines in results.values()
+            ]
         except Exception as e:
             log.error(e)
             raise
 
-        context = '\n\n'.join(messages.values())
+        context = '\n\n'.join(messages)
         return dict(status='has been succeeded', context=context)

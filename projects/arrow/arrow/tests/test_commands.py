@@ -34,7 +34,28 @@ def test_ursabot_commands(command, expected_props):
 ])
 def test_crossbow_commands(command, expected_args):
     props = ursabot(command)
-    expected = {'command': 'crossbow', 'crossbow_args': expected_args}
+    expected = {
+        'command': 'crossbow',
+        'crossbow_repo': 'https://github.com/ursa-labs/crossbow',
+        'crossbow_args': expected_args
+    }
+    assert props == expected
+
+
+@pytest.mark.parametrize(('command', 'expected_repo'), [
+    ('crossbow test -g docker', 'https://github.com/ursa-labs/crossbow'),
+    ('crossbow -r ursa-labs/crossbow test -g docker',
+     'https://github.com/ursa-labs/crossbow'),
+    ('crossbow -r kszucs/crossbow test -g docker',
+     'https://github.com/kszucs/crossbow'),
+])
+def test_crossbow_repo(command, expected_repo):
+    props = ursabot(command)
+    expected = {
+        'command': 'crossbow',
+        'crossbow_repo': expected_repo,
+        'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
+    }
     assert props == expected
 
 

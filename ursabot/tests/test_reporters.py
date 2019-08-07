@@ -22,6 +22,7 @@ from ursabot.reporters import (HttpStatusPush, ZulipStatusPush,
                                GitHubStatusPush, GitHubReviewPush,
                                GitHubCommentPush)
 from ursabot.formatters import Formatter
+from ursabot.builders import Builder
 from ursabot.utils import ensure_deferred
 from ursabot.tests.mocks import GithubClientService
 
@@ -84,8 +85,6 @@ class TestHttpStatusPush(HttpReporterTestCase):
         await reporter.setServiceParent(self.master)
         return reporter
 
-    # TODO(kszucs): have a test for builders argument
-
     async def check_report_on(self, whitelist, blacklist, expected):
         reporter = await self.setupReporter(report_on=whitelist,
                                             dont_report_on=blacklist)
@@ -100,6 +99,16 @@ class TestHttpStatusPush(HttpReporterTestCase):
             build = await self.setupBuildResults(Results.index(result),
                                                  complete=True)
             assert reporter.filterBuilds(build) is expected[result]
+
+    @ensure_deferred
+    async def test_builders_argument(self):
+        with pytest.raises(ConfigErrors):
+            HttpStatusPush(name='test', baseURL=self.BASEURL, builders=[1, 2])
+
+        HttpStatusPush(name='test', baseURL=self.BASEURL, builders=['a', 'b'])
+        HttpStatusPush(name='test', baseURL=self.BASEURL, builders=[
+            Builder(workers=['a'])
+        ])
 
     @ensure_deferred
     async def test_report_on_everything_by_default(self):
@@ -190,28 +199,28 @@ class DumbFormatter(Formatter):
 
     layout = '{message}'
 
-    def render_success(self, build, master):
+    async def render_success(self, build, master):
         return dict(message='success')
 
-    def render_warnings(self, build, master):
+    async def render_warnings(self, build, master):
         return dict(message='warnings')
 
-    def render_skipped(self, build, master):
+    async def render_skipped(self, build, master):
         return dict(message='skipped')
 
-    def render_exception(self, build, master):
+    async def render_exception(self, build, master):
         return dict(message='exception')
 
-    def render_cancelled(self, build, master):
+    async def render_cancelled(self, build, master):
         return dict(message='cancelled')
 
-    def render_failure(self, build, master):
+    async def render_failure(self, build, master):
         return dict(message='failure')
 
-    def render_retry(self, build, master):
+    async def render_retry(self, build, master):
         return dict(message='retry')
 
-    def render_started(self, build, master):
+    async def render_started(self, build, master):
         return dict(message='started')
 
 

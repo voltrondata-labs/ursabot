@@ -6,7 +6,8 @@
 
 import io
 import logging
-import toolz
+from fnmatch import fnmatch
+from functools import partial
 from pathlib import Path
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -267,8 +268,16 @@ def docker(obj, docker_host, docker_username, docker_password, **kwargs):
     if docker_username is not None:
         client.login(username=docker_username, password=docker_password)
 
-    filters = toolz.valfilter(lambda x: x is not None, kwargs)
-    images = config.images.filter(**filters)
+    def match(value, filter):
+        """Enable glob-style pattern matching on docker proerties"""
+        if isinstance(value, str):
+            return fnmatch(value, filter)
+        else:
+            return value == filter
+
+    images = config.images.filter(**{
+        k: partial(match, filter=f) for k, f in kwargs.items() if f is not None
+    })
 
     obj['client'] = client
     obj['images'] = images

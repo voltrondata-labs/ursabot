@@ -272,8 +272,7 @@ class CrossbowTrigger(DockerBuilder):
         ),
         GitHub(
             name='Clone Crossbow',
-            # TODO(kszucs): read it from the comment and set as a property
-            repourl='https://github.com/ursa-labs/crossbow',
+            repourl=util.Property('crossbow_repo'),
             workdir='crossbow',
             branch='master',
             mode='full',
