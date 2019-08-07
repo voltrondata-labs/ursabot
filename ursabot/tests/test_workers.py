@@ -27,6 +27,7 @@ from ursabot.workers import DockerLatentWorker
 class TestDockerLatentWorker(TestDockerLatentWorker):
 
     def setupWorker(self, *args, **kwargs):
+        docker.Client.close = lambda self: None
         self.patch(dockerworker, 'docker', docker)
         worker = DockerLatentWorker(*args, **kwargs)
         master = fakemaster.make_master(self, wantData=True)
