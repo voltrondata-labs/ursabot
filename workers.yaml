@@ -102,7 +102,7 @@ workers:
     arch: 'arm64v8'
     tags:
       - cuda
-    ncpus: 8
+    ncpus: 4
     max_builds: 1
     docker:
       host: 'tcp://ursa-jetson1:2375'

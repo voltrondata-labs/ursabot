@@ -115,6 +115,9 @@ class Collection(list):
     def groupby(self, *args):
         return toolz.groupby(operator.attrgetter(*args), self)
 
+    def unique(self):
+        return self.__class__(toolz.unique(self))
+
     def __add__(self, other):
         if isinstance(other, self.__class__):
             return self.__class__(super().__add__(other))
