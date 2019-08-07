@@ -1,5 +1,5 @@
 import os
-from unittest.mock import Mock
+from unittest.mock import patch
 
 import pytest
 from twisted.trial import unittest
@@ -12,7 +12,7 @@ from ursabot.utils import ensure_deferred
 from ursabot.configs import MasterConfig, ProjectConfig
 from ursabot.builders import DockerBuilder
 from ursabot.schedulers import AnyBranchScheduler
-from ursabot.workers import docker_workers_for
+from ursabot.workers import docker_workers_for, DockerLatentWorker
 from ursabot.docker import DockerImage, worker_images_for
 from ursabot.steps import ShellCommand
 
@@ -67,9 +67,6 @@ class TestMasterTestcase(TestReactorMixin, unittest.TestCase):
         self.timeout = 120
         images.build()
         self.setUpTestReactor()
-        # import mock
-        # stop = mock.create_autospec(self.reactor.stop)
-        # self.patch(self.reactor, 'stop', stop)
 
     @pytest.mark.docker
     @pytest.mark.integration
@@ -86,11 +83,11 @@ class TestMasterTestcase(TestReactorMixin, unittest.TestCase):
     @pytest.mark.integration
     @ensure_deferred
     async def test_attach_on_failure(self):
-        worker = workers[0]
-        worker.attach_interactive_shell = Mock()
-
         attach_on = {FAILURE, EXCEPTION}
-        async with _TestMaster(master, reactor=self.reactor,
-                               attach_on=attach_on) as m:
-            await m.build(failer.name, sourcestamp)
-            worker.attach_interactive_shell.assert_called_once()
+        method = 'attach_interactive_shell'
+
+        with patch.object(DockerLatentWorker, method) as method:
+            async with _TestMaster(master, reactor=self.reactor,
+                                   attach_on=attach_on) as m:
+                await m.build(failer.name, sourcestamp)
+            method.assert_called_once()

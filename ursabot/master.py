@@ -1,5 +1,6 @@
-from twisted.internet import defer
+import copy
 
+from twisted.internet import defer
 from zope.interface import implementer
 from buildbot import interfaces
 from buildbot.master import BuildMaster
@@ -10,17 +11,6 @@ from .configs import MasterConfig, collect_global_errors
 from .utils import ensure_deferred
 
 __all__ = ['TestMaster']
-
-# import logging
-# from twisted.python.log import PythonLoggingObserver
-
-# logging.basicConfig()
-# logger = logging.getLogger(__name__)
-# level = logging.getLevelName('DEBUG')
-# logger.setLevel(level)
-#
-# observer = PythonLoggingObserver(loggerName=logger.name)
-# observer.start()
 
 
 log = Logger()
@@ -42,7 +32,9 @@ class EagerLoader:
             self.config = config.as_testing(source)
 
     def loadConfig(self):
-        return self.config
+        # deepcopy the whole configuration unless multiple TestMaster cannot
+        # be used with the same configuration withing the same process
+        return copy.deepcopy(self.config)
 
 
 class TestMaster:

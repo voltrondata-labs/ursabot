@@ -6,7 +6,6 @@
 
 import io
 import logging
-import toolz
 from fnmatch import fnmatch
 from functools import partial
 from pathlib import Path
@@ -390,8 +389,8 @@ def _use_local_sources(builder, sources):
 def project_build(obj, builder_name, repo, branch, commit, pull_request,
                   properties, sources, attach_on_failure):
     # force twisted logger to use the cli module's python logger
-    # observer = PythonLoggingObserver(loggerName=logger.name)
-    # observer.start()
+    observer = PythonLoggingObserver(loggerName=logger.name)
+    observer.start()
 
     config, project = obj['config'], obj['project']
 
