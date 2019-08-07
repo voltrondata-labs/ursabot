@@ -28,13 +28,14 @@ class EagerLoader:
         twisted reactor (event loop).
         """
         assert isinstance(config, MasterConfig)
+        # deepcopy the whole configuration unless multiple TestMaster cannot
+        # be used with the same configuration withing the same process
+        config = copy.deepcopy(config)
         with collect_global_errors(and_raise=True):
             self.config = config.as_testing(source)
 
     def loadConfig(self):
-        # deepcopy the whole configuration unless multiple TestMaster cannot
-        # be used with the same configuration withing the same process
-        return copy.deepcopy(self.config)
+        return self.config
 
 
 class TestMaster:
