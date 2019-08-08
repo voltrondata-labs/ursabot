@@ -53,6 +53,13 @@ class UrsabotConfigErrors(click.ClickException):
                    'instance of MasterConfig')
 @click.pass_context
 def ursabot(ctx, verbose, config_path, config_variable):
+    """CLI for Ursabot continous integration framework based on Buildbot
+
+    `ursabot` command tries to locate the master.cfg file and it looks for a
+    MasterConfig instance in a variable called `master` by default. This
+    configuration affects the rest of the CLI commands.
+    """
+
     if verbose:
         logging.getLogger('ursabot').setLevel(logging.INFO)
 
@@ -89,7 +96,11 @@ def ursabot(ctx, verbose, config_path, config_variable):
                    'be selected.')
 @click.pass_obj
 def project(obj, project):
-    # retrieve the master's and the selected project's configurations
+    """Ursabot's project specific commands
+
+    Retrieves the selected project's configurations, the project's name must be
+    explicitly passed if the master is configured with multiple projects.
+    """
     try:
         obj['project'] = obj['config'].project(name=project)
     except Exception as e:
@@ -99,7 +110,7 @@ def project(obj, project):
 @ursabot.command('desc')
 @click.pass_obj
 def master_desc(obj):
-    """Describe master configuration"""
+    """Describe the master configuration"""
 
     def ul(values):
         return '\n'.join(f' - {v}' for v in values)
@@ -120,7 +131,7 @@ def master_desc(obj):
 @project.command('desc')
 @click.pass_obj
 def project_desc(obj):
-    """Describe project configuration"""
+    """Describe the project configuration"""
     def ul(values):
         return '\n'.join(f' - {v}' for v in values)
 
@@ -142,6 +153,10 @@ def project_desc(obj):
 @ursabot.command()
 @click.pass_obj
 def checkconfig(obj):
+    """Run sanity checks on the master configuration
+
+    It is a wrapper around `buildbot checkconfig`.
+    """
     config = obj['config']
     config_path = obj['config_path']
 
@@ -156,6 +171,10 @@ def checkconfig(obj):
 @ursabot.command()
 @click.pass_obj
 def upgrade_master(obj):
+    """Initialize/upgrade the buildmaster's database
+
+    It is a wrapper around `buildbot upgrade-master`.
+    """
     from buildbot.util import in_reactor
     from buildbot.scripts.upgrade_master import upgradeDatabase
 
@@ -186,6 +205,10 @@ def upgrade_master(obj):
                    'start until it declares the operation as failure')
 @click.pass_obj
 def start_master(obj, no_daemon, start_timeout):
+    """Start the buildmaster
+
+    It is a wrapper around `buildbot start`.
+    """
     from buildbot.scripts.start import start
 
     command_cfg = {
@@ -204,6 +227,10 @@ def start_master(obj, no_daemon, start_timeout):
               help="Don't wait for complete master shutdown")
 @click.pass_obj
 def stop_master(obj, clean, no_wait):
+    """Stop the buildmaster
+
+    It is a wrapper around `buildbot stop`.
+    """
     from buildbot.scripts.stop import stop
     command_cfg = {
         'basedir': obj['config_path'].parent.absolute(),
@@ -226,6 +253,10 @@ def stop_master(obj, clean, no_wait):
               help="Don't wait for complete master shutdown")
 @click.pass_obj
 def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
+    """Restart the buildmaster
+
+    It is a wrapper around `buildbot restart`.
+    """
     from buildbot.scripts.restart import restart
     command_cfg = {
         'basedir': obj['config_path'].parent.absolute(),
@@ -258,7 +289,9 @@ def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
 def docker(obj, docker_host, docker_username, docker_password, **kwargs):
     """Subcommand to build docker images for the docker builders
 
-    It loads the docker images defined
+    It loads the docker images defined in the master's configuration.
+    MasterConfig aggregates the available docker images from the passed
+    projects.
     """
     config = obj['config']
     if obj['verbose']:
@@ -286,7 +319,7 @@ def docker(obj, docker_host, docker_username, docker_password, **kwargs):
 @docker.command('list')
 @click.pass_obj
 def docker_list_images(obj):
-    """List the docker images"""
+    """List the defined docker images"""
     images = obj['images']
     for image in images:
         click.echo(image)
@@ -300,7 +333,7 @@ def docker_list_images(obj):
               help='Do not use cache when building the images')
 @click.pass_obj
 def docker_image_build(obj, push, no_cache):
-    """Build docker images"""
+    """Build and optionally push docker images"""
     client = obj['client']
     images = obj['images']
 
@@ -388,6 +421,12 @@ def _use_local_sources(builder, sources):
 @click.pass_obj
 def project_build(obj, builder_name, repo, branch, commit, pull_request,
                   properties, sources, attach_on_failure):
+    """Reproduce the builds locally
+
+    It spins up a a short living, lightweight buildmaster with an inmemory
+    sqlite database and triggers the specified builder. The build step logs
+    are redirected to the console.
+    """
     # force twisted logger to use the cli module's python logger
     observer = PythonLoggingObserver(loggerName=logger.name)
     observer.start()

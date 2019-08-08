@@ -163,27 +163,27 @@ class MasterConfig(Config):
 
     def _from_projects(self, key):
         values = (getattr(p, key) for p in self.projects)
-        return reduce(operator.add, values)
+        return reduce(operator.add, values).unique()
 
     @property
     def images(self):
-        return self._from_projects('images').unique()
+        return self._from_projects('images')
 
     @property
     def commands(self):
-        return self._from_projects('commands').unique()
+        return self._from_projects('commands')
 
     @property
     def workers(self):
-        return self._from_projects('workers').unique()
+        return self._from_projects('workers')
 
     @property
     def builders(self):
-        return self._from_projects('builders').unique()
+        return self._from_projects('builders')
 
     @property
     def pollers(self):
-        return self._from_projects('pollers').unique()
+        return self._from_projects('pollers')
 
     @property
     def schedulers(self):
@@ -191,7 +191,7 @@ class MasterConfig(Config):
 
     @property
     def reporters(self):
-        return self._from_projects('reporters').unique()
+        return self._from_projects('reporters')
 
     def as_testing(self, source):
         buildbot_config_dict = {
