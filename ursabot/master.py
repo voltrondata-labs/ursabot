@@ -127,6 +127,10 @@ class TestMaster:
 
     @ensure_deferred
     async def _on_log_append(self, key, log):
+        if log['type'] not in {'t', 's'}:
+            # we don't handle html logs on the console
+            return
+
         contents = await self._master.data.get(
             ('logs', log['logid'], 'contents')
         )

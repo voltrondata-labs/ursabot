@@ -51,6 +51,9 @@ class ChangeFilter(filter.ChangeFilter):
         else:
             return (value, None, None, name)
 
+    def __repr__(self):
+        return f'<ChangeFilter at {id(self)}>'
+
 
 GitPoller = changes.GitPoller
 
