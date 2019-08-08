@@ -131,7 +131,7 @@ triggers the force schedulers where you can specify a branch and/or commit to
 build. In the future specialized builders will have different fields to provide
 the neccessary information.
 
-# Locally running the buildmaster
+## Locally running the buildmaster
 
 The following commands are spinning up a long-running local buildmaster,
 including as web interface and all of the configured services (authentication,
