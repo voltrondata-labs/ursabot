@@ -50,11 +50,7 @@ interface, to see the available commands add a comment on the pull request:
 `@ursabot --help`.
 
 The @ursabot GitHub user will respond or [react][github-reactions] that it has
-started a build for you. Unfortunately, it does not currently report back
-on the build status. The reporters are already implemented. They will be
-enabled once the proper github integration permissions are set for the
-[apache/arrow][arrow-repo] repository. Until that you have to search around the
-[buildbot UI][ursabot-url] for it. The command parser is implemented in
+started a build for you. The command parser is implemented in
 [commands.py](commands.py).
 
 Currently available commands:
