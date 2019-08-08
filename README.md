@@ -10,90 +10,30 @@ license that can be found in the LICENSE_BSD file.
 
 # Ursa Labs' buildbot configuration for Apache Arrow
 
-Ursabot is a continous integration application based on the
+Ursabot is a continous integration framework based on the
 [buildbot][buildbot-docs] framework. The primary focus of ursabot is to
 execute various builds benchmark and packaging tasks for
-[Apache Arrow][arrow-url].
+[Apache Arrow][arrow-url] however `ursabot` can be used for arbitrary projects.
 
+## Notable features
 
-## Arrow's build system
-
-Arrow is used on a wide range of platforms, it has libraries in many languages,
-and these all have multiple build options and compiler flags. We want to ensure
-that patches don't break a build -- preferably before merging them -- and we
-want to ensure that we don't regress.
-While we use Travis-CI and Appveyor for some build testing, we can't test on
-all platforms there, and there is some inefficiency because it is difficult to
-express build stage dependencies and collect build artifacts (for example, of
-the C++ library for use in Python/R/etc.).
-
-Similarly, we want to prevent performance regressions and aim to prevent
-merging patches that degrade performance, and in order to do this, we need to
-run benchmarks. These benchmarks can't reliably be run on public CI
-infrastructure because they need dedicated, consistent hardware in order to
-return comparable results.
-
-To ensure the quality of the software we ship, and to facilitate Arrow
-developers and maintainers, we have a system of scripts and automation that
-perform key functions. This document outlines the goals of our build and
-automation system and describes how to work with it, as it is currently
-implemented.
-
-### Goals
-
-- Prevent "breaking the build". For a given patch, run all tests and
-  integrations, with all relevant build configurations and on all necessary
-  platforms, that might be affected by the patch.
-- Prevent performance regressions
-- Ensure that the release process, including building binaries, also does not
-  break
-- For the strongest prevention, and to reduce human cognitive burden, these
-  checks should be as automated as possible.
-- For faster iteration while developing and debugging, it should also be
-  possible to run these checks locally
-
-### Constraints
-
-- CI time: running every build configuration on every commit would increase
-  delays in the patch review process.
-- CI compute resources: our Travis-CI bandwidth is limited, as would be any
-  bespoke build cluster we maintain. Some of this can be relaxed by throwing
-  money at it, but there are diminishing returns (and budget constraints).
-- Dev time: whatever we invest of ourselves in building this system takes away
-  from time we’d spend adding value to the Arrow project itself. To the extent
-  that investing in this system saves developer time elsewhere, it is
-  worthwhile.
-
-
-## Implementation
-
-Currently We have a three-tiered system.
-
-- Use Travis-CI and Appveyor for a set of language/build configurations that
-  run on every commit and pull request on GitHub. The configuration files are
-  maintained in the [arrow][arrow-repo] repository.
-- [Crossbow][crossbow-readme] for binary
-  packaging and nightly tests. Crossbow provides a command line interface to
-  programatically trigger Travis and Appveyor builds by creating git branches
-  in [ursalabs/crossbow][crossbow-repo] repository.
-  It is maintained within [arrow][arrow-repo], for more see its
-  [guide][crossbow-readme].
-- [Ursabot][ursabot-repo] implemented on top of [buildbot][buildbot-docs] CI
-  framework, hosted at [ci.ursalabs.org][ursabot-url] on Ursalabs' servers.
-  It provides:
-
-    - A set of builds testing the C++ implementation and Python bindings on
-      multiple operating systems and architectures (most of these are executed
-      automatically on each commit and pull request).
-    - On-demand builds requested by commenting on a pull request.
-    - On-demand benchmarks requested by commenting on a pull request, the
-      benchmark results are reported as github comments. The recently developed
-      [Archery][archery-readme] command-line tool is responsible for running
-      and comparing the benchmarks.
-    - Special builds for triggering other systems' builds, like
-      [crossbow][crossbow-readme]'s packaging tasks by commenting on a pull
-      request.
-
+- a standalone project abstraction to make the project configurations module
+  and reusable, and a less verbose master configuration supporting multiple
+  projects
+- locally reproducible builds via command line interface
+- attachable interactive shells to the docker workers in case of build failures
+- local source mounting for docker workers
+- declerative builder configuration and a docker builder which makes it easier
+  to work with docker latent workers
+- extended github hook to drive buildbot via github comments
+- click based comment parser
+- improved change filter to filter changes based on build properties
+- reimplemented github reporters: status-, comment- and review reporters
+- easily extensible formatter classes to use with the reimplemented reporters
+- steps implemented based on new-style ShellCommand step
+- a token rotator to use multiple github tokens with github services
+- a docker image tool to maintain and build hierachical docker images
+- command line interface and additional utilities
 
 ## Driving Ursabot
 
@@ -281,7 +221,6 @@ Use the `--attach-on-failure` or `-a` flags.
 $ ursabot project build --attach-on-failure `AMD64 Conda C++`
 ```
 
-
 ## Configuring Ursabot
 
 The buildmaster configuration happens in the `master.cfg` files. Originally
@@ -425,7 +364,6 @@ master = MasterConfig(
     projects=[project]
 )
 ```
-
 
 ## Define docker images
 
