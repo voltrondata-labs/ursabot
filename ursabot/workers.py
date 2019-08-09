@@ -117,6 +117,11 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
         client = self._getDockerClient()
         try:
             yield client
+        except Exception as e:
+            url = self.client_args['base_url']
+            exc = RuntimeError(f'Worker {self} cannot connect to the docker '
+                               f'daemon on host {url}')
+            raise exc from e
         finally:
             client.close()
 

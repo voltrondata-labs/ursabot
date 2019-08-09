@@ -17,16 +17,24 @@
 
 import re
 
-from buildbot.test.fake.change import Change
+from buildbot.test.fake.change import Change as FakeChange
 from buildbot.test.unit import test_changes_filter as original
 
 from ursabot.changes import ChangeFilter
+from ursabot.utils import any_matching, any_of
+
+
+class Change(FakeChange):
+    files = []
 
 
 class TestChangeFilter(original.ChangeFilter):
 
-    def setfilter(self, **kwargs):
-        self.filt = ChangeFilter(**kwargs)
+    def setfilter(self, filter=None, **kwargs):
+        if filter is None:
+            self.filt = ChangeFilter(**kwargs)
+        else:
+            self.filt = filter
 
     def test_filter_change_filter_fn(self):
         self.setfilter(fn=lambda ch: ch.x > 3)
@@ -100,4 +108,109 @@ class TestChangeFilter(original.ChangeFilter):
                 'non matching property')
         self.no(Change(properties={}),
                 'no property')
+        self.check()
+
+    def test_filter_files(self):
+        rust_change = Change(files=[
+            'rust/src/something.rs'
+        ])
+        java_change = Change(files=[
+            'java/vector/src/main/Something.java'
+            'java/vector/src/test/TestSomething.java'
+        ])
+        cpp_change = Change(files=[
+            'cpp/src/something.cc'
+            'cpp/src/something.h'
+        ])
+        python_change = Change(files=[
+            'python/module.py',
+            'python/tests/module.py'
+        ])
+
+        self.setfilter(files=any_matching('rust/*'))
+        self.yes(rust_change, 'rust change matches rust pattern')
+        self.no(java_change, 'java change not matches rust pattern')
+        self.no(cpp_change, 'cpp change not matches rust pattern')
+        self.no(python_change, 'python change not matches rust pattern')
+        self.check()
+
+        self.setfilter(files=any_matching('cpp/*'))
+        self.no(rust_change, 'rust change not matches cpp pattern')
+        self.no(java_change, 'java change not matches cpp pattern')
+        self.yes(cpp_change, 'cpp change matches cpp pattern')
+        self.no(python_change, 'python change not matches rust pattern')
+        self.check()
+
+        self.setfilter(files=any_matching('cpp/*') | any_matching('python/*'))
+        self.no(rust_change, 'rust change not matches python pattern')
+        self.no(java_change, 'java change not matches python pattern')
+        self.yes(cpp_change, 'cpp change matches python pattern')
+        self.yes(python_change, 'python change matches python pattern')
+        self.check()
+
+        self.setfilter(files=(
+            any_matching('cpp/*') |
+            any_matching('python/*') |
+            any_matching('java/*') |
+            any_matching('rust/*')
+        ))
+        self.yes(rust_change, 'rust change matches integration pattern')
+        self.yes(java_change, 'java change matches integration pattern')
+        self.yes(cpp_change, 'cpp change matches integration pattern')
+        self.yes(python_change, 'python change matches integration pattern')
+        self.check()
+
+    def test_filter_or_combining(self):
+        filter_a = ChangeFilter(
+            project='a',
+            category=any_of(None, 'tag', 'pull'),
+        )
+        filter_b = ChangeFilter(
+            project='b',
+            category='pull',
+        )
+        either = filter_a | filter_b
+
+        self.setfilter(either)
+        self.yes(Change(project='a', category='tag'), 'on tag of project a')
+        self.yes(Change(project='b', category='pull'), 'on pull of project b')
+        self.no(Change(project='b', category='tag'),
+                'not on tag of project b')
+        self.no(Change(project='a', category='comment'),
+                'not on comment of project a')
+        self.check()
+
+    def test_filter_and_combining(self):
+        filter_a = ChangeFilter(
+            project='a',
+            category=any_of(None, 'tag', 'pull'),
+        )
+        filter_b = ChangeFilter(
+            files=any_matching('cpp/*')
+        )
+        both = filter_a & filter_b
+
+        self.setfilter(both)
+        self.yes(
+            Change(project='a', category='tag', files=['cpp/test.cc']),
+            'on tag of project a with cc file'
+        )
+        self.yes(
+            Change(project='a', category='tag', files=[
+                'python/setup.py',
+                'cpp/test.cc'
+            ]),
+            'on tag of project a with both cc and python files'
+        )
+        self.no(
+            Change(project='a', category='tag', files=[
+                'rust/test.rs',
+                'java/test.java'
+            ]),
+            'not on tag of project a with non matching file'
+        )
+        self.no(
+            Change(project='a', category='tag', files=[]),
+            'on tag of project a without files'
+        )
         self.check()

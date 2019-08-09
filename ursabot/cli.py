@@ -6,8 +6,6 @@
 
 import io
 import logging
-from fnmatch import fnmatch
-from functools import partial
 from pathlib import Path
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -23,7 +21,7 @@ from twisted.python.log import PythonLoggingObserver
 
 from .builders import DockerBuilder
 from .configs import Config, MasterConfig
-from .utils import ensure_deferred
+from .utils import ensure_deferred, matching
 from .master import TestMaster
 
 
@@ -247,7 +245,7 @@ def stop_master(obj, clean, no_wait):
 @click.option('--start-timeout', is_flag=True, default=None,
               help='The amount of time the script waits for the master to '
                    'start until it declares the operation as failure')
-@click.option('--clean', '-c', is_flag=True, default=True,
+@click.option('--clean', '-c', is_flag=True, default=False,
               help='Clean shutdown master')
 @click.option('--no-wait', is_flag=True, default=False,
               help="Don't wait for complete master shutdown")
@@ -301,16 +299,9 @@ def docker(obj, docker_host, docker_username, docker_password, **kwargs):
     if docker_username is not None:
         client.login(username=docker_username, password=docker_password)
 
-    def match(value, filter):
-        """Enable glob-style pattern matching on docker proerties"""
-        if isinstance(value, str):
-            return fnmatch(value, filter)
-        else:
-            return value == filter
-
-    images = config.images.filter(**{
-        k: partial(match, filter=f) for k, f in kwargs.items() if f is not None
-    })
+    filters = {k: matching(pattern) for k, pattern in kwargs.items()
+               if pattern is not None}
+    images = config.images.filter(**filters)
 
     obj['client'] = client
     obj['images'] = images

@@ -5,6 +5,7 @@
 # license that can be found in the LICENSE_BSD file.
 
 import pathlib
+import fnmatch
 import itertools
 import functools
 import operator
@@ -45,15 +46,7 @@ def read_dependency_list(path):
     return [l for l in lines if not l.startswith('#')]
 
 
-class Filter:
-
-    __slot__ = ('fn',)
-
-    def __init__(self, fn):
-        self.fn = fn
-
-    def __call__(self, *args, **kwargs):
-        return self.fn(*args, **kwargs)
+class Combinable:
 
     @classmethod
     def _binop(cls, fn, other):
@@ -73,6 +66,17 @@ class Filter:
         return self._binop(_and, other)
 
 
+class Filter(Combinable):
+
+    __slot__ = ('fn',)
+
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __call__(self, *args, **kwargs):
+        return self.fn(*args, **kwargs)
+
+
 def startswith(prefix):
     return Filter(lambda value: value.startswith(prefix))
 
@@ -83,6 +87,14 @@ def any_of(*values):
 
 def has(*needles):
     return Filter(lambda haystack: set(needles).issubset(set(haystack)))
+
+
+def matching(glob_pattern):
+    return Filter(lambda value: fnmatch.fnmatch(value, glob_pattern))
+
+
+def any_matching(glob_pattern):
+    return Filter(lambda values: bool(fnmatch.filter(values, glob_pattern)))
 
 
 class Collection(list):

@@ -9,15 +9,17 @@ from buildbot.util import NotABranch
 from buildbot.plugins import changes
 from buildbot.changes import filter
 
+from .utils import Combinable
+
 __all__ = ['ChangeFilter', 'GitPoller', 'GitHubPullrequestPoller']
 
 
-class ChangeFilter(filter.ChangeFilter):
+class ChangeFilter(filter.ChangeFilter, Combinable):
     """Extended with ability to filter on properties"""
 
     def __init__(self, fn=None, branch=NotABranch, project=None,
                  repository=None, category=None, codebase=None,
-                 properties=None):
+                 files=None, properties=None):
         if fn is not None and not callable(fn):
             raise ValueError('ChangeFilter.fn must be callable')
 
@@ -32,7 +34,8 @@ class ChangeFilter(filter.ChangeFilter):
             self._create_check_tuple('project', project),
             self._create_check_tuple('repository', repository),
             self._create_check_tuple('category', category),
-            self._create_check_tuple('codebase', codebase)
+            self._create_check_tuple('codebase', codebase),
+            self._create_check_tuple('files', files)
         ]
 
         # create check tuples for the properties argument
@@ -43,7 +46,7 @@ class ChangeFilter(filter.ChangeFilter):
         self.checks = self.createChecks(*check_tuples)
 
     def _create_check_tuple(self, name, value, default=None):
-        # sample: (project, project_re, project_fn, "project"),
+        # example: (project, project_re, project_fn, "project"),
         if callable(value):
             return (default, None, value, name)
         elif hasattr(value, 'match'):
@@ -53,6 +56,9 @@ class ChangeFilter(filter.ChangeFilter):
 
     def __repr__(self):
         return f'<ChangeFilter at {id(self)}>'
+
+    def __call__(self, change):
+        return self.filter_change(change)
 
 
 GitPoller = changes.GitPoller
