@@ -46,15 +46,7 @@ def read_dependency_list(path):
     return [l for l in lines if not l.startswith('#')]
 
 
-class Filter:
-
-    __slot__ = ('fn',)
-
-    def __init__(self, fn):
-        self.fn = fn
-
-    def __call__(self, *args, **kwargs):
-        return self.fn(*args, **kwargs)
+class Combinable:
 
     @classmethod
     def _binop(cls, fn, other):
@@ -72,6 +64,17 @@ class Filter:
         def _and(*args, **kwargs):
             return self(*args, **kwargs) and other(*args, **kwargs)
         return self._binop(_and, other)
+
+
+class Filter(Combinable):
+
+    __slot__ = ('fn',)
+
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __call__(self, *args, **kwargs):
+        return self.fn(*args, **kwargs)
 
 
 def startswith(prefix):

@@ -9,10 +9,12 @@ from buildbot.util import NotABranch
 from buildbot.plugins import changes
 from buildbot.changes import filter
 
+from .utils import Combinable
+
 __all__ = ['ChangeFilter', 'GitPoller', 'GitHubPullrequestPoller']
 
 
-class ChangeFilter(filter.ChangeFilter):
+class ChangeFilter(filter.ChangeFilter, Combinable):
     """Extended with ability to filter on properties"""
 
     def __init__(self, fn=None, branch=NotABranch, project=None,
@@ -54,6 +56,9 @@ class ChangeFilter(filter.ChangeFilter):
 
     def __repr__(self):
         return f'<ChangeFilter at {id(self)}>'
+
+    def __call__(self, change):
+        return self.filter_change(change)
 
 
 GitPoller = changes.GitPoller
