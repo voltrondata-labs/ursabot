@@ -17,10 +17,15 @@
 
 import re
 
-from buildbot.test.fake.change import Change
+from buildbot.test.fake.change import Change as FakeChange
 from buildbot.test.unit import test_changes_filter as original
 
 from ursabot.changes import ChangeFilter
+from ursabot.utils import any_matching, any_of
+
+
+class Change(FakeChange):
+    files = []
 
 
 class TestChangeFilter(original.ChangeFilter):
@@ -100,4 +105,54 @@ class TestChangeFilter(original.ChangeFilter):
                 'non matching property')
         self.no(Change(properties={}),
                 'no property')
+        self.check()
+
+    def test_filter_files(self):
+        rust_change = Change(files=[
+            'rust/src/something.rs'
+        ])
+        java_change = Change(files=[
+            'java/vector/src/main/Something.java'
+            'java/vector/src/test/TestSomething.java'
+        ])
+        cpp_change = Change(files=[
+            'cpp/src/something.cc'
+            'cpp/src/something.h'
+        ])
+        python_change = Change(files=[
+            'python/module.py',
+            'python/tests/module.py'
+        ])
+
+        self.setfilter(files=any_matching('rust/*'))
+        self.yes(rust_change, 'rust change matches rust pattern')
+        self.no(java_change, 'java change not matches rust pattern')
+        self.no(cpp_change, 'cpp change not matches rust pattern')
+        self.no(python_change, 'python change not matches rust pattern')
+        self.check()
+
+        self.setfilter(files=any_matching('cpp/*'))
+        self.no(rust_change, 'rust change not matches cpp pattern')
+        self.no(java_change, 'java change not matches cpp pattern')
+        self.yes(cpp_change, 'cpp change matches cpp pattern')
+        self.no(python_change, 'python change not matches rust pattern')
+        self.check()
+
+        self.setfilter(files=any_matching('cpp/*') | any_matching('python/*'))
+        self.no(rust_change, 'rust change not matches python pattern')
+        self.no(java_change, 'java change not matches python pattern')
+        self.yes(cpp_change, 'cpp change matches python pattern')
+        self.yes(python_change, 'python change matches python pattern')
+        self.check()
+
+        self.setfilter(files=(
+            any_matching('cpp/*') |
+            any_matching('python/*') |
+            any_matching('java/*') |
+            any_matching('rust/*')
+        ))
+        self.yes(rust_change, 'rust change matches integration pattern')
+        self.yes(java_change, 'java change matches integration pattern')
+        self.yes(cpp_change, 'cpp change matches integration pattern')
+        self.yes(python_change, 'python change matches integration pattern')
         self.check()

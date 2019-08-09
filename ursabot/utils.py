@@ -5,6 +5,7 @@
 # license that can be found in the LICENSE_BSD file.
 
 import pathlib
+import fnmatch
 import itertools
 import functools
 import operator
@@ -83,6 +84,14 @@ def any_of(*values):
 
 def has(*needles):
     return Filter(lambda haystack: set(needles).issubset(set(haystack)))
+
+
+def matching(glob_pattern):
+    return Filter(lambda value: fnmatch.fnmatch(value, glob_pattern))
+
+
+def any_matching(glob_pattern):
+    return Filter(lambda values: bool(fnmatch.filter(values, glob_pattern)))
 
 
 class Collection(list):
