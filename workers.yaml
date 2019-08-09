@@ -109,13 +109,13 @@ workers:
         network_mode: 'host'
         cpuset_cpus: '16-19,36-39'
 
-  - name: 'jetson1'
-    arch: 'arm64v8'
-    tags:
-      - cuda
-    ncpus: 4
-    max_builds: 1
-    docker:
-      host: 'tcp://ursa-jetson1:2375'
-      hostconfig:
-        network_mode: 'host'
+  # - name: 'jetson1'
+  #   arch: 'arm64v8'
+  #   tags:
+  #     - cuda
+  #   ncpus: 4
+  #   max_builds: 1
+  #   docker:
+  #     host: 'tcp://ursa-jetson1:2375'
+  #     hostconfig:
+  #       network_mode: 'host'
