@@ -245,7 +245,7 @@ def stop_master(obj, clean, no_wait):
 @click.option('--start-timeout', is_flag=True, default=None,
               help='The amount of time the script waits for the master to '
                    'start until it declares the operation as failure')
-@click.option('--clean', '-c', is_flag=True, default=True,
+@click.option('--clean', '-c', is_flag=True, default=False,
               help='Clean shutdown master')
 @click.option('--no-wait', is_flag=True, default=False,
               help="Don't wait for complete master shutdown")
