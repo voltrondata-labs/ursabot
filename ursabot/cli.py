@@ -219,7 +219,7 @@ def start_master(obj, no_daemon, start_timeout):
 
 
 @ursabot.command('stop')
-@click.option('--clean', '-c', is_flag=True, default=True,
+@click.option('--clean', '-c', is_flag=True, default=False,
               help='Clean shutdown master')
 @click.option('--no-wait', is_flag=True, default=False,
               help="Don't wait for complete master shutdown")
