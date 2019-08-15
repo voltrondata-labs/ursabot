@@ -18,7 +18,94 @@ from twisted.trial import unittest
 from buildbot.util import httpclientservice
 from buildbot.util import service
 
-from ursabot.utils import GithubClientService, ensure_deferred
+from ursabot.utils import (GithubClientService, Collection, LazyObject,
+                           ensure_deferred, startswith)
+
+
+def test_collection():
+    Item = namedtuple('Item', ('name', 'id'))
+    items = Collection([
+        Item(name='tset', id=1),
+        Item(name='test', id=2),
+        Item(name='else', id=3),
+        Item(name='test', id=4),
+        Item(name='test', id=4)
+    ])
+    items2 = Collection([
+        Item(name='test1', id=5),
+        Item(name='test2', id=6)
+    ])
+
+    assert items.filter(id=1) == Collection([
+        Item(name='tset', id=1)
+    ])
+    assert items.filter(name='test', id=2) == Collection([
+        Item(name='test', id=2)
+    ])
+    assert items.filter(name=startswith('t')) == Collection([
+        Item(name='tset', id=1),
+        Item(name='test', id=2),
+        Item(name='test', id=4),
+        Item(name='test', id=4)
+    ])
+    assert items.filter(name=startswith('t')).unique() == Collection([
+        Item(name='tset', id=1),
+        Item(name='test', id=2),
+        Item(name='test', id=4)
+    ])
+    assert (items + items2) == Collection([
+        Item(name='tset', id=1),
+        Item(name='test', id=2),
+        Item(name='else', id=3),
+        Item(name='test', id=4),
+        Item(name='test', id=4),
+        Item(name='test1', id=5),
+        Item(name='test2', id=6)
+    ])
+    assert items.filter(name=startswith('t')).groupby('name') == {
+        'tset': [
+            Item(name='tset', id=1)
+        ],
+        'test': [
+            Item(name='test', id=2),
+            Item(name='test', id=4),
+            Item(name='test', id=4)
+        ]
+    }
+
+
+# def test_lazy_collection():
+#     Item = namedtuple('Item', ('name', 'id'))
+#     items = Collection([
+#         Item(name='tset', id=1),
+#         Item(name='test', id=2),
+#         Item(name='else', id=3),
+#         Item(name='test', id=4),
+#         Item(name='test', id=4)
+#     ])
+#
+#     lazy = LazyObject(Collection)
+#     plan = lazy.filter(name='test').unique()
+#     plan2 = lazy.filter(name=startswith('t')).groupby('id')
+#     result = plan.execute(items)
+#     result2 = plan2.execute(items)
+#
+#     assert result == Collection([
+#         Item(name='test', id=2),
+#         Item(name='test', id=4)
+#     ])
+#     assert result2 == {
+#         1: [
+#             Item(name='tset', id=1)
+#         ],
+#         2: [
+#             Item(name='test', id=2)
+#         ],
+#         4: [
+#             Item(name='test', id=4),
+#             Item(name='test', id=4)
+#         ]
+#     }
 
 
 Request = namedtuple('Request', ['method', 'url', 'params', 'headers', 'data'])

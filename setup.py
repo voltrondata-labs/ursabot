@@ -29,6 +29,7 @@ setup(
         'buildbot-www',
         'buildbot',
         'click',
+        'distro',
         'docker-map',
         'docker',
         'dockerpty',

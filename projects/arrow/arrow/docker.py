@@ -3,7 +3,7 @@ from pathlib import Path
 from ursabot.docker import ImageCollection, DockerImage, worker_image_for
 from ursabot.docker import ENTRYPOINT, ADD, RUN, ENV, SHELL
 from ursabot.docker import pip, apt, apk, symlink, conda
-from ursabot.utils import read_dependency_list
+from ursabot.utils import Platform, read_dependency_list
 
 """
 There is a small docker utility in ursabot.docker module to define
@@ -40,11 +40,15 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
 
         cpp = DockerImage(
             name='cpp',
-            base=f'{arch}/ubuntu:{ubuntu_version}',
-            arch=arch,
-            os=f'ubuntu-{ubuntu_version}',
-            org='ursalab',
             title=f'{basetitle} C++',
+            base=f'{arch}/ubuntu:{ubuntu_version}',
+            org='ursalab',
+            platform=Platform(
+                arch=arch,
+                system='linux',
+                distro='ubuntu',
+                version=ubuntu_version
+            ),
             steps=[
                 RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
@@ -85,11 +89,15 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
 
         cpp = DockerImage(
             name='cpp',
-            base=f'{arch}/alpine:{alpine_version}',
-            arch=arch,
-            os=f'alpine-{alpine_version}',
             title=f'{basetitle} C++',
             org='ursalab',
+            base=f'{arch}/alpine:{alpine_version}',
+            platform=Platform(
+                arch=arch,
+                system='linux',
+                distro='alpine',
+                version=alpine_version
+            ),
             steps=[
                 RUN(apk(*alpine_pkgs, 'ccache', 'python3-dev', 'py3-pip')),
                 RUN(symlink(python_symlinks))
@@ -110,12 +118,16 @@ for arch in ['amd64']:
 
     base = DockerImage(
         name=f'base',
-        base=f'{arch}/ubuntu:18.04',
-        arch=arch,
-        os='ubuntu-18.04',
-        variant='conda',
-        org='ursalab',
         title=basetitle,
+        org='ursalab',
+        base=f'{arch}/ubuntu:18.04',
+        platform=Platform(
+            arch=arch,
+            system='linux',
+            distro='ubuntu',
+            version='18.04'
+        ),
+        variant='conda',
         steps=[
             RUN(apt('wget')),
             # install miniconda
@@ -191,14 +203,16 @@ for arch in ['amd64']:
 
         cpp = DockerImage(
             name='cpp',
-            base=f'nvidia/cuda:{toolkit_version}-devel-ubuntu18.04',
-            arch=arch,
-            os=f'ubuntu-18.04',
-            org='ursalab',
-            variant='cuda',
-            # used to run containers with `docker run --runtime=nvidia`
-            runtime='nvidia',
             title=f'{basetitle} C++',
+            org='ursalab',
+            base=f'nvidia/cuda:{toolkit_version}-devel-ubuntu18.04',
+            platform=Platform(
+                arch=arch,
+                system='linux',
+                distro='ubuntu',
+                version='18.04'
+            ),
+            variant='cuda',
             steps=[
                 RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
@@ -219,11 +233,15 @@ for arch in ['amd64']:
     for java_version in ['8', '11']:
         java = DockerImage(
             name=f'java-{java_version}',
-            base=f'{arch}/maven:{maven_version}-jdk-{java_version}',
-            arch=arch,
-            os=f'debian-9',
-            org='ursalab',
             title=f'{arch.upper()} Java OpenJDK {java_version}',
+            org='ursalab',
+            base=f'{arch}/maven:{maven_version}-jdk-{java_version}',
+            platform=Platform(
+                arch=arch,
+                system='linux',
+                distro='debian',
+                version='9'
+            ),
             steps=[
                 RUN(apt('python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
@@ -236,11 +254,15 @@ for arch in ['amd64']:
     for nodejs_version in ['11']:
         js = DockerImage(
             name=f'js-{nodejs_version}',
-            base=f'{arch}/node:{nodejs_version}-stretch',
-            arch=arch,
-            os=f'debian-9',
-            org='ursalab',
             title=f'{arch.upper()} Debian 9 NodeJS {nodejs_version}',
+            org='ursalab',
+            base=f'{arch}/node:{nodejs_version}-stretch',
+            platform=Platform(
+                arch=arch,
+                system='linux',
+                distro='debian',
+                version='9'
+            ),
             steps=[
                 RUN(apt('python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
@@ -253,11 +275,15 @@ for arch in ['amd64']:
     for go_version in ['1.12.6', '1.11.11']:
         go = DockerImage(
             name=f'go-{go_version}',
-            base=f'{arch}/golang:{go_version}-stretch',
-            arch=arch,
-            os=f'debian-9',
-            org='ursalab',
             title=f'{arch.upper()} Debian 9 Go {go_version}',
+            org='ursalab',
+            base=f'{arch}/golang:{go_version}-stretch',
+            platform=Platform(
+                arch=arch,
+                system='linux',
+                distro='debian',
+                version='9'
+            ),
             steps=[
                 RUN(apt('python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
@@ -270,11 +296,15 @@ for arch in ['amd64']:
     for rust_version in ['1.35']:
         rust = DockerImage(
             name=f'rust-{rust_version}',
-            base=f'{arch}/rust:{rust_version}-stretch',
-            arch=arch,
-            os=f'debian-9',
-            org='ursalab',
             title=f'{arch.upper()} Debian 9 Rust {rust_version}',
+            org='ursalab',
+            base=f'{arch}/rust:{rust_version}-stretch',
+            platform=Platform(
+                arch=arch,
+                system='linux',
+                distro='debian',
+                version='9'
+            ),
             steps=[
                 RUN(apt('python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))

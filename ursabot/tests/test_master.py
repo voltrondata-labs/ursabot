@@ -8,11 +8,11 @@ from buildbot.process.results import FAILURE, EXCEPTION
 
 from dotenv import load_dotenv
 from ursabot.master import TestMaster as _TestMaster
-from ursabot.utils import ensure_deferred
+from ursabot.utils import ensure_deferred, Platform
 from ursabot.configs import MasterConfig, ProjectConfig
 from ursabot.builders import DockerBuilder
 from ursabot.schedulers import AnyBranchScheduler
-from ursabot.workers import docker_workers_for, DockerLatentWorker
+from ursabot.workers import DockerLatentWorker
 from ursabot.docker import DockerImage, worker_images_for
 from ursabot.steps import ShellCommand
 
@@ -24,13 +24,18 @@ load_dotenv()
 name = 'test'
 repo = 'https://github.com/ursa-labs/ursabot'
 
-images = worker_images_for([
-    DockerImage('test', base='python:3.7', os='debian-9', arch='amd64')
-])
-workers = docker_workers_for(
-    archs=['amd64'],
-    masterFQDN=os.getenv('MASTER_FQDN')
+image = DockerImage(
+    name='test',
+    base='python:3.7',
+    platform=Platform(distro='debian', version='9', arch='amd64')
 )
+
+images = worker_images_for([image])
+workers = []
+# workers = docker_workers_for(
+#     archs=['amd64'],
+#     masterFQDN=os.getenv('MASTER_FQDN')
+# )
 echoer = DockerBuilder('echoer', image=images[0], workers=workers, steps=[
     ShellCommand(command='echo 1337', as_shell=True)
 ])

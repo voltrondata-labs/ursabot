@@ -21,6 +21,7 @@ from buildbot.process.results import (Results, CANCELLED, EXCEPTION, FAILURE,
                                       RETRY, SKIPPED, SUCCESS, WARNINGS)
 
 from .utils import ensure_deferred, HTTPClientService, GithubClientService
+from .builders import Builder
 from .formatters import Formatter, MarkdownFormatter
 
 __all__ = [
@@ -52,7 +53,7 @@ class HttpStatusPush(HttpStatusPushBase):
         else:
             builder_names = []
             for b in builders:
-                if isinstance(b, config.BuilderConfig):
+                if isinstance(b, Builder):
                     builder_names.append(b.name)
                 elif isinstance(b, str):
                     builder_names.append(b)

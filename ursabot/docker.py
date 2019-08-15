@@ -18,7 +18,7 @@ from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 from dockermap.build.dockerfile import format_command
 
-from .utils import Collection
+from .utils import Collection, Platform
 
 __all__ = [
     'DockerFile',
@@ -79,15 +79,8 @@ class DockerImage:
         Docker organization the image should belong to.
     tag : str, default 'latest'
         Docker tag for the image.
-    arch : 'amd64' or 'arm64v8', default None
-        Docker architecture of the image. Currently only 'amd64' and 'arm64v8'
-        values are supported.
-    os : str, default None
-        Operating system of the image. Examples: 'ubuntu-18.04', 'alpine-3.9'.
-    runtime : str, default None
-        Docker runtime the image should be run with, e.g. nvidia for the CUDA
-        images. This property doesn't affect the image, only the running
-        container.
+    platform : Platform, default None
+        Metadata describing the platform of the image.
     steps : List[Callable[[dockermap.api.DockerFile], None]], default []
         List of steps defined in docker-ish DSL. Use functions like ADD, RUN,
         ENV, WORKDIR, USER, CMD, ENTRYPOINT, SHELL.
@@ -99,8 +92,7 @@ class DockerImage:
     In [2]: miniconda = DockerImage(
        ...:     'conda',
        ...:     base='continuumio/miniconda3',
-       ...:     arch='amd64',
-       ...:     os='debian-9'
+       ...:     platform=Platform(arch='amd64', distro='debian', version='9')
        ...: )
 
     In [3]: jupyter = DockerImage(
@@ -128,44 +120,36 @@ class DockerImage:
     Out[7]: <DockerImage: amd64-debian-9-jupyter:latest at 4456320976>
     """
 
+    __slots__ = ('name', 'title', 'base', 'tag', 'org', 'platform', 'variant',
+                 'steps')
+
     def __init__(self, name, base, title=None, org=None, tag='latest',
-                 arch=None, os=None, variant=None, runtime=None,
-                 steps=tuple()):
+                 platform=None, variant=None, steps=tuple()):
         if isinstance(base, DockerImage):
             if not title:
                 title = base.title
             if not org:
                 org = base.org
-            if not runtime:
-                runtime = base.runtime
-            if os is not None and os != base.os:
+            if platform is not None and platform != base.platform:
                 raise ValueError(
-                    f"Given os `{os}` is not equal with the base "
-                    f"image's os `{base.os}`"
+                    f"Given platform `{platform}` is not equal with the base "
+                    f"image's platform `{base.platform}`"
                 )
-            if arch is not None and arch != base.arch:
-                raise ValueError(
-                    f"Given architecture `{arch}` is not equal with the base "
-                    f"image's architecture `{base.arch}`"
-                )
-            os, arch = base.os, base.arch
+            platform = base.platform
             variant = variant or base.variant
         elif not isinstance(base, str):
             raise TypeError(
                 '`tag` argument must be an instance of DockerImage or str'
             )
 
-        string_args = {'org': org, 'name': name, 'tag': tag, 'os': os,
-                       'title': title, 'variant': variant, 'runtime': runtime}
-        optional_args = {'org', 'title', 'variant', 'runtime'}
+        string_args = {'org': org, 'name': name, 'tag': tag, 'title': title,
+                       'variant': variant}
+        optional_args = {'org', 'title', 'variant'}
         for k, v in string_args.items():
             if v is None and k in optional_args:
                 continue
             if not isinstance(v, str):
                 raise TypeError(f'`{k}` argument must be an instance of str')
-
-        if arch not in {'amd64', 'arm64v8', 'arm32v7'}:
-            raise ValueError(f'invalid architecture `{arch}`')
 
         if not isinstance(steps, (tuple, list)):
             raise TypeError(
@@ -176,15 +160,18 @@ class DockerImage:
                 'each `step` must be a callable, use `run` function'
             )
 
+        if not isinstance(platform, Platform):
+            raise TypeError(
+                f'`platform` argument must be an instance of Platform'
+            )
+
         self.name = name
         self.title = title
         self.base = base
-        self.org = org
         self.tag = tag
-        self.arch = arch
-        self.os = os
+        self.org = org
+        self.platform = platform
         self.variant = variant
-        self.runtime = runtime
         self.steps = tuple(steps)
 
     def __str__(self):
@@ -206,14 +193,10 @@ class DockerImage:
 
     @property
     def repo(self):
-        repo = f'{self.arch}-{self.os}'
-        if self.variant is not None:
-            repo += f'-{self.variant}'
-        return repo + f'-{self.name}'
-
-    @property
-    def platform(self):
-        return (self.arch, self.os, self.variant)
+        if self.variant is None:
+            return f'{self.platform}-{self.name}'
+        else:
+            return f'{self.platform}-{self.variant}-{self.name}'
 
     @property
     def dockerfile(self):

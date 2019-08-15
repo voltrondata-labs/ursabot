@@ -107,7 +107,7 @@ class TestHttpStatusPush(HttpReporterTestCase):
 
         HttpStatusPush(name='test', baseURL=self.BASEURL, builders=['a', 'b'])
         HttpStatusPush(name='test', baseURL=self.BASEURL, builders=[
-            Builder(workers=['a'])
+            Builder(name='a', workers=['a'])
         ])
 
     @ensure_deferred

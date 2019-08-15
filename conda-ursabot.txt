@@ -4,27 +4,18 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
-# --no-binary buildbot is required because buildbot doesn't bundle its
-# tests to binary wheels, but ursabot's test suite depends on
-# buildbot's so install it from source
---no-binary buildbot
-buildbot
 buildbot-console-view
 buildbot-grid-view
 buildbot-waterfall-view
 buildbot-www
+buildbot
 click
 distro
-docker
 docker-map
 dockerpty
-flake8
-mock
-pytest
 python-dotenv
 ruamel.yaml
 tabulate
 toolz
 toposort
 treq
-twisted[tls]

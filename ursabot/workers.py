@@ -8,8 +8,11 @@
 # derivative works of Buildbot. The above license only applies to code that
 # is not marked as such.
 
+import os
+import platform
 import itertools
 from io import BytesIO
+from functools import partial
 from contextlib import contextmanager
 
 import toolz
@@ -18,32 +21,57 @@ from buildbot.plugins import util
 from buildbot.util.logger import Logger
 from buildbot.interfaces import LatentWorkerCannotSubstantiate
 from buildbot.interfaces import LatentWorkerFailedToSubstantiate
+from buildbot.worker.local import LocalWorker
 from buildbot.worker.latent import States, AbstractLatentWorker
 from buildbot.worker.docker import (DockerLatentWorker, _handle_stream_line,
                                     docker_py_version, docker)
 
-from .utils import Collection, ensure_deferred
+from .utils import Collection, Platform, ensure_deferred
 
 __all__ = [
     'DockerLatentWorker',
-    'docker_worker_from',
+    'create_docker_worker',
     'load_workers_from',
-    'docker_workers_for',
 ]
 
 log = Logger()
 
 
-class WorkerMixin:
+class WorkerMetadata:
 
-    def __init__(self, *args, arch=None, tags=tuple(), **kwargs):
+    def __init__(self, *args, platform, tags=tuple(), **kwargs):
         """Bookkeep a bit of metadata to describe the workers"""
-        self.arch = arch
+        assert isinstance(platform, Platform)
+        self.platform = platform
         self.tags = tuple(tags)
         super().__init__(*args, **kwargs)
 
+    def supports(self, platform):
+        return self.platform == platform
 
-class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
+
+class LocalWorker(WorkerMetadata, LocalWorker):
+    pass
+
+
+class DockerLatentWorker(WorkerMetadata, DockerLatentWorker):
+
+    def supports(self, platform):
+        if self.platform.system == 'darwin':
+            # Docker on Mac can run multiple architectures of linux containers
+            return platform.system == 'linux'
+        elif self.platform.system == 'windows':
+            # Docker on Windows can run windows and linux containers, unsure
+            # about the supported architectures
+            # TODO(kszucs): revisit once we have windows builders
+            return platform.system in {'linux', 'windows'}
+        elif self.platform.system == 'linux':
+            return (
+                platform.system == 'linux' and
+                platform.arch == self.platform.arch
+            )
+        else:
+            return False
 
     def checkConfig(self, name, password, docker_host, image=None,
                     command=None, volumes=None, hostconfig=None, **kwargs):
@@ -255,28 +283,21 @@ class DockerLatentWorker(WorkerMixin, DockerLatentWorker):
                     log.info('Error while removing the image: %s', e)
 
 
-def docker_worker_from(worker_dict, docker_host='unix://var/run/docker.sock',
-                       masterFQDN=None, auto_pull=True, always_pull=False,
-                       volumes=None, hostconfig=None, missing_timeout=120):
+def create_docker_worker(name, arch, system='linux', tags=None, max_builds=1,
+                         ncpus=None, docker_host='unix://var/run/docker.sock',
+                         masterFQDN=None, auto_pull=True, always_pull=False,
+                         volumes=None, hostconfig=None, missing_timeout=120):
     """A thin helper function to reduce worker configuration boilerplate.
 
     Parameters
     ----------
-    worker_dict: Dict
-        Mandatory keys:
-            - name (use alphanumeric and hyphen)
-            - arch (any of amd64, arm64v8, arm32v7)
-        Optional keys:
-            - tags: List[str], default []
-            - ncpus: int, default None
-            - max_builds: int, default 1
-            - volumes: list, default []
-            - missing_timeout: int, default to the missing_timeout argument
-            - auto_pull: bool, defaults to the auto_pull argument
-            - always_pull: bool, defaults to the always_pull argument
-            - docker_host: str, defaults to the docker_host argument
-            - masterFQDN: str, defaults to the masterFQDN argument
-            - hostconfig: dict, defaults to the hostconfig argument
+    name: str
+        Use alphanumeric and hyphen
+    arch: str
+        Any of amd64, arm64v8, arm32v7
+    tags: List[str], default []
+    ncpus: int, default None
+    max_builds: int, default 1
     docker_host: str, default unix://var/run/docker.sock
     masterFQDN: str, default None
         Address of the master the worker should connect to. This value is
@@ -299,25 +320,29 @@ def docker_worker_from(worker_dict, docker_host='unix://var/run/docker.sock',
     ------
     docker_worker: DockerLatentWorker
     """
-    w = worker_dict
-
     volumes = volumes or []
     hostconfig = {'network_mode': 'host'}
+    platform = Platform(
+        arch=arch,
+        system=system,
+        distro=None,
+        version=None
+    )
 
     return DockerLatentWorker(
-        w['name'],
+        name,
         password=None,  # auto generated
-        arch=w['arch'],
-        tags=w.get('tags', []),
-        max_builds=w.get('max_builds', 1),
-        properties={'ncpus': w.get('ncpus')},
-        autopull=w.get('auto_pull', auto_pull),
-        alwaysPull=w.get('always_pull', always_pull),
-        docker_host=w.get('docker_host', docker_host),
-        masterFQDN=w.get('masterFQDN', masterFQDN),
-        volumes=w.get('volumes', volumes),
-        hostconfig=w.get('hostconfig', hostconfig),
-        missing_timeout=w.get('missing_timeout', missing_timeout)
+        platform=platform,
+        tags=tags or [],
+        max_builds=max_builds,
+        properties={'ncpus': ncpus},
+        autopull=auto_pull,
+        alwaysPull=always_pull,
+        docker_host=docker_host,
+        masterFQDN=masterFQDN,
+        volumes=volumes,
+        hostconfig=hostconfig,
+        missing_timeout=missing_timeout
     )
 
 
@@ -328,16 +353,45 @@ def load_workers_from(config_path, **kwargs):
     with config_path.open('r') as fp:
         worker_dicts = yaml.load(fp)['workers']
 
-    return Collection([docker_worker_from(w, **kwargs) for w in worker_dicts])
+    workers = Collection()
+    for w in worker_dicts:
+        config = {**kwargs, **w}
+        worker = create_docker_worker(**config)
+        workers.append(worker)
+
+    return workers
+
+
+def _has_docker():
+    client = docker.from_env()
+    try:
+        client.ping()
+    except:
+        return False
+    else:
+        return True
 
 
 _worker_id = itertools.count()
 
 
-def docker_workers_for(archs, **kwargs):
-    workers = Collection()
-    for wid, arch in zip(_worker_id, archs):
-        worker_dict = dict(name=f'local-docker-{wid}', arch=arch)
-        worker = docker_worker_from(worker_dict, **kwargs)
-        workers.append(worker)
-    return workers
+def local_test_workers():
+    platform = Platform.detect()
+    workers = [
+        LocalWorker(
+            'local-worker-{}'.format(next(_worker_id)),
+            platform=platform
+        )
+    ]
+
+    if _has_docker():
+        for i in range(3):
+            worker = create_docker_worker(
+                name='local-worker-{}'.format(next(_worker_id)),
+                arch=platform.arch,
+                system=platform.system,
+                masterFQDN=os.getenv('MASTER_FQDN')
+            )
+            workers.append(worker)
+
+    return Collection(workers)

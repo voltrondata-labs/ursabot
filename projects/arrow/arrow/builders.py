@@ -5,7 +5,7 @@ from ursabot.builders import DockerBuilder
 from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
                            Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip,
                            GitHub, Maven, Go, Cargo, Npm, R)
-from ursabot.utils import startswith
+from ursabot.utils import where, matching, any_of, has
 
 from .docker import images
 from .steps import Archery, Crossbow
@@ -293,7 +293,7 @@ class CrossbowTrigger(DockerBuilder):
             result_file='job.yml'
         )
     ]
-    images = images.filter(
+    image_filter = where(
         name='crossbow',
         tag='worker'
     )
@@ -321,20 +321,13 @@ class CppTest(DockerBuilder):
         cpp_install,
         cpp_test
     ]
-    images = (
-        images.filter(
-            name='cpp',
-            arch='amd64',
-            os=startswith('ubuntu'),
-            variant=None,  # plain linux images, not conda
-            tag='worker'
-        ) +
-        images.filter(
-            name='cpp',
-            arch='arm64v8',
-            os='ubuntu-18.04',
-            variant=None,  # plain linux images, not conda
-            tag='worker'
+    image_filter = where(
+        name='cpp',
+        tag='worker',
+        variant=None,
+        platform=where(
+            arch=any_of('amd64', 'arm64v8'),
+            distro='ubuntu'
         )
     )
 
@@ -348,11 +341,16 @@ class CppCudaTest(CppTest):
         **CppTest.properties,
         'ARROW_CUDA': 'ON',
     }
-    images = images.filter(
+    worker_filter = where(
+        tags=has('cuda')
+    )
+    image_filter = where(
         name='cpp',
-        arch='amd64',
+        tag='worker',
         variant='cuda',
-        tag='worker'
+        platform=where(
+            arch='amd64'
+        )
     )
 
 
@@ -377,12 +375,14 @@ class CppBenchmark(DockerBuilder):
             result_file='diff.json'
         )
     ]
-    images = images.filter(
+    image_filter = where(
         name='cpp-benchmark',
-        os=startswith('ubuntu'),
-        arch='amd64',  # until ARROW-5382: SSE on ARM NEON gets resolved
+        tag='worker',
         variant=None,  # plain linux images, not conda
-        tag='worker'
+        platform=where(
+            arch='amd64',  # until ARROW-5382: SSE on ARM NEON gets resolved
+            distro='ubuntu'
+        )
     )
 
 
@@ -395,11 +395,13 @@ class RTest(CppTest):
         r_install,
         r_check
     ]
-    images = images.filter(
+    image_filter = where(
         name='r',
-        arch='amd64',
+        tag='worker',
         variant=None,  # plain linux images, not conda
-        tag='worker'
+        platform=where(
+            arch='amd64'
+        )
     )
 
 
@@ -417,20 +419,28 @@ class PythonTest(CppTest):
         python_install,
         python_test
     ]
-    images = (
-        images.filter(
-            name=startswith('python'),
-            arch='amd64',
-            os=startswith('ubuntu'),
-            variant=None,  # plain linux images, not conda
-            tag='worker'
-        ) +
-        images.filter(
-            name=startswith('python'),
-            arch='arm64v8',
-            os='ubuntu-18.04',
-            variant=None,  # plain linux images, not conda
-            tag='worker'
+    image_filter = where(
+        name=matching('python*'),
+        tag='worker',
+        variant=None,  # plain linux images, not conda
+        platform=where(
+            arch=any_of('amd64', 'arm64v8'),
+            distro='ubuntu'
+        )
+    )
+
+
+class PythonDockerTest(PythonTest, DockerBuilder):
+    hostconfig = {
+        'shm_size': '2G',  # required for plasma
+    }
+    image_filter = where(
+        name=matching('python*'),
+        tag='worker',
+        variant=None,  # plain linux images, not conda
+        platform=where(
+            arch=any_of('amd64', 'arm64v8'),
+            distro='ubuntu'
         )
     )
 
@@ -445,11 +455,16 @@ class PythonCudaTest(PythonTest):
         **PythonTest.properties,
         'ARROW_CUDA': 'ON',  # also sets PYARROW_WITH_CUDA
     }
-    images = images.filter(
-        name=startswith('python'),
-        arch='amd64',
+    worker_filter = where(
+        tags=has('cuda')
+    )
+    image_filter = where(
+        name=matching('python*'),
+        tag='worker',
         variant='cuda',
-        tag='worker'
+        platform=where(
+            arch='amd64'
+        )
     )
 
 
@@ -503,7 +518,7 @@ class CppCondaTest(DockerBuilder):
         cpp_install,
         cpp_test
     ]
-    images = images.filter(
+    image_filter = where(
         name='cpp',
         variant='conda',
         tag='worker'
@@ -519,7 +534,7 @@ class RCondaTest(CppCondaTest):
         r_install,
         r_check
     ]
-    images = images.filter(
+    image_filter = where(
         name='r',
         variant='conda',
         tag='worker'
@@ -540,8 +555,8 @@ class PythonCondaTest(CppCondaTest):
         python_install,
         python_test
     ]
-    images = images.filter(
-        name=startswith('python'),
+    image_filter = where(
+        name=matching('python*'),
         variant='conda',
         tag='worker'
     )
@@ -557,10 +572,12 @@ class JavaTest(DockerBuilder):
             name='Maven Test',
         )
     ]
-    images = images.filter(
-        name=startswith('java'),
-        arch='amd64',
-        tag='worker'
+    image_filter = where(
+        name=matching('java*'),
+        tag='worker',
+        platform=where(
+            arch='amd64'
+        )
     )
 
 
@@ -577,10 +594,12 @@ class JSTest(DockerBuilder):
         Npm(['run', 'build'], workdir='js', name='Build'),
         Npm(['run', 'test'], workdir='js', name='Test')
     ]
-    images = images.filter(
-        name=startswith('js'),
-        arch='amd64',
-        tag='worker'
+    image_filter = where(
+        name=matching('js*'),
+        tag='worker',
+        platform=where(
+            arch='amd64'
+        )
     )
 
 
@@ -602,10 +621,12 @@ class GoTest(DockerBuilder):
             name='Go Test',
         )
     ]
-    images = images.filter(
-        name=startswith('go'),
-        arch='amd64',
-        tag='worker'
+    image_filter = where(
+        name=matching('go*'),
+        tag='worker',
+        platform=where(
+            arch='amd64'
+        )
     )
 
 
@@ -628,8 +649,10 @@ class RustTest(DockerBuilder):
             name='Rust Test'
         )
     ]
-    images = images.filter(
-        name=startswith('rust'),
-        arch='amd64',
-        tag='worker'
+    image_filter = where(
+        name=matching('rust*'),
+        tag='worker',
+        platform=where(
+            arch='amd64'
+        )
     )

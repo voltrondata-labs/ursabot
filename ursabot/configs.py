@@ -29,6 +29,7 @@ from buildbot.changes.base import PollingChangeSource
 
 from .docker import ImageCollection, DockerImage
 from .utils import Collection
+from .builders import Builder
 
 __all__ = [
     'Config',
@@ -97,7 +98,7 @@ class ProjectConfig(Config):
         assert isinstance(self.name, str)
         assert isinstance(self.repo, str)
         assert all(callable(c) for c in self.commands)
-        assert all(isinstance(b, BuilderConfig) for b in self.builders)
+        assert all(isinstance(b, Builder) for b in self.builders)
         assert all(isinstance(i, DockerImage) for i in self.images)
         assert all(isinstance(p, PollingChangeSource) for p in self.pollers)
         assert all(isinstance(s, BaseScheduler) for s in self.schedulers)
@@ -194,10 +195,11 @@ class MasterConfig(Config):
         return self._from_projects('reporters')
 
     def as_testing(self, source):
+        builder_configs = [b.as_config() for b in self.builders]
         buildbot_config_dict = {
             'buildbotNetUsageData': None,
             'workers': self.workers,
-            'builders': self.builders,
+            'builders': builder_configs,
             'schedulers': self.schedulers,
             'db': {'db_url': 'sqlite://'},
             'protocols': {'pb': {'port': 'tcp:0:interface=127.0.0.1'}}
@@ -213,13 +215,14 @@ class MasterConfig(Config):
         else:
             hook_dialect_config = self.change_hook._as_hook_dialect_config()
 
+        builder_configs = [b.as_config() for b in self.builders]
         buildbot_config_dict = {
             'buildbotNetUsageData': None,
             'title': self.title,
             'titleURL': self.url,
             'buildbotURL': self.url,
             'workers': self.workers,
-            'builders': self.builders,
+            'builders': builder_configs,
             'schedulers': self.schedulers,
             'services': self.reporters,
             'change_source': self.pollers,

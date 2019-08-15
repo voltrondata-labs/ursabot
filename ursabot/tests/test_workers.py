@@ -21,6 +21,7 @@ from buildbot.test.fake import fakemaster
 from buildbot.worker import docker as dockerworker
 from buildbot.test.unit.test_worker_docker import TestDockerLatentWorker
 
+from ursabot.utils import Platform
 from ursabot.workers import DockerLatentWorker
 
 
@@ -29,7 +30,14 @@ class TestDockerLatentWorker(TestDockerLatentWorker):
     def setupWorker(self, *args, **kwargs):
         docker.Client.close = lambda self: None
         self.patch(dockerworker, 'docker', docker)
-        worker = DockerLatentWorker(*args, **kwargs)
+
+        platform = Platform(
+            arch='amd64',
+            system='linux',
+            distro=None,
+            version=None
+        )
+        worker = DockerLatentWorker(*args, platform=platform, **kwargs)
         master = fakemaster.make_master(self, wantData=True)
         fakemaster.master = master
         worker.setServiceParent(master)

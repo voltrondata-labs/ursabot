@@ -4,12 +4,14 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
+import platform
 import pathlib
 import fnmatch
 import itertools
-import functools
 import operator
+from functools import partial, reduce, wraps
 
+import distro
 import toolz
 from twisted.internet import defer
 from buildbot.util import httpclientservice
@@ -31,7 +33,7 @@ log = Logger()
 
 
 def ensure_deferred(fn):
-    @functools.wraps(fn)
+    @wraps(fn)
     def wrapper(*args, **kwargs):
         result = fn(*args, **kwargs)
         return defer.ensureDeferred(result)
@@ -44,6 +46,75 @@ def read_dependency_list(path):
     path = pathlib.Path(path)
     lines = (l.strip() for l in path.read_text().splitlines())
     return [l for l in lines if not l.startswith('#')]
+
+
+class Platform:
+
+    __slots__ = ('arch', 'system', 'distro', 'version', 'codename')
+
+    _architectures = {
+        'x86_64': 'amd64'
+    }
+    _systems = {
+        'debian': 'linux',
+        'ubuntu': 'linux',
+        'centos': 'linux',
+        'alpine': 'linux',
+        'fedora': 'linux',
+        'darwin': 'darwin',
+        'windows': 'windows'
+    }
+
+    def __init__(self, arch, distro, version, system=None, codename=None):
+        # TODO(kszucs) properly map the architectures to a smaller set of values
+        arch = self._architectures.get(arch, arch)
+        if arch not in {'amd64', 'arm64v8', 'arm32v7'}:
+            raise ValueError(f'invalid architecture `{arch}`')
+
+        system = system or self._systems.get(distro)
+        if system not in {'linux', 'darwin', 'windows'}:
+            raise ValueError(f'invalid system `{system}`')
+
+        self.arch = arch
+        self.system = system
+        self.distro = distro
+        self.version = version
+        self.codename = codename
+
+    @property
+    def title(self):
+        return f'{self.arch.upper()} {self.distro.capitalize()} {self.version}'
+
+    def __eq__(self, other):
+        return (
+            self.arch == other.arch and
+            self.system == other.system and
+            self.distro == other.distro and
+            self.version == other.version
+        )
+
+    def __hash__(self):
+        return hash((self.arch, self.system, self.distro, self.version))
+
+    def __str__(self):
+        arch = self.arch or 'unknown'
+        distro = self.distro or 'unknown'
+        version = self.version or 'unknown'
+        return f'{arch}-{distro}-{version}'
+
+    def __repr__(self):
+        return (f'<Platform arch={self.arch} system={self.system} '
+                f'distro={self.distro} version={self.version} at {id(self)}>')
+
+    @classmethod
+    def detect(cls):
+        return cls(
+            arch=platform.machine(),
+            system=platform.system().lower(),
+            distro=distro.id(),
+            version=distro.version(),
+            codename=distro.codename()
+        )
 
 
 class Combinable:
@@ -66,9 +137,9 @@ class Combinable:
         return self._binop(_and, other)
 
 
-class Filter(Combinable):
+class _Filter(Combinable):
 
-    __slot__ = ('fn',)
+    __slots__ = ('fn',)
 
     def __init__(self, fn):
         self.fn = fn
@@ -77,24 +148,47 @@ class Filter(Combinable):
         return self.fn(*args, **kwargs)
 
 
+def where(*args, **kwargs):
+    assert all(callable(fn) for fn in args)
+
+    def filt(item, k, v):
+        value = getattr(item, k)
+        if callable(v):
+            return v(value)
+        else:
+            return value == v
+
+    funcs = toolz.concat([
+        args,
+        (partial(filt, k=k, v=v) for k, v in kwargs.items())
+    ])
+
+    initial = _Filter(lambda obj: True)
+    return reduce(operator.and_, map(_Filter, funcs), initial)
+
+
+def instance_of(typ):
+    return _Filter(lambda obj: isinstance(obj, typ))
+
+
 def startswith(prefix):
-    return Filter(lambda value: value.startswith(prefix))
+    return _Filter(lambda value: value.startswith(prefix))
 
 
 def any_of(*values):
-    return Filter(lambda value: value in values)
+    return _Filter(lambda value: value in values)
 
 
 def has(*needles):
-    return Filter(lambda haystack: set(needles).issubset(set(haystack)))
+    return _Filter(lambda haystack: set(needles).issubset(set(haystack)))
 
 
 def matching(glob_pattern):
-    return Filter(lambda value: fnmatch.fnmatch(value, glob_pattern))
+    return _Filter(lambda value: fnmatch.fnmatch(value, glob_pattern))
 
 
 def any_matching(glob_pattern):
-    return Filter(lambda values: bool(fnmatch.filter(values, glob_pattern)))
+    return _Filter(lambda values: bool(fnmatch.filter(values, glob_pattern)))
 
 
 class Collection(list):
@@ -109,23 +203,31 @@ class Collection(list):
         else:
             return results[0]
 
-    def filter(self, **kwargs):
+    def where(self, *args, **kwargs):
         """Filters the values based on the passed conditions.
 
         The filters can be passed as property=(value or filter function) form.
         """
-        items = self
-        for by, value in kwargs.items():
-            if callable(value):
-                fn = lambda item: value(getattr(item, by))  # noqa:E731
-            else:
-                fn = lambda item: getattr(item, by) == value  # noqa:E731
-            # XXX: without consuming the iterator only the first filter works
-            items = tuple(filter(fn, items))
+        items = filter(where(*args, **kwargs), self)
         return self.__class__(items)
 
-    def groupby(self, *args):
-        return toolz.groupby(operator.attrgetter(*args), self)
+    filter = where
+
+    def groupby(self, key):
+        if not callable(key):
+            first = toolz.first(self)
+            if isinstance(key, int) and isinstance(first, (tuple, list)):
+                key = operator.itemgetter(key)
+            elif isinstance(first, dict):
+                key = operator.itemgetter(key)
+            else:
+                key = operator.attrgetter(key)
+        return toolz.groupby(key, self)
+
+    def join(self, other, on=None, leftkey=None, rightkey=None):
+        if on is not None:
+            leftkey = rightkey = on
+        return Collection(toolz.join(leftkey, self, rightkey, other))
 
     def unique(self):
         return self.__class__(toolz.unique(self))
@@ -135,6 +237,53 @@ class Collection(list):
             return self.__class__(super().__add__(other))
         else:
             return NotImplemented
+
+
+class _LazyCall:
+
+    def __init__(self, object, method):
+        self.object = object
+        self.method = method
+
+    def __call__(self, *args, **kwargs):
+        self.args = args
+        self.kwargs = kwargs
+        return self.object.with_call(self)
+
+
+class LazyObject:
+
+    __slots__ = ('cls', 'calls')
+
+    def __init__(self, cls, calls=None):
+        self.cls = cls
+        self.calls = calls or []
+
+    def __getattr__(self, name):
+        if hasattr(self.cls, name):
+            return _LazyCall(self, name)
+        else:
+            raise AttributeError(name)
+
+    def __instancecheck__(self, instance):
+        return isinstance(instance, self.cls)
+
+    def with_call(self, call):
+        return self.__class__(self.cls, self.calls + [call])
+
+    def execute(self, obj):
+        if not isinstance(obj, self.cls):
+            try:
+                obj = self.cls(obj)
+            except Exception as e:
+                raise ValueError(f'Expected an instance of {self.cls} or a '
+                                 f'value which is coercible to it.')
+
+        for call in self.calls:
+            method = getattr(obj, call.method)
+            obj = method(*call.args, **call.kwargs)
+
+        return obj
 
 
 class HTTPClientService(httpclientservice.HTTPClientService):
