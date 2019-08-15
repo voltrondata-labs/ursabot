@@ -126,7 +126,7 @@ class Builder:
     def combine_with(cls, workers, name, **kwargs):
         # instantiate builders by applying Builder.worker_filter and grouping
         # the workers based on architecture or criteria
-        suitable_workers = workers.filter(cls._is_worker_suitable)
+        suitable_workers = Collection(workers).filter(cls._is_worker_suitable)
         workers_by_platform = suitable_workers.groupby('platform')
 
         builders = []
@@ -252,8 +252,8 @@ class DockerBuilder(Builder):
         docker_builder : List[DockerBuilder]
             Builder instances.
         """
-        suitable_images = images.filter(cls._is_image_suitable)
-        suitable_workers = workers.filter(cls._is_worker_suitable)
+        suitable_images = Collection(images).filter(cls._is_image_suitable)
+        suitable_workers = Collection(workers).filter(cls._is_worker_suitable)
 
         # join the images with the suitable workers
         image_worker_pairs = Collection([
