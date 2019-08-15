@@ -18,8 +18,8 @@ from twisted.trial import unittest
 from buildbot.util import httpclientservice
 from buildbot.util import service
 
-from ursabot.utils import (GithubClientService, Collection, LazyObject,
-                           ensure_deferred, startswith)
+from ursabot.utils import (GithubClientService, Collection, ensure_deferred,
+                           startswith)
 
 
 def test_collection():
@@ -72,40 +72,6 @@ def test_collection():
             Item(name='test', id=4)
         ]
     }
-
-
-# def test_lazy_collection():
-#     Item = namedtuple('Item', ('name', 'id'))
-#     items = Collection([
-#         Item(name='tset', id=1),
-#         Item(name='test', id=2),
-#         Item(name='else', id=3),
-#         Item(name='test', id=4),
-#         Item(name='test', id=4)
-#     ])
-#
-#     lazy = LazyObject(Collection)
-#     plan = lazy.filter(name='test').unique()
-#     plan2 = lazy.filter(name=startswith('t')).groupby('id')
-#     result = plan.execute(items)
-#     result2 = plan2.execute(items)
-#
-#     assert result == Collection([
-#         Item(name='test', id=2),
-#         Item(name='test', id=4)
-#     ])
-#     assert result2 == {
-#         1: [
-#             Item(name='tset', id=1)
-#         ],
-#         2: [
-#             Item(name='test', id=2)
-#         ],
-#         4: [
-#             Item(name='test', id=4),
-#             Item(name='test', id=4)
-#         ]
-#     }
 
 
 Request = namedtuple('Request', ['method', 'url', 'params', 'headers', 'data'])

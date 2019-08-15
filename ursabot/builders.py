@@ -22,7 +22,7 @@ from buildbot.worker.base import AbstractWorker, Worker
 
 from .docker import DockerImage
 from .workers import DockerLatentWorker
-from .utils import Collection, LazyObject, instance_of, where
+from .utils import Collection, instance_of, where
 
 __all__ = ['Builder', 'DockerBuilder']
 
@@ -72,17 +72,10 @@ class Builder:
 
     def __init__(self, name, **kwargs):
         self.name = name
-
         for k, default in self.__defaults__.items():
-            classvar = getattr(self, k, default)
+            classvar = getattr(self, k, copy.copy(default))
             argument = kwargs.get(k, default)
-            # delayed initialization support with lazy objects
-            # if isinstance(classvar, LazyObject):
-            #     value = classvar.execute(argument)
-            # else:
-            #     value = argument or classvar
             setattr(self, k, argument or classvar)
-
         self.validate()
 
     @classmethod

@@ -243,53 +243,6 @@ class Collection(list):
             return NotImplemented
 
 
-class _LazyCall:
-
-    def __init__(self, object, method):
-        self.object = object
-        self.method = method
-
-    def __call__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
-        return self.object.with_call(self)
-
-
-class LazyObject:
-
-    __slots__ = ('cls', 'calls')
-
-    def __init__(self, cls, calls=None):
-        self.cls = cls
-        self.calls = calls or []
-
-    def __getattr__(self, name):
-        if hasattr(self.cls, name):
-            return _LazyCall(self, name)
-        else:
-            raise AttributeError(name)
-
-    def __instancecheck__(self, instance):
-        return isinstance(instance, self.cls)
-
-    def with_call(self, call):
-        return self.__class__(self.cls, self.calls + [call])
-
-    def execute(self, obj):
-        if not isinstance(obj, self.cls):
-            try:
-                obj = self.cls(obj)
-            except Exception as e:
-                raise ValueError(f'Expected an instance of {self.cls} or a '
-                                 f'value which is coercible to it.')
-
-        for call in self.calls:
-            method = getattr(obj, call.method)
-            obj = method(*call.args, **call.kwargs)
-
-        return obj
-
-
 class HTTPClientService(httpclientservice.HTTPClientService):
 
     PREFER_TREQ = True

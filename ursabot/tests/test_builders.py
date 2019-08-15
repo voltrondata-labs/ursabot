@@ -5,7 +5,7 @@ from buildbot.config import ConfigErrors, BuilderConfig
 from buildbot.process.factory import BuildFactory
 
 from ursabot.builders import Builder, DockerBuilder
-from ursabot.utils import Collection, LazyObject
+from ursabot.utils import Collection, Platform
 from ursabot.workers import LocalWorker
 
 
@@ -55,32 +55,6 @@ def test_declarative_instantiation():
     assert hybrid.steps == []
 
 
-# def test_declarative_lazy_member():
-#     lazy_workers = LazyObject(Collection)
-#
-#     class Test(Builder):
-#         properties = {'A': 'a'}
-#         workers = lazy_workers.filter(name='worker_a')
-#
-#     workers = Collection([
-#         LocalWorker('worker_a'),
-#         LocalWorker('worker_b')
-#     ])
-#     expected = workers.filter(name='worker_a')
-#
-#     # test with the same type
-#     test = Test(name='test', workers=workers)
-#     assert test.workers == expected
-#
-#     # test successful coercion
-#     test = Test(name='test', workers=list(workers))
-#     assert test.workers == expected
-#
-#     # test failed coercion
-#     with pytest.raises(ValueError):
-#         Test(name='test', workers=None)
-
-
 def test_docker_builder_basic():
     class Test(Builder):
         properties = {
@@ -101,29 +75,30 @@ def test_docker_builder_basic():
     ]
 
 
-# def test_builder_as_config():
-#     class Test(Builder):
-#         env = {'A': 'a'}
-#         tags = ['test']
-#         steps = []
-#         properties = {'A': 'a'}
-#
-#     with pytest.raises(ConfigErrors):
-#         Test(name='test').as_config()
-#
-#     workers = [
-#         LocalWorker('worker_a'),
-#         LocalWorker('worker_b')
-#     ]
-#     conf = Test(name='test', workers=workers).as_config()
-#
-#     assert isinstance(conf, BuilderConfig)
-#     assert conf.name == 'test'
-#     assert conf.workernames == ['worker_a', 'worker_b']
-#     assert conf.factory == BuildFactory([])
-#     assert conf.tags == ['test']
-#     assert conf.env == {'A': 'a'}
-#     assert conf.properties == {'A': 'a'}
+def test_builder_as_config():
+    class Test(Builder):
+        env = {'A': 'a'}
+        tags = ['test']
+        steps = []
+        properties = {'A': 'a'}
+
+    with pytest.raises(ConfigErrors):
+        Test(name='test').as_config()
+
+    platform = Platform.detect()
+    workers = [
+        LocalWorker('worker_a', platform=platform),
+        LocalWorker('worker_b', platform=platform)
+    ]
+    conf = Test(name='test', workers=workers).as_config()
+
+    assert isinstance(conf, BuilderConfig)
+    assert conf.name == 'test'
+    assert conf.workernames == ['worker_a', 'worker_b']
+    assert conf.factory == BuildFactory([])
+    assert conf.tags == ['test']
+    assert conf.env == {'A': 'a'}
+    assert conf.properties == {'A': 'a'}
 
 
 # def test_for_workers():
@@ -140,6 +115,9 @@ def test_docker_builder_basic():
 #     workers_by_arch = workers.groupby('arch')
 #
 #     builders = Test.for_workers(**workers_by_arch)
+
+
+
 
 
 # def test_workers_argument():
