@@ -215,13 +215,17 @@ class Collection(list):
 
     def groupby(self, key):
         if not callable(key):
-            first = toolz.first(self)
-            if isinstance(key, int) and isinstance(first, (tuple, list)):
+            if isinstance(key, int):
                 key = operator.itemgetter(key)
-            elif isinstance(first, dict):
-                key = operator.itemgetter(key)
+            elif len(self):
+                first = toolz.first(self)
+                if isinstance(first, dict):
+                    key = operator.itemgetter(key)
+                else:
+                    key = operator.attrgetter(key)
             else:
                 key = operator.attrgetter(key)
+
         return toolz.groupby(key, self)
 
     def join(self, other, on=None, leftkey=None, rightkey=None):

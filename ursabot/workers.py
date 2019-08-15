@@ -385,13 +385,12 @@ def local_test_workers():
     ]
 
     if _has_docker():
-        for i in range(3):
-            worker = create_docker_worker(
-                name='local-worker-{}'.format(next(_worker_id)),
-                arch=platform.arch,
-                system=platform.system,
-                masterFQDN=os.getenv('MASTER_FQDN')
-            )
-            workers.append(worker)
+        worker = create_docker_worker(
+            name='local-worker-{}'.format(next(_worker_id)),
+            arch=platform.arch,
+            system=platform.system,
+            masterFQDN=os.getenv('MASTER_FQDN')
+        )
+        workers.append(worker)
 
     return Collection(workers)

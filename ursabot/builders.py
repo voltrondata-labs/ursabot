@@ -27,6 +27,14 @@ from .utils import Collection, LazyObject, instance_of, where
 __all__ = ['Builder', 'DockerBuilder']
 
 
+class InvalidWorker(Exception):
+    pass
+
+
+class InvalidImage(Exception):
+    pass
+
+
 # Collection instead of list
 class Builder:
 
@@ -75,7 +83,18 @@ class Builder:
             #     value = argument or classvar
             setattr(self, k, argument or classvar)
 
-        assert all(isinstance(w, AbstractWorker) for w in self.workers)
+        self.validate()
+
+    @classmethod
+    def _is_worker_suitable(cls, worker):
+        criterion = instance_of(Worker) & cls.worker_filter
+        return criterion(worker)
+
+    def validate(self):
+        for worker in self.workers:
+            if not self._is_worker_suitable(worker):
+                raise InvalidWorker(f"The worker filter defined for builder "
+                                    f"{self} doesn't pass for worker {worker}")
 
     def __repr__(self):
         return f"<{self.__class__.__name__} '{self.name}'>"
@@ -107,8 +126,7 @@ class Builder:
     def combine_with(cls, workers, name, **kwargs):
         # instantiate builders by applying Builder.worker_filter and grouping
         # the workers based on architecture or criteria
-        worker_filter = instance_of(Worker) & cls.worker_filter
-        suitable_workers = workers.filter(worker_filter)
+        suitable_workers = workers.filter(cls._is_worker_suitable)
         workers_by_platform = suitable_workers.groupby('platform')
 
         builders = []
@@ -139,9 +157,6 @@ class DockerBuilder(Builder):
     def __init__(self, name, image, workers, **kwargs):
         self.image = image
         super().__init__(name=name, workers=workers, **kwargs)
-
-        assert isinstance(self.image, DockerImage)
-        assert all(isinstance(w, DockerLatentWorker) for w in self.workers)
         self._render_docker_properties()
 
     def _render_docker_properties(self):
@@ -195,6 +210,30 @@ class DockerBuilder(Builder):
         })
 
     @classmethod
+    def _is_image_suitable(cls, image):
+        criterion = instance_of(DockerImage) & cls.image_filter
+        return criterion(image)
+
+    @classmethod
+    def _is_worker_suitable(cls, worker):
+        criterion = instance_of(DockerLatentWorker) & cls.worker_filter
+        return criterion(worker)
+
+    @classmethod
+    def _does_worker_support_image(cls, worker, image):
+        return worker.supports(image.platform)
+
+    def validate(self):
+        super().validate()
+        if not self._is_image_suitable(self.image):
+            raise InvalidImage(f"The image filter defined for builder {self}"
+                               f"doesn't pass for image {self.image}")
+        for worker in self.workers:
+            if not self._does_worker_support_image(worker, self.image):
+                raise InvalidWorker(f"Worker {worker} doesn't support the "
+                                    f"image's platform {image.platform}")
+
+    @classmethod
     def combine_with(cls, workers, images, name=None, **kwargs):
         """Instantiates builders based on the available workers
 
@@ -213,22 +252,23 @@ class DockerBuilder(Builder):
         docker_builder : List[DockerBuilder]
             Builder instances.
         """
-        image_filter = instance_of(DockerImage) & cls.image_filter
-        worker_filter = instance_of(DockerLatentWorker) & cls.worker_filter
+        suitable_images = images.filter(cls._is_image_suitable)
+        suitable_workers = workers.filter(cls._is_worker_suitable)
 
-        suitable_images = images.filter(image_filter)
-        suitable_workers = workers.filter(worker_filter)
-
-        pairs = Collection([
+        # join the images with the suitable workers
+        image_worker_pairs = Collection([
             (image, worker)
             for image in suitable_images
             for worker in suitable_workers
-            if worker.supports(image.platform)
+            if cls._does_worker_support_image(worker, image)
         ])
+        workers_for_image = {
+            image: list(toolz.pluck(1, workers))
+            for image, workers in image_worker_pairs.groupby(0).items()
+        }
 
         builders = []
-        for image, pairs in pairs.groupby(0).items():
-            workers = list(toolz.pluck(1, pairs))
+        for image, workers in workers_for_image.items():
             if workers:
                 builder_name = image.title
                 if name:
