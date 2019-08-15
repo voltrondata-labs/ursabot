@@ -87,7 +87,10 @@ class Builder:
 
     @classmethod
     def _is_worker_suitable(cls, worker):
-        criterion = instance_of(Worker) & cls.worker_filter
+        criterion = (
+            instance_of(str) |
+            (instance_of(Worker) & cls.worker_filter)
+        )
         return criterion(worker)
 
     def validate(self):
@@ -211,17 +214,28 @@ class DockerBuilder(Builder):
 
     @classmethod
     def _is_image_suitable(cls, image):
-        criterion = instance_of(DockerImage) & cls.image_filter
+        criterion = (
+            instance_of(str) |
+            (instance_of(DockerImage) & cls.image_filter)
+        )
         return criterion(image)
 
     @classmethod
     def _is_worker_suitable(cls, worker):
-        criterion = instance_of(DockerLatentWorker) & cls.worker_filter
+        criterion = (
+            instance_of(str) |
+            (instance_of(DockerLatentWorker) & cls.worker_filter)
+        )
         return criterion(worker)
 
     @classmethod
     def _does_worker_support_image(cls, worker, image):
-        return worker.supports(image.platform)
+        if hasattr(worker, 'supports') and hasattr(image, 'platform'):
+            return worker.supports(image.platform)
+        else:
+            # if either the image or the worker was passed as a string then
+            # we cannot validate so assume yes
+            return True
 
     def validate(self):
         super().validate()
