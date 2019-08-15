@@ -29,8 +29,8 @@ from buildbot.worker.docker import (DockerLatentWorker, _handle_stream_line,
 from .utils import Collection, Platform, ensure_deferred
 
 __all__ = [
+    'LocalWorker',
     'DockerLatentWorker',
-    'create_docker_worker',
     'load_workers_from',
 ]
 
@@ -55,6 +55,35 @@ class LocalWorker(WorkerMetadata, LocalWorker):
 
 
 class DockerLatentWorker(WorkerMetadata, DockerLatentWorker):
+    """Dinamically provisioned docker worker
+
+    Parameters
+    ----------
+    name: str
+        Use alphanumeric and hyphen
+    platform: Platform
+    tags: List[str], default []
+    ncpus: int, default None
+    max_builds: int, default 1
+    docker_host: str, default unix://var/run/docker.sock
+    masterFQDN: str, default None
+        Address of the master the worker should connect to. This value is
+        passed to the docker image via environment variable BUILDMASTER.
+        Note: Use 'host.docker.internal' on Docker for Mac.
+    auto_pull: bool, default True
+        Automatically pulls image if requested image is not on docker host.
+    always_pull: bool, default False
+        Always pulls image if autopull is set to True.
+    volumes: List[str], default []
+        List of volumes which should be attached to the docker container.
+    hostconfig: dict, default {'network_mode': 'host'}
+        Additional docker configurations, directly passed to the low-level
+        docker APIClient.create_host_config.
+        For more see https://docker-py.readthedocs.io/en/stable/api.html.
+    missing_timeout: int, default 120
+        Timeout for the worker preparation. In case of docker builders it is
+        the time required to pull the docker image and spin up the container.
+    """
 
     def supports(self, platform):
         if self.platform.system == 'darwin':
@@ -142,14 +171,16 @@ class DockerLatentWorker(WorkerMetadata, DockerLatentWorker):
     @contextmanager
     def docker_client(self):
         # Note that this is a blocking function, use it from threads
-        client = self._getDockerClient()
         try:
-            yield client
+            client = self._getDockerClient()
         except Exception as e:
             url = self.client_args['base_url']
             exc = RuntimeError(f'Worker {self} cannot connect to the docker '
                                f'daemon on host {url}')
             raise exc from e
+
+        try:
+            yield client
         finally:
             client.close()
 
@@ -283,69 +314,6 @@ class DockerLatentWorker(WorkerMetadata, DockerLatentWorker):
                     log.info('Error while removing the image: %s', e)
 
 
-def create_docker_worker(name, arch, system='linux', tags=None, max_builds=1,
-                         ncpus=None, docker_host='unix://var/run/docker.sock',
-                         masterFQDN=None, auto_pull=True, always_pull=False,
-                         volumes=None, hostconfig=None, missing_timeout=120):
-    """A thin helper function to reduce worker configuration boilerplate.
-
-    Parameters
-    ----------
-    name: str
-        Use alphanumeric and hyphen
-    arch: str
-        Any of amd64, arm64v8, arm32v7
-    tags: List[str], default []
-    ncpus: int, default None
-    max_builds: int, default 1
-    docker_host: str, default unix://var/run/docker.sock
-    masterFQDN: str, default None
-        Address of the master the worker should connect to. This value is
-        passed to the docker image via environment variable BUILDMASTER.
-        Note: Use 'host.docker.internal' on Docker for Mac.
-    auto_pull: bool, default True
-        Automatically pulls image if requested image is not on docker host.
-    always_pull: bool, default False
-        Always pulls image if autopull is set to True.
-    volumes: List[str], default []
-        List of volumes which should be attached to the docker container.
-    hostconfig: dict, default {'network_mode': 'host'}
-        Additional docker configurations, directly passed to the low-level
-        docker APIClient.create_host_config.
-        For more see https://docker-py.readthedocs.io/en/stable/api.html.
-    missing_timeout: int, default 120
-        Timeout for the worker preparation. In case of docker builders it is
-        the time required to pull the docker image and spin up the container.
-    Return
-    ------
-    docker_worker: DockerLatentWorker
-    """
-    volumes = volumes or []
-    hostconfig = {'network_mode': 'host'}
-    platform = Platform(
-        arch=arch,
-        system=system,
-        distro=None,
-        version=None
-    )
-
-    return DockerLatentWorker(
-        name,
-        password=None,  # auto generated
-        platform=platform,
-        tags=tags or [],
-        max_builds=max_builds,
-        properties={'ncpus': ncpus},
-        autopull=auto_pull,
-        alwaysPull=always_pull,
-        docker_host=docker_host,
-        masterFQDN=masterFQDN,
-        volumes=volumes,
-        hostconfig=hostconfig,
-        missing_timeout=missing_timeout
-    )
-
-
 def load_workers_from(config_path, **kwargs):
     from ruamel.yaml import YAML
 
@@ -355,21 +323,28 @@ def load_workers_from(config_path, **kwargs):
 
     workers = Collection()
     for w in worker_dicts:
-        config = {**kwargs, **w}
-        worker = create_docker_worker(**config)
-        workers.append(worker)
+        if 'docker' in w:
+            worker = DockerLatentWorker(
+                name=w['name'],
+                password=None,
+                tags=w.get('tags', []),
+                properties={'ncpus': w.get('ncpus')},
+                platform=Platform(
+                    arch=w['arch'],
+                    system='linux',
+                    distro=None,
+                    version=None
+                ),
+                docker_host=w['docker']['host'],
+                hostconfig=w['docker'].get('hostconfig', {}),
+                volumes=w['docker'].get('volumes', [])
+            )
+            workers.append(worker)
+        else:
+            raise ValueError('Configuring non-docker workers in workers.yaml '
+                             'is not yet supported')
 
     return workers
-
-
-def _has_docker():
-    client = docker.from_env()
-    try:
-        client.ping()
-    except:
-        return False
-    else:
-        return True
 
 
 _worker_id = itertools.count()
@@ -384,11 +359,24 @@ def local_test_workers():
         )
     ]
 
-    if _has_docker():
-        worker = create_docker_worker(
-            name='local-worker-{}'.format(next(_worker_id)),
-            arch=platform.arch,
-            system=platform.system,
+    docker_client = docker.from_env()
+    try:
+        docker_client.ping()
+    except:
+        pass
+    else:
+        worker = DockerLatentWorker(
+            'local-worker-{}'.format(next(_worker_id)),
+            password=None,
+            max_builds=1,
+            platform=Platform(
+                arch=platform.arch,
+                system=platform.system,
+                distro=None,
+                version=None
+            ),
+            docker_host='unix:///var/run/docker.sock',
+            hostconfig={'network_mode': 'host'},
             masterFQDN=os.getenv('MASTER_FQDN')
         )
         workers.append(worker)
