@@ -10,11 +10,10 @@
 
 import copy
 import toolz
-import itertools
 import warnings
-from collections import defaultdict
 
-from buildbot import interfaces, config
+from buildbot import config
+from buildbot.util import safeTranslate
 from buildbot.config import BuilderConfig
 from buildbot.process.factory import BuildFactory
 from buildbot.process.properties import Properties
@@ -55,8 +54,6 @@ class Builder:
     ]
     __defaults__ = {
         'workers': [],
-        'builddir': None,
-        'workerbuilddir': None,
         'env': {},
         'tags': [],
         'locks': [],
@@ -70,23 +67,29 @@ class Builder:
 
     worker_filter = where()
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, name, builddir=None, workerbuilddir=None, **kwargs):
         self.name = name
+        # TODO(kszucs): use better naming
+        self.builddir = builddir or safeTranslate(self.name)
+        self.workerbuilddir = workerbuilddir or self.builddir
+
         for k, default in self.__defaults__.items():
             classvar = getattr(self, k, copy.copy(default))
             argument = kwargs.get(k, default)
             setattr(self, k, argument or classvar)
+
         self.validate()
 
     @classmethod
     def _is_worker_suitable(cls, worker):
-        criterion = (
+        criteria = (
             instance_of(str) |
             (instance_of(Worker) & cls.worker_filter)
         )
-        return criterion(worker)
+        return criteria(worker)
 
     def validate(self):
+        # TODO(kszucs): additional validations
         for worker in self.workers:
             if not self._is_worker_suitable(worker):
                 raise InvalidWorker(f"The worker filter defined for builder "
@@ -207,27 +210,27 @@ class DockerBuilder(Builder):
 
     @classmethod
     def _is_image_suitable(cls, image):
-        criterion = (
+        criteria = (
             instance_of(str) |
             (instance_of(DockerImage) & cls.image_filter)
         )
-        return criterion(image)
+        return criteria(image)
 
     @classmethod
     def _is_worker_suitable(cls, worker):
-        criterion = (
+        criteria = (
             instance_of(str) |
             (instance_of(DockerLatentWorker) & cls.worker_filter)
         )
-        return criterion(worker)
+        return criteria(worker)
 
     @classmethod
     def _does_worker_support_image(cls, worker, image):
+        # if either the image or the worker was passed as a string then
+        # we cannot validate so assume yes
         if hasattr(worker, 'supports') and hasattr(image, 'platform'):
             return worker.supports(image.platform)
         else:
-            # if either the image or the worker was passed as a string then
-            # we cannot validate so assume yes
             return True
 
     def validate(self):
@@ -238,7 +241,7 @@ class DockerBuilder(Builder):
         for worker in self.workers:
             if not self._does_worker_support_image(worker, self.image):
                 raise InvalidWorker(f"Worker {worker} doesn't support the "
-                                    f"image's platform {image.platform}")
+                                    f"image's platform {self.image.platform}")
 
     @classmethod
     def combine_with(cls, workers, images, name=None, **kwargs):
@@ -269,6 +272,7 @@ class DockerBuilder(Builder):
             for worker in suitable_workers
             if cls._does_worker_support_image(worker, image)
         ])
+        # group the suitable workers for each image
         workers_for_image = {
             image: list(toolz.pluck(1, workers))
             for image, workers in image_worker_pairs.groupby(0).items()

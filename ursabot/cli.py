@@ -30,6 +30,10 @@ logger = logging.getLogger(__name__)
 logger_ = Logger()  # twisted's logger
 
 
+# TODO(kszucs): try to use asyncio reactor with uvloop instead of the default
+#               twisted one
+
+
 class UrsabotConfigErrors(click.ClickException):
 
     def __init__(self, wrapped):

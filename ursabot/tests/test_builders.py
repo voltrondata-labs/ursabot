@@ -101,6 +101,9 @@ def test_builder_as_config():
     assert conf.properties == {'A': 'a'}
 
 
+# TODO(kszucs): test description
+
+
 # def test_for_workers():
 #     class Test(Builder):
 #         env = {'A': 'a'}

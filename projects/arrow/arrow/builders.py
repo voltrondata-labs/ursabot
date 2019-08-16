@@ -7,7 +7,6 @@ from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
                            GitHub, Maven, Go, Cargo, Npm, R)
 from ursabot.utils import where, matching, any_of, has
 
-from .docker import images
 from .steps import Archery, Crossbow
 
 
@@ -258,6 +257,7 @@ r_check = R(
 
 
 class CrossbowTrigger(DockerBuilder):
+    # TODO(kszucs): add docstring which will be the builders description
     tags = ['crossbow']
     env = {
         'GIT_COMMITTER_NAME': 'ursabot',
