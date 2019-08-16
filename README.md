@@ -110,6 +110,13 @@ Installation requires at least Python 3.6:
 pip install -e ursabot
 ```
 
+Install `pass`:
+
+```bash
+which apt && sudo -H apt install -V -y pass
+which brew && brew install pass
+```
+
 Now the `ursabot` command is available which looks for a `master.cfg` file in
 the current directory. `master.cfg` can be passed explicitly via the `--config`
 option:
