@@ -523,6 +523,6 @@ More closely Ursabot related:
 [ursabot-builders]: https://ci.ursalabs.org/#/builders
 [buildbot-docs]: https://docs.buildbot.net
 [github-reactions]: https://help.github.com/en/articles/about-conversations-on-github#reacting-to-ideas-in-comments
-[github-author-associations]: https://developer.github.com/v4/enum/commentauthorassociation/
+[github-author-association]: https://developer.github.com/v4/enum/commentauthorassociation/
 [multiple-configs]: master.cfg#L137
 [including-configs]: master.cfg#L36
