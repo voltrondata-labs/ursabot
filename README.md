@@ -107,7 +107,8 @@ debugging issues without touching the production instance.
 Installation requires at least Python 3.6:
 
 ```bash
-pip install -e ursabot
+cd /path/to/ursabot
+pip install -e .
 ```
 
 Now the `ursabot` command is available which looks for a `master.cfg` file in
