@@ -22,7 +22,7 @@ from twisted.python.log import PythonLoggingObserver
 
 from .builders import DockerBuilder
 from .configs import Config, MasterConfig
-from .utils import Glob, ensure_deferred
+from .utils import Matching, Filter, ensure_deferred
 from .master import TestMaster
 
 
@@ -285,15 +285,18 @@ def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
               help='Password to authenticate dockerhub with')
 @click.option('--arch', '-a', default=None,
               help='Filter images by architecture')
-@click.option('--os', '-o', default=None,
+@click.option('--system', '-s', default=None,
               help='Filter images by operating system')
+@click.option('--distro', '-d', default=None,
+              help='Filter images by the distribution of the operating system')
 @click.option('--tag', '-t', default=None,
               help='Filter images by operating system')
 @click.option('--variant', '-v', default=None,
               help='Filter images by variant')
 @click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_obj
-def docker(obj, docker_host, docker_username, docker_password, **kwargs):
+def docker(obj, docker_host, docker_username, docker_password, name, tag,
+           variant, arch, system, distro):
     """Subcommand to build docker images for the docker builders
 
     It loads the docker images defined in the master's configuration.
@@ -308,12 +311,20 @@ def docker(obj, docker_host, docker_username, docker_password, **kwargs):
     if docker_username is not None:
         client.login(username=docker_username, password=docker_password)
 
-    filters = {k: Glob(pattern) for k, pattern in kwargs.items()
-               if pattern is not None}
-    images = config.images.filter(**filters)
+    image_filter = Filter(
+        name=Matching(name),
+        tag=Matching(tag),
+        variant=Matching(variant),
+        platform=Filter(
+            arch=Matching(arch),
+            system=Matching(system),
+            distro=Matching(distro)
+        )
+    )
+    filtered = list(filter(image_filter, config.images))
 
     obj['client'] = client
-    obj['images'] = images
+    obj['images'] = filtered
 
 
 @docker.command('list')

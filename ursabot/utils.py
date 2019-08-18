@@ -69,11 +69,14 @@ def InstanceOf(cls):
 
 
 def Matching(pattern):
-    return lambda value: fnmatch.fnmatch(value, pattern)
+    if pattern is None:
+        return lambda v: True
+    else:
+        return lambda v: fnmatch.fnmatch(v, pattern)
 
 
 def Glob(pattern):
-    return lambda values: fnmatch.filter(values, pattern)
+    return lambda vs: fnmatch.filter(vs, pattern)
 
 
 def AnyOf(*validators):
