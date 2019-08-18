@@ -28,3 +28,4 @@ toolz
 toposort
 treq
 twisted[tls]
+-e git://github.com/kszucs/pydantic.git@preserve_annotations#egg=pydantic

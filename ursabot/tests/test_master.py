@@ -1,4 +1,3 @@
-import os
 from unittest.mock import patch
 
 import pytest
@@ -36,10 +35,10 @@ workers = []
 #     archs=['amd64'],
 #     masterFQDN=os.getenv('MASTER_FQDN')
 # )
-echoer = DockerBuilder('echoer', image=images[0], workers=workers, steps=[
+echoer = DockerBuilder(name='echoer', image=images[0], workers=workers, steps=[
     ShellCommand(command='echo 1337', as_shell=True)
 ])
-failer = DockerBuilder('failer', image=images[0], workers=workers, steps=[
+failer = DockerBuilder(name='failer', image=images[0], workers=workers, steps=[
     ShellCommand(command='unknown-command', as_shell=True)
 ])
 builders = [echoer, failer]

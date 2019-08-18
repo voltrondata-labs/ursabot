@@ -170,11 +170,11 @@ class TestMarkdownFormatter(TestFormatterBase):
 
     @ensure_deferred
     async def test_started(self):
-        expected = f'''
+        expected = f"""
         [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder is started.
 
         Revision: {self.REVISION}
-        '''
+        """
         content = await self.render(previous=SUCCESS, current=-1,
                                     complete=False)
         assert content == textwrap.dedent(expected).strip()
@@ -182,11 +182,11 @@ class TestMarkdownFormatter(TestFormatterBase):
     @ensure_deferred
     async def test_success(self):
         status = 'has been succeeded.'
-        expected = f'''
+        expected = f"""
         [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
         Revision: {self.REVISION}
-        '''
+        """
         log1 = ('hline1', 'hline2', 'oline3')
         log2 = ('hline1', 'oline2', 'oline3', 'hline7')
         content = await self.render(previous=SUCCESS, current=SUCCESS,
@@ -200,7 +200,7 @@ class TestMarkdownFormatter(TestFormatterBase):
         log1 = ('hline1', 'hline2', 'oline3', 'eline4', 'eline5')
         log2 = ('hline1', 'eline2', 'eline3', 'oline4', 'eline5', 'eline6')
 
-        expected = f'''
+        expected = f"""
         [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder failed.
 
         Revision: {self.REVISION}
@@ -210,14 +210,14 @@ class TestMarkdownFormatter(TestFormatterBase):
         line4
         line5
         ```
-        '''
+        """
         content = await self.render(buildsetid=99, previous=SUCCESS,
                                     current=FAILURE, log1=log1, log2=log2)
         assert content == textwrap.dedent(expected).strip()
 
         BUILD_URL = 'http://localhost:8080/#builders/80/builds/0'
         BUILD_ID = 20
-        expected = f'''
+        expected = f"""
         [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder failed.
 
         Revision: {self.REVISION}
@@ -229,7 +229,7 @@ class TestMarkdownFormatter(TestFormatterBase):
         line5
         line6
         ```
-        '''
+        """
         content = await self.render(buildsetid=98, previous=SUCCESS,
                                     current=FAILURE, log1=log1, log2=log2)
         assert content == textwrap.dedent(expected).strip()
@@ -246,7 +246,7 @@ class TestMarkdownFormatter(TestFormatterBase):
             log2 = traceback.format_exc().strip()
 
         status = 'failed with an exception.'
-        expected = f'''
+        expected = f"""
         [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
         Revision: {self.REVISION}
@@ -255,7 +255,7 @@ class TestMarkdownFormatter(TestFormatterBase):
         ```pycon
         {{log1}}
         ```
-        '''
+        """
         content = await self.render(buildsetid=99, previous=SUCCESS,
                                     current=EXCEPTION, log1=log1.splitlines(),
                                     log2=log2.splitlines())

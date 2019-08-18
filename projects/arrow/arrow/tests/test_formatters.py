@@ -3,10 +3,6 @@
 #
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
-#
-# This file contains function or sections of code that are marked as being
-# derivative works of Buildbot. The above license only applies to code that
-# is not marked as such.
 
 import textwrap
 from buildbot.plugins import util
@@ -24,9 +20,6 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         return BenchmarkCommentFormatter()
 
     def setupDb(self, current, previous):
-        # License note:
-        #    Copied from the original buildbot implementation with
-        #    minor changes and additions.
         super().setupDb(current, previous)
 
         log1 = self.load_fixture('archery-benchmark-diff.jsonl')
@@ -52,18 +45,18 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
     @ensure_deferred
     async def test_failure(self):
         status = 'failed.'
-        expected = f'''
+        expected = f"""
         [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
         Revision: {self.REVISION}
-        '''
+        """
         content = await self.render(previous=SUCCESS, current=FAILURE)
         assert content == textwrap.dedent(expected).strip()
 
     @ensure_deferred
     async def test_success(self):
         status = 'has been succeeded.'
-        expected = f'''
+        expected = f"""
         [Builder1 (#{self.BUILD_ID})]({self.BUILD_URL}) builder {status}
 
         Revision: {self.REVISION}
@@ -78,7 +71,7 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
         - RegressionSumKernel/32768/0   2.7685e+10   2.78212e+10  -0.00491813
           ============================  ===========  ===========  ===========
         ```
-        '''
+        """
         content = await self.render(previous=SUCCESS, current=SUCCESS,
                                     buildsetid=99)
         assert content == textwrap.dedent(expected).strip()
@@ -87,7 +80,7 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
     async def test_empty_jsonlines(self):
         BUILD_URL = 'http://localhost:8080/#builders/80/builds/0'
         BUILD_ID = 20
-        expected = f'''
+        expected = f"""
         [Builder1 (#{BUILD_ID})]({BUILD_URL}) builder has been succeeded.
 
         Revision: {self.REVISION}
@@ -102,7 +95,7 @@ class TestBenchmarkCommentFormatter(TestFormatterBase):
           RegressionSumKernel/32768/0   1.8317e+10   1.85027e+10  0.010141
           ============================  ===========  ===========  ==========
         ```
-        '''
+        """
         content = await self.render(previous=SUCCESS, current=SUCCESS,
                                     buildsetid=98)
         assert content == textwrap.dedent(expected).strip()

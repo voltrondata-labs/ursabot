@@ -6,6 +6,7 @@
 
 import io
 import logging
+import warnings
 from pathlib import Path
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -21,7 +22,7 @@ from twisted.python.log import PythonLoggingObserver
 
 from .builders import DockerBuilder
 from .configs import Config, MasterConfig
-from .utils import ensure_deferred, matching
+from .utils import Glob, ensure_deferred
 from .master import TestMaster
 
 
@@ -47,7 +48,7 @@ class UrsabotConfigErrors(click.ClickException):
 
 
 @click.group()
-@click.option('--verbose/--quiet', '-v', default=False, is_flag=True)
+@click.option('--verbose/--quiet', '-v/-q', default=False, is_flag=True)
 @click.option('--config-path', '-c', default='master.cfg',
               help='Configuration file path')
 @click.option('--config-variable', '-cv', default='master',
@@ -68,10 +69,14 @@ def ursabot(ctx, verbose, config_path, config_variable):
     stderr, stdout = io.StringIO(), io.StringIO()
     try:
         with redirect_stderr(stderr), redirect_stdout(stdout):
-            config = Config.load_from(config_path, variable=config_variable)
+            with warnings.catch_warnings(record=True) as catched_warnings:
+                config = Config.load_from(config_path,
+                                          variable=config_variable)
     except ConfigErrors as e:
         raise UrsabotConfigErrors(e)
     finally:
+        for warning in catched_warnings:
+            click.echo(click.style(str(warning.message), fg='red'), err=True)
         if verbose:
             stderr, stdout = stderr.getvalue(), stdout.getvalue()
             if stderr:
@@ -303,7 +308,7 @@ def docker(obj, docker_host, docker_username, docker_password, **kwargs):
     if docker_username is not None:
         client.login(username=docker_username, password=docker_password)
 
-    filters = {k: matching(pattern) for k, pattern in kwargs.items()
+    filters = {k: Glob(pattern) for k, pattern in kwargs.items()
                if pattern is not None}
     images = config.images.filter(**filters)
 
@@ -392,7 +397,7 @@ def _use_local_sources(builder, sources):
 @project.command('build')
 @click.argument('builder_name', nargs=1)
 @click.option('--repo', '-r', default=None,
-              help='Repository to clone, defaults to the Project\'s repo.')
+              help="Repository to clone, defaults to the Project's repo.")
 @click.option('--branch', '-b', default='master', help='Branch to clone')
 @click.option('--commit', '-c', default=None, help='Commit to clone')
 @click.option('--pull-request', '-pr', type=int, default=None,
@@ -406,7 +411,7 @@ def _use_local_sources(builder, sources):
                    'It must be passed in `source:destination` form.'
                    'Useful for running builders on local repositories. '
                    'If any source mount is defined, then all of the '
-                   'builder\'s source checkouts are faked out, so each '
+                   "builder's source checkouts are faked out, so each "
                    'checkout step must be provided.')
 @click.option('--attach-on-failure', '-a', is_flag=True, default=False,
               help='If a build fails and it is executed withing a '
@@ -435,8 +440,8 @@ def project_build(obj, builder_name, repo, branch, commit, pull_request,
         available = '\n'.join(f' - {b.name}' for b in project.builders)
         raise click.ClickException(
             f"Project {project.name} doesn't have a builder named "
-            f"`{builder_name}`.\n Select one from the following list: \n"
-            f"{available}"
+            f'`{builder_name}`.\n Select one from the following list: \n'
+            f'{available}'
         )
     else:
         click.echo(f'Triggering builder: {builder}')

@@ -8,12 +8,15 @@
 # derivative works of Buildbot. The above license only applies to code that
 # is not marked as such.
 
-import copy
 import toolz
 import warnings
+import operator
+from pathlib import Path
+from typing import Union, List, Dict, Callable, ClassVar
 
-from buildbot import config
-from buildbot.util import safeTranslate
+from pydantic import BaseModel, validator
+from buildbot.plugins import util, steps
+from buildbot.util import safeTranslate, bytes2unicode
 from buildbot.config import BuilderConfig
 from buildbot.process.factory import BuildFactory
 from buildbot.process.properties import Properties
@@ -21,100 +24,116 @@ from buildbot.worker.base import AbstractWorker, Worker
 
 from .docker import DockerImage
 from .workers import DockerLatentWorker
-from .utils import Collection, instance_of, where
+from .utils import filter_except, filter_instances
 
 __all__ = ['Builder', 'DockerBuilder']
 
 
-class InvalidWorker(Exception):
+Step = steps.BuildStep
+Lock = Union[util.MasterLock, util.WorkerLock]
+Renderable = Union[util.Property, util.Interpolate, util.Transform, str]
+ImageFilter = Callable[[DockerImage], DockerImage]
+WorkerFilter = Callable[[AbstractWorker], AbstractWorker]
+
+
+class Marker:
     pass
 
 
-class InvalidImage(Exception):
+class Merge(Marker, dict):
     pass
 
 
-# Collection instead of list
-class Builder:
+class Extend(Marker, list):
+    pass
 
-    __slots__ = [
-        'name',
-        'workers',
-        'builddir',
-        'workerbuilddir',
-        'env',
-        'tags',
-        'locks',
-        'steps',
-        'properties',
-        'next_build',
-        'next_worker',
-        'can_start_build',
-        'collapse_requests'
-    ]
-    __defaults__ = {
-        'workers': [],
-        'env': {},
-        'tags': [],
-        'locks': [],
-        'steps': [],
-        'properties': {},
-        'next_build': None,
-        'next_worker': None,
-        'can_start_build': None,
-        'collapse_requests': None
-    }
 
-    worker_filter = where()
+class Builder(BaseModel):
 
-    def __init__(self, name, builddir=None, workerbuilddir=None, **kwargs):
-        self.name = name
-        # TODO(kszucs): use better naming
-        self.builddir = builddir or safeTranslate(self.name)
-        self.workerbuilddir = workerbuilddir or self.builddir
+    class Config:
+        arbitrary_types_allowed = True
 
-        for k, default in self.__defaults__.items():
-            classvar = getattr(self, k, copy.copy(default))
-            argument = kwargs.get(k, default)
-            setattr(self, k, argument or classvar)
+    name: str
+    workers: List[Worker]
+    builddir: Path = None
+    workerbuilddir: Path = None
+    description: str = ''
+    env: Dict[str, Renderable] = {}
+    tags: List[str] = []
+    locks: List[Lock] = []
+    steps: List[Step] = []
+    properties: Dict[str, Renderable] = {}
+    next_build: Callable = None
+    next_worker: Callable = None
+    can_start_build: Callable = None
+    collapse_requests: Callable = None
+    worker_filter: ClassVar[WorkerFilter] = toolz.identity
 
-        self.validate()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._validate()
+
+    def _validate(self):
+        pass
 
     @classmethod
+    def default(cls, field_name):
+        """Returns the default value of a field"""
+        return cls.__fields__[field_name].default
+
+    @classmethod
+    def _traverse_defaults(cls, field_name, field_value, marker_type):
+        values = [field_value]
+        for base in cls.__mro__[1:]:
+            if not isinstance(field_value, marker_type):
+                break
+            field_value = base.default(field_name)
+            values.append(field_value)
+        values.reverse()
+        return values
+
+    @validator('builddir', 'workerbuilddir', pre=True, always=True)
+    def _default_builddir(cls, v, values):
+        default = bytes2unicode(safeTranslate(values.get('name', '')))
+        return v or Path(default)
+
+    @validator('description', pre=True, always=True)
+    def _default_description(cls, v):
+        return cls.__doc__ if not v and cls.__doc__ else v
+
+    @validator('env', 'properties', pre=True, always=True, whole=True)
+    def _merge_if_marked(cls, v, values, field):
+        vs = cls._traverse_defaults(field.name, v, Merge)
+        return toolz.merge(vs)
+
+    @validator('tags', 'locks', 'steps', pre=True, always=True, whole=True)
+    def _extend_if_marked(cls, v, values, field):
+        vs = cls._traverse_defaults(field.name, v, Extend)
+        return list(toolz.concat(vs))
+
+    @validator('workers', pre=True, always=True)
     def _is_worker_suitable(cls, worker):
-        criteria = (
-            instance_of(str) |
-            (instance_of(Worker) & cls.worker_filter)
+        return cls.worker_filter(worker)
+
+    def _render_properties(self):
+        props = Properties(
+            buildername=self.name,
+            builddir=str(self.builddir),
+            workerbuilddir=str(self.workerbuilddir)
         )
-        return criteria(worker)
-
-    def validate(self):
-        # TODO(kszucs): additional validations
-        for worker in self.workers:
-            if not self._is_worker_suitable(worker):
-                raise InvalidWorker(f"The worker filter defined for builder "
-                                    f"{self} doesn't pass for worker {worker}")
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} '{self.name}'>"
+        rendered = props.render(
+            self.properties
+        )
+        return rendered.result
 
     def as_config(self):
         factory = BuildFactory(self.steps)
-
-        workernames = []
-        for w in self.workers:
-            if isinstance(w, AbstractWorker):
-                workernames.append(w.name)
-            elif isinstance(w, str):
-                workernames.append(w)
-            else:
-                config.error('`workers` must be a list of strings or '
-                             'a list of worker objects')
-
+        properties = self._render_properties()
+        workernames = [w.name for w in self.workers]
         return BuilderConfig(
             name=self.name, workernames=workernames, factory=factory,
-            description=self.__doc__, tags=self.tags, env=self.env,
-            properties=self.properties, locks=self.locks,
+            properties=properties, description=self.__doc__,
+            tags=self.tags, env=self.env, locks=self.locks,
             builddir=self.builddir, workerbuilddir=self.workerbuilddir,
             nextWorker=self.next_worker, nextBuild=self.next_build,
             collapseRequests=self.collapse_requests,
@@ -125,12 +144,18 @@ class Builder:
     def combine_with(cls, workers, name, **kwargs):
         # instantiate builders by applying Builder.worker_filter and grouping
         # the workers based on architecture or criteria
-        suitable_workers = Collection(workers).filter(cls._is_worker_suitable)
-        workers_by_platform = suitable_workers.groupby('platform')
+        suitable_workers = filter_instances(Worker, workers)
+        suitable_workers = filter_except(cls._is_worker_suitable, workers)
+
+        workers_by_platform = toolz.groupby(
+            operator.attrgetter('platform'),
+            suitable_workers
+        )
 
         builders = []
         for platform, workers in workers_by_platform.items():
-            builder = cls(name=f'{platform.title} {name}', **kwargs)
+            name_ = f'{platform.title()} {name}'.strip()
+            builder = cls(name=name_, workers=workers, **kwargs)
             builders.append(builder)
 
         return builders
@@ -138,27 +163,23 @@ class Builder:
 
 class DockerBuilder(Builder):
 
-    __slots__ = [
-        *Builder.__slots__,
-        'image',
-        'volumes',
-        'hostconfig'
-    ]
-    __defaults__ = {
-        **Builder.__defaults__,
-        'volumes': [],
-        'hostconfig': {}
-    }
+    image: DockerImage
+    workers: List[DockerLatentWorker]
+    volumes: List[Renderable] = []
+    hostconfig: Dict[str, Renderable] = {}
+    image_filter: ClassVar[ImageFilter] = toolz.identity
 
-    worker_filter = where()
-    image_filter = where()
+    @validator('image', pre=True, always=True)
+    def _is_image_suitable(cls, image):
+        return cls.image_filter(image)
 
-    def __init__(self, name, image, workers, **kwargs):
-        self.image = image
-        super().__init__(name=name, workers=workers, **kwargs)
-        self._render_docker_properties()
+    def _validate(self):
+        for worker in self.workers:
+            if not worker.supports(self.image.platform):
+                raise ValueError(f"Worker {worker} doesn't support the "
+                                 f"image's platform {self.image.platform}")
 
-    def _render_docker_properties(self):
+    def _render_properties(self):
         """Render docker properties dinamically.
 
         Docker specific configuration defined in the DockerBuilder instances
@@ -195,53 +216,18 @@ class DockerBuilder(Builder):
            directory simultaneously.
         """
         props = Properties(
-            buildername=self.name,
-            builddir=self.builddir,
-            workerbuilddir=self.workerbuilddir,
-            docker_image=str(self.image),
-            docker_workdir=self.image.workdir
+            buildername=str(self.name),
+            builddir=str(self.builddir),
+            workerbuilddir=str(self.workerbuilddir)
         )
-        self.properties.update({
+        rendered = props.render({
+            **self.properties,
             'docker_image': str(self.image),
-            'docker_workdir': self.image.workdir,
-            'docker_volumes': props.render(self.volumes).result,
-            'docker_hostconfig': props.render(self.hostconfig).result,
+            # 'docker_workdir': self.image.workdir,
+            'docker_volumes': self.volumes,
+            'docker_hostconfig': self.hostconfig
         })
-
-    @classmethod
-    def _is_image_suitable(cls, image):
-        criteria = (
-            instance_of(str) |
-            (instance_of(DockerImage) & cls.image_filter)
-        )
-        return criteria(image)
-
-    @classmethod
-    def _is_worker_suitable(cls, worker):
-        criteria = (
-            instance_of(str) |
-            (instance_of(DockerLatentWorker) & cls.worker_filter)
-        )
-        return criteria(worker)
-
-    @classmethod
-    def _does_worker_support_image(cls, worker, image):
-        # if either the image or the worker was passed as a string then
-        # we cannot validate so assume yes
-        if hasattr(worker, 'supports') and hasattr(image, 'platform'):
-            return worker.supports(image.platform)
-        else:
-            return True
-
-    def validate(self):
-        super().validate()
-        if not self._is_image_suitable(self.image):
-            raise InvalidImage(f"The image filter defined for builder {self}"
-                               f"doesn't pass for image {self.image}")
-        for worker in self.workers:
-            if not self._does_worker_support_image(worker, self.image):
-                raise InvalidWorker(f"Worker {worker} doesn't support the "
-                                    f"image's platform {self.image.platform}")
+        return rendered.result
 
     @classmethod
     def combine_with(cls, workers, images, name=None, **kwargs):
@@ -262,26 +248,34 @@ class DockerBuilder(Builder):
         docker_builder : List[DockerBuilder]
             Builder instances.
         """
-        suitable_images = Collection(images).filter(cls._is_image_suitable)
-        suitable_workers = Collection(workers).filter(cls._is_worker_suitable)
+        suitable_images = filter_instances(DockerImage, images)
+        suitable_images = filter_except(cls._is_image_suitable,
+                                        suitable_images)
+
+        suitable_workers = filter_instances(DockerLatentWorker, workers)
+        suitable_workers = filter_except(cls._is_worker_suitable,
+                                         suitable_workers)
+        suitable_workers = list(suitable_workers)
 
         # join the images with the suitable workers
-        image_worker_pairs = Collection([
+        image_worker_pairs = [
             (image, worker)
             for image in suitable_images
             for worker in suitable_workers
-            if cls._does_worker_support_image(worker, image)
-        ])
+            if worker.supports(image.platform)
+        ]
+
         # group the suitable workers for each image
-        workers_for_image = {
-            image: list(toolz.pluck(1, workers))
-            for image, workers in image_worker_pairs.groupby(0).items()
+        pairs_by_image = toolz.groupby(0, image_worker_pairs).items()
+        workers_by_image = {
+            image: list(toolz.pluck(1, pairs))
+            for image, pairs in pairs_by_image
         }
 
         builders = []
-        for image, workers in workers_for_image.items():
+        for image, workers in workers_by_image.items():
             if workers:
-                builder_name = image.title
+                builder_name = image.title or image.name.title()
                 if name:
                     builder_name += f' {name}'
 
@@ -291,7 +285,7 @@ class DockerBuilder(Builder):
             else:
                 warnings.warn(
                     f'{cls.__name__}: there are no docker workers available '
-                    f'for architecture `{image.arch}`, omitting image '
+                    f'for platform `{image.platform}`, omitting image '
                     f'`{image}`'
                 )
 

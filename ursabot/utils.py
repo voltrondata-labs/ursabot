@@ -8,8 +8,8 @@ import platform
 import pathlib
 import fnmatch
 import itertools
-import operator
-from functools import partial, reduce, wraps
+from contextlib import suppress
+from functools import wraps
 
 import distro
 import toolz
@@ -20,11 +20,11 @@ from buildbot.util.logger import Logger
 __all__ = [
     'ensure_deferred',
     'read_dependency_list',
+    'AnyOf',
+    'AllOf',
+    'Matching',
+    'Glob',
     'Filter',
-    'startswith',
-    'any_of',
-    'has',
-    'Collection',
     'HTTPClientService',
     'GithubClientService',
 ]
@@ -48,6 +48,118 @@ def read_dependency_list(path):
     return [l for l in lines if not l.startswith('#')]
 
 
+def filter_instances(cls, items):
+    for item in items:
+        if isinstance(item, cls):
+            yield item
+
+
+def filter_except(fn, items, exceptions=(ValueError,)):
+    for item in items:
+        with suppress(*exceptions):
+            yield fn(item)
+
+
+def Has(*needles):
+    return lambda haystack: set(needles).issubset(set(haystack))
+
+
+def InstanceOf(cls):
+    return lambda value: isinstance(value, cls)
+
+
+def Matching(pattern):
+    return lambda value: fnmatch.fnmatch(value, pattern)
+
+
+def Glob(pattern):
+    return lambda values: fnmatch.filter(values, pattern)
+
+
+def AnyOf(*validators):
+    def check(value):
+        for validator in validators:
+            if callable(validator):
+                if validator(value):
+                    return True
+            else:
+                if value == validator:
+                    return True
+        return False
+    return check
+
+
+def AllOf(*validators):
+    def check(value):
+        for validator in validators:
+            if callable(validator):
+                if not validator(value):
+                    return False
+            else:
+                if value != validator:
+                    return False
+        return True
+    return check
+
+
+def Filter(**kwargs):
+    def check(obj):
+        for attr, validator in kwargs.items():
+            value = getattr(obj, attr)
+            if callable(validator):
+                if not validator(value):
+                    return False
+            else:
+                if value != validator:
+                    return False
+        return True
+    return check
+
+
+# from enum import Enum
+#
+#
+# class Arch(str, Enum):
+#     AMD64 = 'AMD64'
+#     ARM64V8 = 'ARM64v8'
+#     ARM32V7 = 'ARM32v7'
+#
+#
+# class System(str, Enum):
+#     WINDOWS = 'Windows'
+#     DARWIN = 'Darwin'
+#     LINUX = 'Linux'
+#
+#
+# class Linux(str, Enum):
+#     ALPINE = 'Alpine'
+#     DEBIAN = 'Debian'
+#     UBUNTU = 'Ubuntu'
+#     CENTOS = 'CentOS'
+#     FEDORA = 'Fedora'
+#
+#     @property
+#     def system(self):
+#         return System.LINUX
+#
+#
+# class Darwin(str, Enum):
+#     MACOS = 'macOS'
+#
+#     @property
+#     def system(self):
+#         return System.DARWIN
+#
+#
+# class Windows(str, Enum):
+#     WINDOWS = 'Windows'
+#
+#     @property
+#     def system(self):
+#         return System.WINDOWS
+#
+
+
 class Platform:
 
     __slots__ = ('arch', 'system', 'distro', 'version', 'codename')
@@ -61,12 +173,11 @@ class Platform:
         'centos': 'linux',
         'alpine': 'linux',
         'fedora': 'linux',
-        'darwin': 'darwin',
+        'macos': 'darwin',
         'windows': 'windows'
     }
 
     def __init__(self, arch, distro, version, system=None, codename=None):
-        # TODO(kszucs) properly map the architectures to a smaller set of values
         arch = self._architectures.get(arch, arch)
         if arch not in {'amd64', 'arm64v8', 'arm32v7'}:
             raise ValueError(f'invalid architecture `{arch}`')
@@ -81,7 +192,6 @@ class Platform:
         self.version = version
         self.codename = codename
 
-    @property
     def title(self):
         return f'{self.arch.upper()} {self.distro.capitalize()} {self.version}'
 
@@ -108,139 +218,27 @@ class Platform:
 
     @classmethod
     def detect(cls):
+        system = platform.system().lower()
+        if system == 'windows':
+            dist = 'windows'
+            version, *_ = platform.win32_ver()
+            codename = None
+        elif system == 'darwin':
+            dist = 'macos'
+            version, *_ = platform.mac_ver()
+            codename = None
+        else:
+            dist = distro.id()
+            version = distro.version()
+            codename = distro.codename()
+
         return cls(
             arch=platform.machine(),
-            system=platform.system().lower(),
-            distro=distro.id(),
-            version=distro.version(),
-            codename=distro.codename()
+            system=system,
+            distro=dist,
+            version=version,
+            codename=codename
         )
-
-
-class Combinable:
-
-    @classmethod
-    def _binop(cls, fn, other):
-        if isinstance(other, cls):
-            return cls(fn)
-        else:
-            return NotImplemented
-
-    def __or__(self, other):
-        def _or(*args, **kwargs):
-            return self(*args, **kwargs) or other(*args, **kwargs)
-        return self._binop(_or, other)
-
-    def __and__(self, other):
-        def _and(*args, **kwargs):
-            return self(*args, **kwargs) and other(*args, **kwargs)
-        return self._binop(_and, other)
-
-
-class _Filter(Combinable):
-
-    __slots__ = ('fn',)
-
-    def __init__(self, fn):
-        self.fn = fn
-
-    def __call__(self, *args, **kwargs):
-        return self.fn(*args, **kwargs)
-
-
-def where(*args, **kwargs):
-    assert all(callable(fn) for fn in args)
-
-    def filt(item, k, v):
-        value = getattr(item, k)
-        if callable(v):
-            return v(value)
-        else:
-            return value == v
-
-    funcs = toolz.concat([
-        args,
-        (partial(filt, k=k, v=v) for k, v in kwargs.items())
-    ])
-
-    initial = _Filter(lambda obj: True)
-    return reduce(operator.and_, map(_Filter, funcs), initial)
-
-
-def instance_of(typ):
-    return _Filter(lambda obj: isinstance(obj, typ))
-
-
-def startswith(prefix):
-    return _Filter(lambda value: value.startswith(prefix))
-
-
-def any_of(*values):
-    return _Filter(lambda value: value in values)
-
-
-def has(*needles):
-    return _Filter(lambda haystack: set(needles).issubset(set(haystack)))
-
-
-def matching(glob_pattern):
-    return _Filter(lambda value: fnmatch.fnmatch(value, glob_pattern))
-
-
-def any_matching(glob_pattern):
-    return _Filter(lambda values: bool(fnmatch.filter(values, glob_pattern)))
-
-
-class Collection(list):
-
-    def get(self, **kwargs):
-        """Retrieves a single entry from the collection."""
-        results = self.filter(**kwargs)
-        if len(results) == 0:
-            raise KeyError('No entry can be found by the filter conditions')
-        elif len(results) > 1:
-            raise KeyError('Multiple entries can be found by the conditions')
-        else:
-            return results[0]
-
-    def where(self, *args, **kwargs):
-        """Filters the values based on the passed conditions.
-
-        The filters can be passed as property=(value or filter function) form.
-        """
-        items = filter(where(*args, **kwargs), self)
-        return self.__class__(items)
-
-    filter = where
-
-    def groupby(self, key):
-        if not callable(key):
-            if isinstance(key, int):
-                key = operator.itemgetter(key)
-            elif len(self):
-                first = toolz.first(self)
-                if isinstance(first, dict):
-                    key = operator.itemgetter(key)
-                else:
-                    key = operator.attrgetter(key)
-            else:
-                key = operator.attrgetter(key)
-
-        return toolz.groupby(key, self)
-
-    def join(self, other, on=None, leftkey=None, rightkey=None):
-        if on is not None:
-            leftkey = rightkey = on
-        return Collection(toolz.join(leftkey, self, rightkey, other))
-
-    def unique(self):
-        return self.__class__(toolz.unique(self))
-
-    def __add__(self, other):
-        if isinstance(other, self.__class__):
-            return self.__class__(super().__add__(other))
-        else:
-            return NotImplemented
 
 
 class HTTPClientService(httpclientservice.HTTPClientService):

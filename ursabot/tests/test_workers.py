@@ -49,14 +49,14 @@ class TestDockerLatentWorker(TestDockerLatentWorker):
         # Volumes have their own tests
         bs = self.setupWorker(
             'bot', 'pass', 'unix:///var/run/docker.sock', 'worker_img',
-            ['/bin/sh'], dockerfile="FROM ubuntu", version='1.9', tls=True,
+            ['/bin/sh'], dockerfile='FROM ubuntu', version='1.9', tls=True,
             hostconfig={'network_mode': 'fake', 'dns': ['1.1.1.1', '1.2.3.4']}
         )
         assert bs.workername == 'bot'
         assert bs.password == 'pass'
         assert bs.image == 'worker_img'
         assert bs.command == ['/bin/sh']
-        assert bs.dockerfile == "FROM ubuntu"
+        assert bs.dockerfile == 'FROM ubuntu'
         assert bs.volumes, util.Property('docker_image', default=[])
         assert bs.client_args == {
             'base_url': 'unix:///var/run/docker.sock',

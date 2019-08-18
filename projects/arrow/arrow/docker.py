@@ -33,6 +33,7 @@ python_steps = [
 # pre-installed.
 images = ImageCollection()
 
+
 for arch in ['amd64', 'arm64v8', 'arm32v7']:
     # UBUNTU
     for ubuntu_version in ['18.04']:

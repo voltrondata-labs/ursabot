@@ -14,21 +14,27 @@ import traceback
 from pathlib import Path
 from functools import reduce
 from contextlib import contextmanager
+from typing import List, Callable, Optional
 
+import toolz
+from pydantic import BaseModel, validator
 from twisted.python.compat import execfile
 from zope.interface import implementer
 from buildbot import interfaces
+from buildbot.worker.base import AbstractWorker
+from buildbot.changes.base import ChangeSource
+from buildbot.schedulers.base import BaseScheduler
+from buildbot.reporters.http import HttpStatusPushBase
 from buildbot.config import ConfigErrors, error, _errors  # noqa
 from buildbot.config import MasterConfig as BuildbotMasterConfig
 from buildbot.util.logger import Logger
 from buildbot.util import ComparableMixin
-from buildbot.worker.base import AbstractWorker
-from buildbot.config import BuilderConfig
-from buildbot.schedulers.base import BaseScheduler
-from buildbot.changes.base import PollingChangeSource
+from buildbot.www.auth import AuthBase
+from buildbot.www.authz import Authz
+from buildbot.secrets.providers.base import SecretProviderBase
 
-from .docker import ImageCollection, DockerImage
-from .utils import Collection
+from .docker import ImageCollection
+from .hooks import GithubHook
 from .builders import Builder
 
 __all__ = [
@@ -59,7 +65,10 @@ def collect_global_errors(and_raise=False):
             raise errors
 
 
-class Config(ComparableMixin):
+class Config(BaseModel):
+
+    class Config:
+        arbitrary_types_allowed = True
 
     @classmethod
     def load_from(cls, path, variable, inject_globals=None):
@@ -72,72 +81,33 @@ class Config(ComparableMixin):
 
 class ProjectConfig(Config):
 
-    compare_attrs = [
-        'name',
-        'repo',
-        'images',
-        'commands',
-        'pollers',
-        'workers',
-        'builders',
-        'schedulers',
-        'reporters'
-    ]
+    name: str
+    repo: str
+    images: ImageCollection = []
+    commands: List[Callable] = []
+    pollers: List[ChangeSource] = []
+    workers: List[AbstractWorker] = []
+    builders: List[Builder] = []
+    schedulers: List[BaseScheduler] = []
+    reporters: List[HttpStatusPushBase] = []
 
-    def __init__(self, name, repo, workers, builders, schedulers, pollers=None,
-                 reporters=None, images=None, commands=None):
-        self.name = name
-        self.repo = repo
-        self.workers = Collection(workers)
-        self.builders = Collection(builders)
-        self.schedulers = Collection(schedulers)
-        self.images = ImageCollection(images or [])
-        self.commands = Collection(commands or [])
-        self.pollers = Collection(pollers or [])
-        self.reporters = Collection(reporters or [])
-        assert isinstance(self.name, str)
-        assert isinstance(self.repo, str)
-        assert all(callable(c) for c in self.commands)
-        assert all(isinstance(b, Builder) for b in self.builders)
-        assert all(isinstance(i, DockerImage) for i in self.images)
-        assert all(isinstance(p, PollingChangeSource) for p in self.pollers)
-        assert all(isinstance(s, BaseScheduler) for s in self.schedulers)
-        assert all(isinstance(w, AbstractWorker) for w in self.workers)
-
-    def __repr__(self):
-        return f'<{self.__class__.__name__}: {self.name}>'
+    @validator('images', pre=True)
+    def _coerce_images(cls, value):
+        return ImageCollection(value)
 
 
 class MasterConfig(Config):
 
-    compare_attrs = [
-        'auth',
-        'authz',
-        'change_hook'
-        'database_url',
-        'projects',
-        'secret_providers',
-        'title',
-        'url',
-        'webui_port',
-        'worker_port',
-    ]
-
-    def __init__(self, title='Ursabot', url='http://localhost:8100',
-                 webui_port=8100, worker_port=9989, auth=None, authz=None,
-                 database_url='sqlite:///ursabot.sqlite', projects=None,
-                 change_hook=None, secret_providers=None):
-        assert all(isinstance(p, ProjectConfig) for p in projects)
-        self.title = title
-        self.url = url
-        self.auth = auth
-        self.authz = authz
-        self.worker_port = worker_port
-        self.webui_port = webui_port
-        self.database_url = database_url
-        self.change_hook = change_hook
-        self.secret_providers = secret_providers
-        self.projects = Collection(projects)
+    projects: List[ProjectConfig]
+    title: str = 'Ursabot'
+    url: str = 'http://localhost:8100'
+    webui_port: int = 8100
+    worker_port: int = 9989
+    database_url: str = 'sqlite:///ursabot.sqlite'
+    auth: Optional[AuthBase] = None
+    authz: Optional[Authz] = None
+    change_hook: GithubHook = None
+    secret_providers: List[SecretProviderBase] = []
 
     def project(self, name=None):
         """Select one of the projects defined in the MasterConfig
@@ -164,7 +134,9 @@ class MasterConfig(Config):
 
     def _from_projects(self, key):
         values = (getattr(p, key) for p in self.projects)
-        return reduce(operator.add, values).unique()
+        values = reduce(operator.add, values)
+        values = toolz.unique(values)
+        return list(values)
 
     @property
     def images(self):
@@ -324,8 +296,8 @@ class FileLoader(ComparableMixin):
             sys.path[:] = old_sys_path
 
         if self.variable not in local_dict:
-            error(f"Configuration file {config} does not define variable"
-                  f"'{self.variable}'", always_raise=True)
+            error(f'Configuration file {config} does not define variable'
+                  f'`{self.variable}`', always_raise=True)
 
         return local_dict[self.variable]
 

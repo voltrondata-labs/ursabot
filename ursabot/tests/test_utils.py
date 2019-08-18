@@ -18,60 +18,39 @@ from twisted.trial import unittest
 from buildbot.util import httpclientservice
 from buildbot.util import service
 
-from ursabot.utils import (GithubClientService, Collection, ensure_deferred,
-                           startswith)
+from ursabot.utils import GithubClientService, Filter, Glob, ensure_deferred
 
 
-def test_collection():
+def test_filter():
+    def filter_list(f, items):
+        return list(filter(f, items))
+
     Item = namedtuple('Item', ('name', 'id'))
-    items = Collection([
+    items = [
         Item(name='tset', id=1),
         Item(name='test', id=2),
         Item(name='else', id=3),
         Item(name='test', id=4),
         Item(name='test', id=4)
-    ])
-    items2 = Collection([
-        Item(name='test1', id=5),
-        Item(name='test2', id=6)
-    ])
+    ]
 
-    assert items.filter(id=1) == Collection([
+    f = Filter(id=1)
+    assert filter_list(f, items) == [
         Item(name='tset', id=1)
-    ])
-    assert items.filter(name='test', id=2) == Collection([
+    ]
+
+    f = Filter(name='test', id=2)
+    assert filter_list(f, items) == [
         Item(name='test', id=2)
-    ])
-    assert items.filter(name=startswith('t')) == Collection([
+    ]
+
+    f = Filter(name=Glob('t*'))
+    assert filter_list(f, items) == [
         Item(name='tset', id=1),
         Item(name='test', id=2),
         Item(name='test', id=4),
         Item(name='test', id=4)
-    ])
-    assert items.filter(name=startswith('t')).unique() == Collection([
-        Item(name='tset', id=1),
-        Item(name='test', id=2),
-        Item(name='test', id=4)
-    ])
-    assert (items + items2) == Collection([
-        Item(name='tset', id=1),
-        Item(name='test', id=2),
-        Item(name='else', id=3),
-        Item(name='test', id=4),
-        Item(name='test', id=4),
-        Item(name='test1', id=5),
-        Item(name='test2', id=6)
-    ])
-    assert items.filter(name=startswith('t')).groupby('name') == {
-        'tset': [
-            Item(name='tset', id=1)
-        ],
-        'test': [
-            Item(name='test', id=2),
-            Item(name='test', id=4),
-            Item(name='test', id=4)
-        ]
-    }
+    ]
 
 
 Request = namedtuple('Request', ['method', 'url', 'params', 'headers', 'data'])

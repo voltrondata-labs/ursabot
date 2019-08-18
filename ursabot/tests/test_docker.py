@@ -9,7 +9,7 @@ from textwrap import dedent
 import pytest
 from dockermap.api import DockerClientWrapper
 
-from ursabot.utils import Platform, where
+from ursabot.utils import Platform, Filter
 from ursabot.docker import DockerImage, ImageCollection
 from ursabot.docker import RUN, CMD, WORKDIR, apk, apt, pip, conda
 
@@ -130,10 +130,10 @@ def test_basics():
 
 
 def test_apk():
-    cmd = "apk add --no-cache -q \\\n"
+    cmd = 'apk add --no-cache -q \\\n'
     tab = ' ' * 8
-    assert apk('bash') == f"{cmd}{tab}bash\n"
-    assert apk('bash', 'cmake') == f"{cmd}{tab}bash \\\n{tab}cmake\n"
+    assert apk('bash') == f'{cmd}{tab}bash\n'
+    assert apk('bash', 'cmake') == f'{cmd}{tab}bash \\\n{tab}cmake\n'
 
 
 def test_shortcuts_smoke():
@@ -196,11 +196,13 @@ def test_image_collection(collection):
     assert isinstance(collection, ImageCollection)
     assert len(collection) == 11
 
-    imgs = [i.name for i in collection.filter(platform=where(arch='amd64'))]
-    assert sorted(imgs) == ['a', 'c', 'd', 'e', 'j', 'k']
+    amd64_images = collection.filter(platform=Filter(arch='amd64'))
+    amd64_images = [i.name for i in amd64_images]
+    assert sorted(amd64_images) == ['a', 'c', 'd', 'e', 'j', 'k']
 
-    imgs = [i.name for i in collection.filter(platform=where(distro='centos'))]
-    assert sorted(imgs) == ['b', 'f', 'g', 'h', 'i']
+    centos_images = collection.filter(platform=Filter(distro='centos'))
+    centos_images = [i.name for i in centos_images]
+    assert sorted(centos_images) == ['b', 'f', 'g', 'h', 'i']
 
 
 @pytest.mark.docker

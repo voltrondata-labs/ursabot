@@ -9,24 +9,25 @@
 # is not marked as such.
 
 import os
-import platform
 import itertools
+import warnings
 from io import BytesIO
-from functools import partial
 from contextlib import contextmanager
 
 import toolz
 from twisted.internet import threads
+from buildbot import config
 from buildbot.plugins import util
 from buildbot.util.logger import Logger
 from buildbot.interfaces import LatentWorkerCannotSubstantiate
 from buildbot.interfaces import LatentWorkerFailedToSubstantiate
+from buildbot.worker.base import Worker
 from buildbot.worker.local import LocalWorker
 from buildbot.worker.latent import States, AbstractLatentWorker
 from buildbot.worker.docker import (DockerLatentWorker, _handle_stream_line,
                                     docker_py_version, docker)
 
-from .utils import Collection, Platform, ensure_deferred
+from .utils import Platform, ensure_deferred
 
 __all__ = [
     'LocalWorker',
@@ -37,24 +38,32 @@ __all__ = [
 log = Logger()
 
 
-class WorkerMetadata:
+class BaseWorker:
 
-    def __init__(self, *args, platform, tags=tuple(), **kwargs):
+    def __init__(self, *args, **kwargs):
         """Bookkeep a bit of metadata to describe the workers"""
-        assert isinstance(platform, Platform)
-        self.platform = platform
-        self.tags = tuple(tags)
+        self.tags = list(kwargs.pop('tags', []))
+        self.platform = kwargs.pop('platform')
+        if not isinstance(self.platform, Platform):
+            config.error('`platform` must be an instance of Platform')
         super().__init__(*args, **kwargs)
 
     def supports(self, platform):
         return self.platform == platform
 
 
-class LocalWorker(WorkerMetadata, LocalWorker):
+class Worker(BaseWorker, Worker):
     pass
 
 
-class DockerLatentWorker(WorkerMetadata, DockerLatentWorker):
+class LocalWorker(Worker, LocalWorker):
+
+    def __init__(self, *args, **kwargs):
+        platform = kwargs.pop('platform', Platform.detect())
+        super().__init__(*args, platform=platform, **kwargs)
+
+
+class DockerLatentWorker(BaseWorker, DockerLatentWorker):
     """Dinamically provisioned docker worker
 
     Parameters
@@ -321,7 +330,7 @@ def load_workers_from(config_path, **kwargs):
     with config_path.open('r') as fp:
         worker_dicts = yaml.load(fp)['workers']
 
-    workers = Collection()
+    workers = []
     for w in worker_dicts:
         if 'docker' in w:
             worker = DockerLatentWorker(
@@ -362,8 +371,12 @@ def local_test_workers():
     docker_client = docker.from_env()
     try:
         docker_client.ping()
-    except:
-        pass
+    except Exception:
+        warnings.warn(
+            'Docker daemon is unreachable so DockerLatentWorker cannot be '
+            'configured. In order to have linux docker builders start the '
+            'docker daemon.'
+        )
     else:
         worker = DockerLatentWorker(
             'local-worker-{}'.format(next(_worker_id)),
@@ -381,4 +394,4 @@ def local_test_workers():
         )
         workers.append(worker)
 
-    return Collection(workers)
+    return workers

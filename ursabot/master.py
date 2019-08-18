@@ -148,7 +148,7 @@ class TestMaster:
             if worker.workerid == build['workerid']:
                 if not hasattr(worker, 'attach_interactive_shell'):
                     log.error(f"{worker} doesn't support interactive shell "
-                              f"attachment.")
+                              f'attachment.')
                 else:
                     worker.attach_interactive_shell()
 

@@ -18,7 +18,7 @@ from dockermap.api import DockerFile, DockerClientWrapper
 from dockermap.shortcuts import mkdir
 from dockermap.build.dockerfile import format_command
 
-from .utils import Collection, Platform
+from .utils import Platform, Filter
 
 __all__ = [
     'DockerFile',
@@ -132,8 +132,8 @@ class DockerImage:
                 org = base.org
             if platform is not None and platform != base.platform:
                 raise ValueError(
-                    f"Given platform `{platform}` is not equal with the base "
-                    f"image's platform `{base.platform}`"
+                    f'Given platform `{platform}` is not equal with the base '
+                    f'platform of the image: `{base.platform}`'
                 )
             platform = base.platform
             variant = variant or base.variant
@@ -245,7 +245,7 @@ class DockerImage:
         return self
 
 
-class ImageCollection(Collection):
+class ImageCollection(list):
 
     def _image_dependents(self):
         """Returns an mapping of image => {parents}
@@ -279,6 +279,11 @@ class ImageCollection(Collection):
         for image in self:
             image.push(*args, **kwargs)
 
+    def filter(self, **kwargs):
+        criteria = Filter(**kwargs)
+        filtered = filter(criteria, self)
+        return self.__class__(filtered)
+
 
 # functions to define dockerfiles from python
 
@@ -306,8 +311,8 @@ def RUN(*args):
 
 
 def ENV(**kwargs):
-    args = tuple(map("=".join, kwargs.items()))
-    args = indent(" \\\n".join(args), _tab).lstrip()
+    args = tuple(map('='.join, kwargs.items()))
+    args = indent(' \\\n'.join(args), _tab).lstrip()
     return methodcaller('prefix', 'ENV', args)
 
 

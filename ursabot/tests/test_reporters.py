@@ -25,6 +25,7 @@ from ursabot.formatters import Formatter
 from ursabot.builders import Builder
 from ursabot.utils import ensure_deferred
 from ursabot.tests.mocks import GithubClientService
+from ursabot.workers import LocalWorker
 
 
 class HttpReporterTestCase(TestReactorMixin, unittest.TestCase,
@@ -106,9 +107,10 @@ class TestHttpStatusPush(HttpReporterTestCase):
             HttpStatusPush(name='test', baseURL=self.BASEURL, builders=[1, 2])
 
         HttpStatusPush(name='test', baseURL=self.BASEURL, builders=['a', 'b'])
-        HttpStatusPush(name='test', baseURL=self.BASEURL, builders=[
-            Builder(name='a', workers=['a'])
-        ])
+
+        worker = LocalWorker('test')
+        builder = Builder(name='a', workers=[worker])
+        HttpStatusPush(name='test', baseURL=self.BASEURL, builders=[builder])
 
     @ensure_deferred
     async def test_report_on_everything_by_default(self):
