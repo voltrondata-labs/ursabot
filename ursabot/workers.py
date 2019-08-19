@@ -25,7 +25,7 @@ from buildbot.worker.base import Worker
 from buildbot.worker.local import LocalWorker
 from buildbot.worker.latent import States, AbstractLatentWorker
 from buildbot.worker.docker import (DockerLatentWorker, _handle_stream_line,
-                                    docker_py_version, docker)
+                                    docker_py_version, docker as docker_module)
 
 from .utils import Platform, ensure_deferred
 
@@ -59,6 +59,7 @@ class Worker(BaseWorker, Worker):
 class LocalWorker(Worker, LocalWorker):
 
     def __init__(self, *args, **kwargs):
+        # TODO(kszucs): check that buildbow-worker is installed
         platform = kwargs.pop('platform', Platform.detect())
         super().__init__(*args, platform=platform, **kwargs)
 
@@ -237,7 +238,7 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
                 try:
                     docker_client.remove_container(instance['Id'], v=True,
                                                    force=True)
-                except docker.errors.NotFound:
+                except docker_module.errors.NotFound:
                     pass  # that's a race condition
 
             found = False
@@ -319,7 +320,7 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
             if self.image is None:
                 try:
                     docker_client.remove_image(image=instance['image'])
-                except docker.errors.APIError as e:
+                except docker_module.errors.APIError as e:
                     log.info('Error while removing the image: %s', e)
 
 
@@ -359,39 +360,39 @@ def load_workers_from(config_path, **kwargs):
 _worker_id = itertools.count()
 
 
-def local_test_workers():
-    platform = Platform.detect()
-    workers = [
-        LocalWorker(
-            'local-worker-{}'.format(next(_worker_id)),
-            platform=platform
+def local_test_workers(local=True, docker=True):
+    workers = []
+    if local:
+        workers.append(
+            LocalWorker('local-worker-{}'.format(next(_worker_id)))
         )
-    ]
 
-    docker_client = docker.from_env()
-    try:
-        docker_client.ping()
-    except Exception:
-        warnings.warn(
-            'Docker daemon is unreachable so DockerLatentWorker cannot be '
-            'configured. In order to have linux docker builders start the '
-            'docker daemon.'
-        )
-    else:
-        worker = DockerLatentWorker(
-            'local-worker-{}'.format(next(_worker_id)),
-            password=None,
-            max_builds=1,
-            platform=Platform(
-                arch=platform.arch,
-                system=platform.system,
-                distro=None,
-                version=None
-            ),
-            docker_host='unix:///var/run/docker.sock',
-            hostconfig={'network_mode': 'host'},
-            masterFQDN=os.getenv('MASTER_FQDN')
-        )
-        workers.append(worker)
+    if docker:
+        platform = Platform.detect()
+        docker_client = docker_module.from_env()
+        try:
+            docker_client.ping()
+        except Exception:
+            warnings.warn(
+                'Docker daemon is unreachable so DockerLatentWorker cannot be '
+                'configured. In order to have linux docker builders start the '
+                'docker daemon.'
+            )
+        else:
+            worker = DockerLatentWorker(
+                'local-worker-{}'.format(next(_worker_id)),
+                password=None,
+                max_builds=1,
+                platform=Platform(
+                    arch=platform.arch,
+                    system=platform.system,
+                    distro=None,
+                    version=None
+                ),
+                docker_host='unix:///var/run/docker.sock',
+                hostconfig={'network_mode': 'host'},
+                masterFQDN=os.getenv('MASTER_FQDN')
+            )
+            workers.append(worker)
 
     return workers

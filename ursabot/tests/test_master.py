@@ -30,7 +30,7 @@ image = DockerImage(
 )
 
 images = worker_images_for([image])
-workers = local_test_workers()
+workers = local_test_workers(local=False, docker=True)
 echoer = DockerBuilder(name='echoer', image=images[0], workers=workers, steps=[
     ShellCommand(command='echo 1337', as_shell=True)
 ])

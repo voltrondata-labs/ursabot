@@ -137,7 +137,8 @@ class Builder(BaseModel):
             name=self.name, workernames=workernames, factory=factory,
             properties=properties, description=self.__doc__,
             tags=self.tags, env=self.env, locks=self.locks,
-            builddir=self.builddir, workerbuilddir=self.workerbuilddir,
+            builddir=str(self.builddir),
+            workerbuilddir=str(self.workerbuilddir),
             nextWorker=self.next_worker, nextBuild=self.next_build,
             collapseRequests=self.collapse_requests,
             canStartBuild=self.can_start_build

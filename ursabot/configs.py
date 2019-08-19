@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from typing import List, Callable, Optional
 
 import toolz
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 from twisted.python.compat import execfile
 from zope.interface import implementer
 from buildbot import interfaces
