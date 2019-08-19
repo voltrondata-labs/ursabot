@@ -32,8 +32,8 @@ __all__ = ['Builder', 'DockerBuilder']
 Step = steps.BuildStep
 Lock = Union[util.MasterLock, util.WorkerLock]
 Renderable = Union[util.Property, util.Interpolate, util.Transform, str]
-ImageFilter = Callable[[DockerImage], DockerImage]
-WorkerFilter = Callable[[AbstractWorker], AbstractWorker]
+ImageFilter = Callable[[DockerImage], bool]
+WorkerFilter = Callable[[AbstractWorker], bool]
 
 
 class Marker:
@@ -67,7 +67,7 @@ class Builder(BaseModel):
     next_worker: Callable = None
     can_start_build: Callable = None
     collapse_requests: Callable = None
-    worker_filter: ClassVar[WorkerFilter] = toolz.identity
+    worker_filter: ClassVar[WorkerFilter] = lambda w: True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -113,7 +113,10 @@ class Builder(BaseModel):
 
     @validator('workers', pre=True, always=True)
     def _is_worker_suitable(cls, worker):
-        return cls.worker_filter(worker)
+        if not cls.worker_filter(worker):
+            raise ValueError(f'Worker `{worker}` is not sutable for '
+                             f'builder `{cls}`')
+        return worker
 
     def _render_properties(self):
         props = Properties(
@@ -167,11 +170,14 @@ class DockerBuilder(Builder):
     workers: List[DockerLatentWorker]
     volumes: List[Renderable] = []
     hostconfig: Dict[str, Renderable] = {}
-    image_filter: ClassVar[ImageFilter] = toolz.identity
+    image_filter: ClassVar[ImageFilter] = lambda i: True
 
     @validator('image', pre=True, always=True)
     def _is_image_suitable(cls, image):
-        return cls.image_filter(image)
+        if not cls.image_filter(image):
+            raise ValueError(f'Image `{image}` is not sutable for '
+                             f'builder `{cls}`')
+        return image
 
     def _validate(self):
         for worker in self.workers:

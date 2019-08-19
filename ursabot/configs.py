@@ -132,10 +132,11 @@ class MasterConfig(Config):
         else:
             return self.projects.filter(name=name)[0]
 
-    def _from_projects(self, key):
+    def _from_projects(self, key, unique=False):
         values = (getattr(p, key) for p in self.projects)
         values = reduce(operator.add, values)
-        values = toolz.unique(values)
+        if unique:
+            values = toolz.unique(values)
         return list(values)
 
     @property
@@ -148,7 +149,7 @@ class MasterConfig(Config):
 
     @property
     def workers(self):
-        return self._from_projects('workers')
+        return self._from_projects('workers', unique=True)
 
     @property
     def builders(self):

@@ -334,7 +334,7 @@ def load_workers_from(config_path, **kwargs):
     for w in worker_dicts:
         if 'docker' in w:
             worker = DockerLatentWorker(
-                name=w['name'],
+                w['name'],
                 password=None,
                 tags=w.get('tags', []),
                 properties={'ncpus': w.get('ncpus')},
