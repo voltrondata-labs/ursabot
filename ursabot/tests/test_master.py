@@ -11,7 +11,7 @@ from ursabot.utils import ensure_deferred, Platform
 from ursabot.configs import MasterConfig, ProjectConfig
 from ursabot.builders import DockerBuilder
 from ursabot.schedulers import AnyBranchScheduler
-from ursabot.workers import DockerLatentWorker
+from ursabot.workers import DockerLatentWorker, local_test_workers
 from ursabot.docker import DockerImage, worker_images_for
 from ursabot.steps import ShellCommand
 
@@ -30,11 +30,7 @@ image = DockerImage(
 )
 
 images = worker_images_for([image])
-workers = []
-# workers = docker_workers_for(
-#     archs=['amd64'],
-#     masterFQDN=os.getenv('MASTER_FQDN')
-# )
+workers = local_test_workers()
 echoer = DockerBuilder(name='echoer', image=images[0], workers=workers, steps=[
     ShellCommand(command='echo 1337', as_shell=True)
 ])
