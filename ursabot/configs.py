@@ -91,10 +91,6 @@ class ProjectConfig(Config):
     schedulers: List[BaseScheduler] = []
     reporters: List[HttpStatusPushBase] = []
 
-    @validator('images', pre=True)
-    def _coerce_images(cls, value):
-        return ImageCollection(value)
-
 
 class MasterConfig(Config):
 
@@ -141,7 +137,7 @@ class MasterConfig(Config):
 
     @property
     def images(self):
-        return self._from_projects('images')
+        return ImageCollection(self._from_projects('images'))
 
     @property
     def commands(self):
