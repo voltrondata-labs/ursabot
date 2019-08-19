@@ -17,7 +17,7 @@ before_script:
   # --no-binary buildbot is required because buildbot doesn't bundle its
   # tests to binary wheels, but ursabot's test suite depends on
   # buildbot's so install it from source
-  - pip install --no-binary buildbot buildbot
+  - pip install --no-binary buildbot buildbot buildbot-worker
   - pip install -r requirements.txt
   - pip install -e .
   - pip install "pytest>=3.9" mock flake8
