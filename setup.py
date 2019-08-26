@@ -12,6 +12,8 @@ if sys.version_info < (3, 6):
     sys.exit('Python < 3.6 is not supported due to missing asyncio support')
 
 
+_pydantic_fork = 'git+https://github.com/kszucs/pydantic@preserve_annotations'
+
 # TODO(kszucs): add package data, change maintainer
 setup(
     name='ursabot',
@@ -26,6 +28,7 @@ setup(
         'buildbot-console-view',
         'buildbot-grid-view',
         'buildbot-waterfall-view',
+        'buildbot-worker',
         'buildbot-www',
         'buildbot',
         'click',
@@ -33,6 +36,7 @@ setup(
         'docker-map',
         'docker',
         'dockerpty',
+        'pydantic @ {}'.format(_pydantic_fork),
         'python-dotenv',
         'ruamel.yaml',
         'tabulate',

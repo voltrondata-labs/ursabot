@@ -13,6 +13,7 @@ buildbot-console-view
 buildbot-grid-view
 buildbot-waterfall-view
 buildbot-www
+buildbot-worker
 click
 distro
 docker

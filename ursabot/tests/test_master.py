@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch
 
 import pytest
@@ -11,8 +12,8 @@ from ursabot.utils import ensure_deferred, Platform
 from ursabot.configs import MasterConfig, ProjectConfig
 from ursabot.builders import DockerBuilder
 from ursabot.schedulers import AnyBranchScheduler
-from ursabot.workers import DockerLatentWorker, local_test_workers
-from ursabot.docker import DockerImage, worker_images_for
+from ursabot.workers import DockerLatentWorker
+from ursabot.docker import DockerImage, ImageCollection, worker_image_for
 from ursabot.steps import ShellCommand
 
 
@@ -28,15 +29,35 @@ image = DockerImage(
     base='python:3.7',
     platform=Platform(distro='debian', version='9', arch='amd64')
 )
+worker_image = worker_image_for(image)
+images = ImageCollection([image, worker_image])
 
-images = worker_images_for([image])
-workers = local_test_workers(local=False, docker=True)
-echoer = DockerBuilder(name='echoer', image=images[0], workers=workers, steps=[
-    ShellCommand(command='echo 1337', as_shell=True)
-])
-failer = DockerBuilder(name='failer', image=images[0], workers=workers, steps=[
-    ShellCommand(command='unknown-command', as_shell=True)
-])
+workers = [
+    DockerLatentWorker(
+        'local-worker',
+        password=None,
+        platform=Platform.detect(),
+        docker_host='unix:///var/run/docker.sock',
+        hostconfig={'network_mode': 'host'},
+        masterFQDN=os.getenv('MASTER_FQDN')
+    )
+]
+echoer = DockerBuilder(
+    name='echoer',
+    image=worker_image,
+    workers=workers,
+    steps=[
+        ShellCommand(command='echo 1337', as_shell=True)
+    ]
+)
+failer = DockerBuilder(
+    name='failer',
+    image=worker_image,
+    workers=workers,
+    steps=[
+        ShellCommand(command='unknown-command', as_shell=True)
+    ]
+)
 builders = [echoer, failer]
 schedulers = [
     AnyBranchScheduler(name='TestScheduler', builders=builders)

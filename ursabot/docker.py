@@ -25,7 +25,6 @@ __all__ = [
     'DockerImage',
     'ImageCollection',
     'worker_image_for',
-    'worker_images_for',
     'ADD',
     'COPY',
     'RUN',
@@ -427,7 +426,3 @@ def worker_image_for(image):
     cmd = [_worker_command] if image.variant == 'conda' else _worker_command
     steps = _worker_steps + [CMD(cmd)]
     return DockerImage(image.name, base=image, tag='worker', steps=steps)
-
-
-def worker_images_for(images):
-    return ImageCollection([worker_image_for(image) for image in images])
