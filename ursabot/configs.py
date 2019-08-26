@@ -36,6 +36,7 @@ from buildbot.secrets.providers.base import SecretProviderBase
 from .docker import ImageCollection
 from .hooks import GithubHook
 from .builders import Builder
+from .utils import Filter
 
 __all__ = [
     'Config',
@@ -91,6 +92,25 @@ class ProjectConfig(Config):
     schedulers: List[BaseScheduler] = []
     reporters: List[HttpStatusPushBase] = []
 
+    def builder(self, name):
+        """Select one of the builders
+
+        Parameters
+        ----------
+        name: str, default None
+            Name of the builder.
+
+        Returns
+        -------
+        builder: Builder
+        """
+        criteria = Filter(name=name)
+        filtered = filter(criteria, self.builders)
+        try:
+            return toolz.first(filtered)
+        except StopIteration:
+            raise KeyError(name)
+
 
 class MasterConfig(Config):
 
@@ -105,28 +125,24 @@ class MasterConfig(Config):
     change_hook: GithubHook = None
     secret_providers: List[SecretProviderBase] = []
 
-    def project(self, name=None):
+    def project(self, name):
         """Select one of the projects defined in the MasterConfig
 
         Parameters
         ----------
         name: str, default None
-            Name of the project. If None is passed and the master has a single
-            project configured, then return with that.
+            Name of the project.
 
         Returns
         -------
         project: ProjectConfig
         """
-        if name is None:
-            if len(self.projects) == 1:
-                return self.projects[0]
-            else:
-                project_names = ', '.join(p.name for p in self.projects)
-                raise ValueError(f'Master config has multiple projects, one '
-                                 f'must be selected: {project_names}')
-        else:
-            return self.projects.filter(name=name)[0]
+        criteria = Filter(name=name)
+        filtered = filter(criteria, self.projects)
+        try:
+            return toolz.first(filtered)
+        except StopIteration:
+            raise KeyError(name)
 
     def _from_projects(self, key, unique=False):
         values = (getattr(p, key) for p in self.projects)

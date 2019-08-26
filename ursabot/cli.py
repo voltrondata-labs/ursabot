@@ -108,10 +108,23 @@ def project(obj, project):
     Retrieves the selected project's configurations, the project's name must be
     explicitly passed if the master is configured with multiple projects.
     """
-    try:
-        obj['project'] = obj['config'].project(name=project)
-    except Exception as e:
-        raise click.UsageError(str(e))
+    config = obj['config']
+    project_names = ', '.join(p.name for p in config.projects)
+
+    if project is None:
+        if len(config.projects) == 1:
+            project = config.projects[0]
+        else:
+            raise click.UsageError(f'Master config has multiple projects, one '
+                                   f'must be selected: {project_names}')
+    else:
+        try:
+            project = config.project(name=project)
+        except KeyError:
+            raise click.UsageError(f'Invalid project name {project}, possible '
+                                   f'values are: {project_names}')
+
+    obj['project'] = project
 
 
 @ursabot.command('desc')
@@ -125,13 +138,13 @@ def master_desc(obj):
     config = obj['config']
 
     click.echo('Docker images:')
-    click.echo(ul(config.images))
+    click.echo(ul(i.fqn for i in config.images))
     click.echo()
     click.echo('Workers:')
     click.echo(ul(config.workers))
     click.echo()
     click.echo('Builders:')
-    click.echo(ul(config.builders))
+    click.echo(ul(b.name for b in config.builders))
     click.echo()
 
 
@@ -147,13 +160,13 @@ def project_desc(obj):
     click.echo(f'Repo: {project.repo}')
     click.echo()
     click.echo('Docker images:')
-    click.echo(ul(project.images))
+    click.echo(ul(i.fqn for i in project.images))
     click.echo()
     click.echo('Workers:')
     click.echo(ul(project.workers))
     click.echo()
     click.echo('Builders:')
-    click.echo(ul(project.builders))
+    click.echo(ul(b.name for b in project.builders))
     click.echo()
 
 
@@ -446,7 +459,7 @@ def project_build(obj, builder_name, repo, branch, commit, pull_request,
 
     # check that the triggerable builder exists
     try:
-        builder = project.builders.get(name=builder_name)
+        builder = project.builder(name=builder_name)
     except KeyError:
         available = '\n'.join(f' - {b.name}' for b in project.builders)
         raise click.ClickException(
