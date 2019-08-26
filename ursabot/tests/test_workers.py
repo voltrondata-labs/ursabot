@@ -67,3 +67,37 @@ class TestDockerLatentWorker(TestDockerLatentWorker):
 
     def test_constructor_noimage_nodockerfile(self):
         pass  # don't raise
+
+    def test_start_instance_noimage_pull(self):
+        bs = self.setupWorker(
+            'bot', 'pass', 'tcp://1234:2375', 'alpine:latest', auto_pull=True)
+        id, name = self.successResultOf(bs.start_instance(self.build))
+        self.assertEqual(name, 'alpine:latest')
+
+    def test_start_instance_image_pull(self):
+        bs = self.setupWorker(
+            'bot', 'pass', 'tcp://1234:2375', 'tester:latest', auto_pull=True)
+        id, name = self.successResultOf(bs.start_instance(self.build))
+        self.assertEqual(name, 'tester:latest')
+        client = docker.Client.latest
+        self.assertEqual(client._pullCount, 0)
+
+    def test_start_instance_image_alwayspull(self):
+        bs = self.setupWorker(
+            'bot', 'pass', 'tcp://1234:2375', 'tester:latest', auto_pull=True,
+            always_pull=True
+        )
+        id, name = self.successResultOf(bs.start_instance(self.build))
+        self.assertEqual(name, 'tester:latest')
+        client = docker.Client.latest
+        self.assertEqual(client._pullCount, 1)
+
+    def test_start_instance_image_noauto_alwayspull(self):
+        bs = self.setupWorker(
+            'bot', 'pass', 'tcp://1234:2375', 'tester:latest', auto_pull=False,
+            always_pull=True
+        )
+        id, name = self.successResultOf(bs.start_instance(self.build))
+        self.assertEqual(name, 'tester:latest')
+        client = docker.Client.latest
+        self.assertEqual(client._pullCount, 0)

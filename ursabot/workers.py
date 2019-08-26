@@ -113,19 +113,21 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
             return False
 
     def checkConfig(self, name, password, docker_host, image=None,
-                    command=None, volumes=None, hostconfig=None, **kwargs):
+                    command=None, volumes=None, hostconfig=None,
+                    auto_pull=False, always_pull=False, **kwargs):
         # Bypass the validation implemented in the parent class.
         if image is None:
             image = util.Property('docker_image', default=image)
         super().checkConfig(
             name, password, docker_host, image=image, command=command,
-            volumes=volumes, hostconfig=hostconfig, **kwargs
+            volumes=volumes, hostconfig=hostconfig, autopull=auto_pull,
+            alwaysPull=always_pull, **kwargs
         )
 
     @ensure_deferred
     async def reconfigService(self, name, password, docker_host, image=None,
                               command=None, volumes=None, hostconfig=None,
-                              **kwargs):
+                              auto_pull=False, always_pull=False, **kwargs):
         # Set the default password to None so random one is generated.
         # Let the DockerBuilder instances to lazily extend the docker volumes
         # and hostconfig via the reserved docker_volumes and docker_hostconfig
@@ -144,7 +146,8 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
         )
         return await super().reconfigService(
             name, password, docker_host, image=image, command=command,
-            volumes=volumes, hostconfig=hostconfig, **kwargs
+            volumes=volumes, hostconfig=hostconfig, autopull=auto_pull,
+            alwaysPull=always_pull, **kwargs
         )
 
     @ensure_deferred
@@ -347,7 +350,9 @@ def load_workers_from(config_path, **kwargs):
                 ),
                 docker_host=w['docker']['host'],
                 hostconfig=w['docker'].get('hostconfig', {}),
-                volumes=w['docker'].get('volumes', [])
+                volumes=w['docker'].get('volumes', []),
+                auto_pull=w['docker'].get('auto_pull', True),
+                always_pull=w['docker'].get('always_pull', True)
             )
             workers.append(worker)
         else:
@@ -390,6 +395,8 @@ def local_test_workers(local=True, docker=True):
                     version=None
                 ),
                 docker_host='unix:///var/run/docker.sock',
+                auto_pull=True,
+                always_pull=False,
                 hostconfig={'network_mode': 'host'},
                 masterFQDN=os.getenv('MASTER_FQDN')
             )
