@@ -1,16 +1,60 @@
 pool:
   vmImage: 'ubuntu-latest'
 
-steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: 3.6
-      architecture: 'x64'
+jobs:
+  - job: Test Ursabot
+    strategy:
+    matrix:
+      Python35:
+        PYTHON_VERSION: '3.5'
+      Python36:
+        PYTHON_VERSION: '3.6'
+      Python37:
+        PYTHON_VERSION: '3.7'
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: 3.6
+          architecture: 'x64'
 
-  - script: |
-      pip install -r requirements.txt
-      docker ps
+      - script: |
+          pip install -r requirements.txt
+          docker ps
 
-  - script: |
-      flake8 ursabot
-      pytest -v --run-integration ursabot
+      - script: |
+          flake8 ursabot
+          pytest -v --run-integration ursabot
+
+  - job: Run Arrow Builders
+    strategy:
+    matrix:
+      builder:
+        - "AMD64 Ubuntu 18.04 C++"
+        - "AMD64 Ubuntu 18.04 R"
+        - "AMD64 Ubuntu 18.04 Python 3"
+        - "AMD64 Conda C++"
+        - "AMD64 Conda R"
+        - "AMD64 Conda Python 2.7"
+        - "AMD64 Conda Python 3.6"
+        - "AMD64 Conda Python 3.7"
+        - "AMD64 Java OpenJDK 8"
+        - "AMD64 Java OpenJDK 11"
+        - "AMD64 Debian 9 Rust 1.35"
+        - "AMD64 Debian 9 Go 1.12.6"
+        - "AMD64 Debian 9 Go 1.11.11"
+        - "AMD64 Debian 9 NodeJS 11"
+
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: 3.6
+          architecture: 'x64'
+
+      - script: |
+          pip install -r requirements.txt
+          docker ps
+
+      - script: |
+          pushd projects/arrow
+          ursabot project build $(builder)
+          popd
