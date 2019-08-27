@@ -406,7 +406,7 @@ def local_test_workers(local=True, docker=True):
                 auto_pull=True,
                 always_pull=False,
                 hostconfig={'network_mode': 'host'},
-                masterFQDN=os.getenv('MASTER_FQDN'),
+                masterFQDN=os.getenv('MASTER_FQDN', 'localhost'),
                 follow_startup_logs=True
             )
             workers.append(worker)
