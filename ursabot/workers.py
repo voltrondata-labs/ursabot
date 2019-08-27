@@ -147,12 +147,16 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
             hostconfig or {},
             util.Property('docker_hostconfig', default={})
         )
-        return await super().reconfigService(
+        result = await super().reconfigService(
             name, password, docker_host, image=image, command=command,
             volumes=volumes, hostconfig=hostconfig, autopull=auto_pull,
             alwaysPull=always_pull, followStartupLogs=follow_startup_logs,
             **kwargs
         )
+        log.info(
+            f'DockerLatentWorker configured with masterFQDN: {self.masterFQDN}'
+        )
+        return result
 
     @ensure_deferred
     async def stopService(self):
