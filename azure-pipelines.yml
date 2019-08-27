@@ -3,14 +3,6 @@ jobs:
   - job: Test Ursabot
     pool:
       vmImage: 'ubuntu-latest'
-    strategy:
-    matrix:
-      Python35:
-        PYTHON_VERSION: '3.5'
-      Python36:
-        PYTHON_VERSION: '3.6'
-      Python37:
-        PYTHON_VERSION: '3.7'
     steps:
       - task: UsePythonVersion@0
         inputs:
@@ -23,26 +15,26 @@ jobs:
           flake8 ursabot
           pytest -v --run-integration ursabot
 
-  - job: Run Arrow Builders
+  - job: Run Arrow Builder
     pool:
       vmImage: 'ubuntu-latest'
     strategy:
       matrix:
-        builder:
-          - 'AMD64 Ubuntu 18.04 C++'
-          - 'AMD64 Ubuntu 18.04 R'
-          - 'AMD64 Ubuntu 18.04 Python 3'
-          - 'AMD64 Conda C++'
-          - 'AMD64 Conda R'
-          - 'AMD64 Conda Python 2.7'
-          - 'AMD64 Conda Python 3.6'
-          - 'AMD64 Conda Python 3.7'
-          - 'AMD64 Java OpenJDK 8'
-          - 'AMD64 Java OpenJDK 11'
-          - 'AMD64 Debian 9 Rust 1.35'
-          - 'AMD64 Debian 9 Go 1.12.6'
-          - 'AMD64 Debian 9 Go 1.11.11'
-          - 'AMD64 Debian 9 NodeJS 11'
+        AMD64-Ubuntu-18.04-C++:
+          BUILDER: 'AMD64 Ubuntu 18.04 C++'
+        AMD64-Ubuntu-18.04-Python-3:
+          BUILDER: 'AMD64 Ubuntu 18.04 Python3'
+          # - 'AMD64 Conda C++'
+          # - 'AMD64 Conda R'
+          # - 'AMD64 Conda Python 2.7'
+          # - 'AMD64 Conda Python 3.6'
+          # - 'AMD64 Conda Python 3.7'
+          # - 'AMD64 Java OpenJDK 8'
+          # - 'AMD64 Java OpenJDK 11'
+          # - 'AMD64 Debian 9 Rust 1.35'
+          # - 'AMD64 Debian 9 Go 1.12.6'
+          # - 'AMD64 Debian 9 Go 1.11.11'
+          # - 'AMD64 Debian 9 NodeJS 11'
 
     steps:
       - task: UsePythonVersion@0
@@ -54,5 +46,5 @@ jobs:
           docker ps
       - script: |
           pushd projects/arrow
-          ursabot project build $(builder)
+          ursabot project build $(BUILDER)
           popd
