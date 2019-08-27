@@ -10,7 +10,6 @@ jobs:
           architecture: 'x64'
       - script: |
           pip install -r requirements.txt
-          docker ps
       - script: |
           flake8 ursabot
           pytest -v --run-integration ursabot
@@ -42,8 +41,7 @@ jobs:
           versionSpec: 3.6
           architecture: 'x64'
       - script: |
-          pip install -r requirements.txt
-          docker ps
+          pip install -e ursabot
       - script: |
           pushd projects/arrow
           ursabot project build $(BUILDER)
