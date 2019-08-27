@@ -4,15 +4,18 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
+import copy
 import platform
 import pathlib
 import fnmatch
 import itertools
 from contextlib import suppress
 from functools import wraps
+from typing import ClassVar
 
 import distro
 import toolz
+import typeguard
 from twisted.internet import defer
 from buildbot.util import httpclientservice
 from buildbot.util.logger import Logger
@@ -25,6 +28,9 @@ __all__ = [
     'Matching',
     'Glob',
     'Filter',
+    'Annotable',
+    'Merge',
+    'Extend',
     'HTTPClientService',
     'GithubClientService',
 ]
@@ -48,16 +54,140 @@ def read_dependency_list(path):
     return [l for l in lines if not l.startswith('#')]
 
 
-def filter_instances(cls, items):
-    for item in items:
-        if isinstance(item, cls):
-            yield item
+# Utilities for validation and declarative definitions
 
 
-def filter_except(fn, items, exceptions=(ValueError,)):
-    for item in items:
-        with suppress(*exceptions):
-            yield fn(item)
+class Marker:
+
+    def resolve(self, parent):
+        raise NotImplementedError()
+
+
+class Merge(Marker, dict):
+
+    def resolve(self, parent):
+        if not isinstance(parent, dict):
+            raise TypeError('Merge marker can only be used on a '
+                            'parent field with dictionary type')
+        return {**parent, **self}
+
+
+class Extend(Marker, list):
+
+    def resolve(self, parent):
+        if not isinstance(parent, list):
+            raise TypeError('Extend marker can only be used on a '
+                            'parent field with list type')
+        return parent + self
+
+
+class MISSING:
+    pass
+
+
+class Field:
+
+    __slots__ = ('name', 'type', 'default')
+
+    def __init__(self, name, type, default):
+        self.name = name
+        self.type = type
+        self.default = default
+        if default is not MISSING:
+            self.validate(default)
+
+    def with_default(self, new_default):
+        return Field(name=self.name, type=self.type, default=new_default)
+
+    def validate(self, value):
+        typeguard.check_type(self.name, value, self.type)
+
+
+class AnnotableMeta(type):
+
+    def __new__(metacls, clsname, bases, attrs):
+        class_anns, instance_anns = {}, {}
+        for name, type in attrs.get('__annotations__', {}).items():
+            if getattr(type, '__origin__', None) is ClassVar:
+                class_anns[name] = type.__args__[0]
+            else:
+                instance_anns[name] = type
+
+        class_fields, instance_fields = {}, {}
+        for base in reversed(bases):
+            instance_fields.update(getattr(base, '__fields__', {}))
+            class_fields.update(getattr(base, '__class_fields__', {}))
+
+        attrs['__fields__'] = metacls._update_fields(
+            instance_anns, instance_fields, attrs
+        )
+        attrs['__class_fields__'] = metacls._update_fields(
+            class_anns, class_fields, attrs
+        )
+
+        return super().__new__(metacls, clsname, bases, attrs)
+
+    @classmethod
+    def _update_fields(metacls, annotations, fields, attrs):
+        # fields with new default values
+        new_defaults = {}
+        for name, field in fields.items():
+            if name in attrs:
+                default = attrs[name]
+                if isinstance(default, Marker):
+                    default = default.resolve(field.default)
+                new_defaults[name] = field.with_default(default)
+
+        # newly annotated fields
+        new_fields = {}
+        for name, type in annotations.items():
+            default = attrs.get(name, MISSING)
+            new_fields[name] = Field(name, type=type, default=default)
+
+        return {**fields, **new_defaults, **new_fields}
+
+
+class Annotable(metaclass=AnnotableMeta):
+
+    def __init__(self, **kwargs):
+        # TODO(kszucs): collect errors
+        for name, field in self.__fields__.items():
+            try:
+                value = kwargs[name]
+                if isinstance(value, Marker):
+                    value = value.resolve(field.default)
+            except KeyError:
+                if field.default is MISSING:
+                    raise TypeError(
+                        f'missing required keyword-only argument: {name}'
+                    )
+                else:
+                    value = copy.copy(field.default)
+
+            field.validate(value)
+            setattr(self, name, value)
+
+    def __repr__(self):
+        classname = self.__class__.__name__
+        address = hex(id(self))
+        values = ' '.join(f'{k}={v}' for k, v in self._values())
+        return f'<{classname} {values} object at {address}>'
+
+    def __eq__(self, other):
+        return (
+            type(self) == type(other) and
+            self.asdict() == other.asdict()
+        )
+
+    def _values(self):
+        for name in self.__fields__.keys():
+            yield (name, getattr(self, name))
+
+    def asdict(self):
+        return dict(self._values())
+
+
+# Utilities for filtering
 
 
 def Has(*needles):
@@ -118,6 +248,8 @@ def Filter(**kwargs):
         return True
     return check
 
+
+# Platform definition
 
 # from enum import Enum
 #
@@ -242,6 +374,9 @@ class Platform:
             version=version,
             codename=codename
         )
+
+
+# Buildbot utilities
 
 
 class HTTPClientService(httpclientservice.HTTPClientService):

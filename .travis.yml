@@ -20,8 +20,6 @@ before_script:
 matrix:
   include:
     - name: "Ursabot Tests"
-      # before_script:
-      #   - pip install --no-binary buildbot "pytest>=3.9" mock flake8 -e .
       script:
         # run linter
         - flake8 ursabot
@@ -42,11 +40,10 @@ matrix:
         - ursabot -v checkconfig
         - popd
 
-        # check the top level "ubrella" config, this is the production config,
-        # so it requires both ~/.uralabs-pass to be present and pass to be
-        # installed
-        - sudo apt-get install pass
-        - mkdir ~/.ursalabs-pass
+        # check the top level production config, which requires both
+        # ~/.uralabs-pass to be present and pass to be installed
+        - sudo apt-get install pass && mkdir ~/.ursalabs-pass
+        - export DATABASE_URL=
         - ursabot -v checkconfig
 
     ##################### Test the Arrow Builders ################

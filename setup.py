@@ -36,14 +36,14 @@ setup(
         'docker-map',
         'docker',
         'dockerpty',
-        'pydantic @ {}'.format(_pydantic_fork),
         'python-dotenv',
         'ruamel.yaml',
         'tabulate',
         'toolz',
         'toposort',
         'treq',
-        'twisted[tls]'
+        'twisted[tls]',
+        'typeguard'
     ],
     tests_require=['pytest>=3.9', 'mock'],
     entry_points={

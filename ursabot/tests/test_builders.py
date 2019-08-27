@@ -1,14 +1,15 @@
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
-from typing import ClassVar
-from pydantic import ValidationError
+import toolz
+
 from buildbot.plugins import util
 from buildbot.config import BuilderConfig
 from buildbot.process.factory import BuildFactory
 
-from ursabot.builders import Merge, Extend, Builder, DockerBuilder
-from ursabot.utils import Platform
+from ursabot.builders import Builder, DockerBuilder
+from ursabot.utils import Platform, Merge, Extend
 from ursabot.workers import Worker, LocalWorker, DockerLatentWorker
 from ursabot.docker import DockerImage
 
@@ -73,7 +74,7 @@ def test_declarative_instantiation():
         steps = []
         properties = {'decl': 'a'}
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(TypeError):
         Declarative()  # missing name
 
     declarative = Declarative(name='declarative', workers=[c, d])
@@ -186,22 +187,22 @@ def test_inheritance():
         workers=[LocalWorker('e')]
     )
 
-    assert Test.default('tags') == test.tags == ['a', 'b']
-    assert Test.default('env') == test.env == {'a': 'A', 'b': 'B'}
-    assert Test.default('properties') == test.properties == {'prop_a': 'A'}
+    assert Test.tags == test.tags == ['a', 'b']
+    assert Test.env == test.env == {'a': 'A', 'b': 'B'}
+    assert Test.properties == test.properties == {'prop_a': 'A'}
 
-    assert TestChild.default('tags') == test_child.tags == ['a', 'b']
-    assert TestChild.default('env') == test_child.env == {'c': 'C', 'd': 'D'}
-    assert TestChild.default('properties') == test_child.properties == {
+    assert TestChild.tags == test_child.tags == ['a', 'b']
+    assert TestChild.env == test_child.env == {'c': 'C', 'd': 'D'}
+    assert TestChild.properties == test_child.properties == {
         'prop_a': 'A',
         'prop_b': 'B'
     }
 
-    assert TestMerge.default('env') == Merge(e='E_', a='A_', d='D_')
-    assert TestMerge.default('properties') == Merge({'a': 'A_', 'b': 'B_'})
+    assert TestMerge.env == Merge(e='E_', a='A_', d='D_')
+    assert TestMerge.properties == Merge({'a': 'A_', 'b': 'B_'})
     assert test_merge.env == {'a': 'A_', 'c': 'C', 'd': 'D_', 'e': 'E_'}
     assert test_merge.properties == {'a': 'A_', 'b': 'B_'}
-    assert TestMergeMerge.default('env') == Merge(c='C__', f='F__')
+    assert TestMergeMerge.env == Merge(c='C__', f='F__')
     assert test_merge_merge.properties == {'a': 'A__', 'b': 'B_', 'c': 'C__'}
     assert test_merge_merge.env == {
         'a': 'A_',
@@ -281,7 +282,7 @@ def test_builder_as_config():
         steps = []
         properties = {'A': 'a'}
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(TypeError):
         Test(name='test')
 
     workers = [
@@ -339,72 +340,26 @@ def test_builder_description():
 
 
 def test_builder_worker_filter():
-    class Wrong1(Builder):
-        name = 'test'
-        steps = []
-
-        @classmethod
-        def worker_filter(cls, worker):
-            return []
-
-    class Wrong2(Builder):
-        name = 'test'
-        steps = []
-
-        @classmethod
-        def worker_filter(cls, worker):
-            return None
-
-    class Wrong3(Builder):
-        name = 'test'
-        steps = []
-
-        def worker_filter(self, worker):
-            return None
-
-    class Wrong4(Builder):
-        name = 'test'
-        steps = []
-        worker_filter = lambda worker: tuple()  # noqa
-
     class Good1(Builder):
         name = 'test'
         steps = []
 
         @classmethod
-        def worker_filter(cls, worker):
-            return worker
+        def worker_filter(cls, w):
+            return True
 
     class Good2(Builder):
         name = 'test'
         steps = []
 
         @staticmethod
-        def worker_filter(worker):
-            return worker
-
-    class Good3(Builder):
-        name = 'test'
-        steps = []
-
-        @staticmethod
-        def worker_filter(worker):
-            if not isinstance(worker, LocalWorker):
-                raise TypeError(LocalWorker)
-            else:
-                return worker
-
-    for wrong in [Wrong1, Wrong2, Wrong3, Wrong4]:
-        with pytest.raises(ValidationError):
-            wrong(workers=plain_workers)
+        def worker_filter(w):
+            return True
 
     for good in [Good1, Good2]:
         workers = plain_workers
         builder = good(workers=workers)
         assert builder.workers == plain_workers
-
-    with pytest.raises(ValidationError):
-        Good3(workers=plain_workers)
 
 
 def test_builder_worker_compatibilities():
@@ -414,12 +369,12 @@ def test_builder_worker_compatibilities():
     class TestDockeBuilder(DockerBuilder):
         pass
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(TypeError):
         TestBuilder(name='test', workers=docker_workers)
     builder = TestBuilder(name='test', workers=plain_workers)
     assert builder.workers == plain_workers
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(TypeError):
         TestDockeBuilder(name='test', image=ubuntu_docker_image,
                          workers=plain_workers)
     builder = TestDockeBuilder(name='test', image=ubuntu_docker_image,
@@ -452,11 +407,9 @@ def test_builder_combine_with_only_linux_workers():
         @staticmethod
         def worker_filter(worker):
             try:
-                if worker.platform.system != 'linux':
-                    raise ValueError('Only linux workers are supported')
+                return worker.platform.system == 'linux'
             except AttributeError:
-                raise ValueError('Cannot determine the system of the worker')
-            return worker
+                return False
 
     pairs = [
         ('AMD64 Ubuntu 18.04 Testing', [c, e, f]),
@@ -477,10 +430,7 @@ def test_builder_combine_with_darwin_workers():
 
         @classmethod
         def worker_filter(cls, worker):
-            if not worker.supports(cls.platform):
-                raise ValueError(f'Platform `{cls.platform}` is not supported '
-                                 f'by worker `{worker}`')
-            return worker
+            return worker.supports(cls.platform)
 
     pairs = [
         ('AMD64 Macos 10.14 Test', [h])
@@ -500,11 +450,11 @@ def test_docker_builder_worker_and_image_filters():
 
         @classmethod
         def worker_filter(cls, worker):
-            return worker
+            return True
 
         @classmethod
         def image_filter(cls, image):
-            return image
+            return True
 
     builder = Good(image=ubuntu_docker_image, workers=[b, a])
     assert builder.image == ubuntu_docker_image
@@ -555,15 +505,11 @@ def test_docker_builder_worker_and_image_filters():
 
         @classmethod
         def worker_filter(cls, worker):
-            if worker.platform.system != 'linux':
-                raise ValueError('Only linux docker workers are supported')
-            return worker
+            return worker.platform.system == 'linux'
 
         @classmethod
         def image_filter(cls, image):
-            if image.platform.distro != 'ubuntu':
-                raise ValueError('Only ubuntu images are supported')
-            return image
+            return image.platform.distro == 'ubuntu'
 
     bldr = UbuntuDockerOnLinuxHost(
         image=ubuntu_image,
@@ -572,17 +518,17 @@ def test_docker_builder_worker_and_image_filters():
     assert bldr.image == ubuntu_image
     assert bldr.workers == [linux_docker_worker]
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         UbuntuDockerOnLinuxHost(
             image=debian_image,
             workers=[linux_docker_worker]
         )
-    with pytest.raises(ValidationError):
+    with pytest.raises(TypeError):
         UbuntuDockerOnLinuxHost(
             image=ubuntu_image,
             workers=[darwin_worker]
         )
-    with pytest.raises(ValidationError):
+    with pytest.raises(TypeError):
         UbuntuDockerOnLinuxHost(
             image=ubuntu_image,
             workers=[linux_docker_worker, darwin_worker]
@@ -619,18 +565,16 @@ def test_docker_builder_combine_with_workers_and_images():
 
         @classmethod
         def image_filter(cls, image):
-            if image.platform.distro not in {'debian', 'ubuntu'}:
-                raise ValueError("Image doesn't have `apt` command")
-            return image
+            return image.platform.distro in {'debian', 'ubuntu'}
 
     builders = TestApt.combine_with(workers=all_workers, images=all_images)
     expected = {
-        'Ubuntu': Test(
+        'Ubuntu': TestApt(
             name='Ubuntu',
             image=ubuntu_docker_image,
             workers=docker_workers
         ),
-        'Debian': Test(
+        'Debian': TestApt(
             name='Debian',
             image=debian_docker_image,
             workers=docker_workers

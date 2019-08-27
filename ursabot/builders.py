@@ -12,9 +12,9 @@ import toolz
 import warnings
 import operator
 from pathlib import Path
-from typing import Union, List, Dict, Callable, ClassVar
+from typing import Union, List, Dict, Callable, Optional
 
-from pydantic import BaseModel, validator
+# from pydantic import BaseModel, validator
 from buildbot.plugins import util, steps
 from buildbot.util import safeTranslate, bytes2unicode
 from buildbot.config import BuilderConfig
@@ -24,7 +24,7 @@ from buildbot.worker.base import AbstractWorker, Worker
 
 from .docker import DockerImage
 from .workers import DockerLatentWorker
-from .utils import filter_except, filter_instances
+from .utils import Annotable, InstanceOf
 
 __all__ = ['Builder', 'DockerBuilder']
 
@@ -36,87 +36,38 @@ ImageFilter = Callable[[DockerImage], bool]
 WorkerFilter = Callable[[AbstractWorker], bool]
 
 
-class Marker:
-    pass
-
-
-class Merge(Marker, dict):
-    pass
-
-
-class Extend(Marker, list):
-    pass
-
-
-class Builder(BaseModel):
-
-    class Config:
-        arbitrary_types_allowed = True
-
+class Builder(Annotable):
     name: str
     workers: List[Worker]
-    builddir: Path = None
-    workerbuilddir: Path = None
+    builddir: Optional[Union[Path, str]] = None
+    workerbuilddir: Optional[Union[Path, str]] = None
     description: str = ''
     env: Dict[str, Renderable] = {}
     tags: List[str] = []
     locks: List[Lock] = []
     steps: List[Step] = []
     properties: Dict[str, Renderable] = {}
-    next_build: Callable = None
-    next_worker: Callable = None
-    can_start_build: Callable = None
-    collapse_requests: Callable = None
-    worker_filter: ClassVar[WorkerFilter] = lambda w: True
+    next_build: Optional[Callable] = None
+    next_worker: Optional[Callable] = None
+    can_start_build: Optional[Callable] = None
+    collapse_requests: Optional[Callable] = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._validate()
 
-    def _validate(self):
-        pass
+        default_builddir = Path(bytes2unicode(safeTranslate(self.name)))
+        self.builddir = Path(self.builddir or default_builddir)
+        self.workerbuilddir = Path(self.workerbuilddir or default_builddir)
+        self.description = self.description or self.__doc__
+
+        for worker in self.workers:
+            if not self.worker_filter(worker):
+                raise ValueError(f'Worker `{worker}` is not suitable for '
+                                 f'builder `{self}`')
 
     @classmethod
-    def default(cls, field_name):
-        """Returns the default value of a field"""
-        return cls.__fields__[field_name].default
-
-    @classmethod
-    def _traverse_defaults(cls, field_name, field_value, marker_type):
-        values = [field_value]
-        for base in cls.__mro__[1:]:
-            if not isinstance(field_value, marker_type):
-                break
-            field_value = base.default(field_name)
-            values.append(field_value)
-        values.reverse()
-        return values
-
-    @validator('builddir', 'workerbuilddir', pre=True, always=True)
-    def _default_builddir(cls, v, values):
-        default = bytes2unicode(safeTranslate(values.get('name', '')))
-        return v or Path(default)
-
-    @validator('description', pre=True, always=True)
-    def _default_description(cls, v):
-        return cls.__doc__ if not v and cls.__doc__ else v
-
-    @validator('env', 'properties', pre=True, always=True, whole=True)
-    def _merge_if_marked(cls, v, values, field):
-        vs = cls._traverse_defaults(field.name, v, Merge)
-        return toolz.merge(vs)
-
-    @validator('tags', 'locks', 'steps', pre=True, always=True, whole=True)
-    def _extend_if_marked(cls, v, values, field):
-        vs = cls._traverse_defaults(field.name, v, Extend)
-        return list(toolz.concat(vs))
-
-    @validator('workers', pre=True, always=True)
-    def _is_worker_suitable(cls, worker):
-        if not cls.worker_filter(worker):
-            raise ValueError(f'Worker `{worker}` is not sutable for '
-                             f'builder `{cls}`')
-        return worker
+    def worker_filter(cls, worker):
+        return True
 
     def _render_properties(self):
         props = Properties(
@@ -148,8 +99,8 @@ class Builder(BaseModel):
     def combine_with(cls, workers, name, **kwargs):
         # instantiate builders by applying Builder.worker_filter and grouping
         # the workers based on architecture or criteria
-        suitable_workers = filter_instances(Worker, workers)
-        suitable_workers = filter_except(cls._is_worker_suitable, workers)
+        suitable_workers = filter(InstanceOf(Worker), workers)
+        suitable_workers = filter(cls.worker_filter, workers)
 
         workers_by_platform = toolz.groupby(
             operator.attrgetter('platform'),
@@ -171,20 +122,22 @@ class DockerBuilder(Builder):
     workers: List[DockerLatentWorker]
     volumes: List[Renderable] = []
     hostconfig: Dict[str, Renderable] = {}
-    image_filter: ClassVar[ImageFilter] = lambda i: True
 
-    @validator('image', pre=True, always=True)
-    def _is_image_suitable(cls, image):
-        if not cls.image_filter(image):
-            raise ValueError(f'Image `{image}` is not sutable for '
-                             f'builder `{cls}`')
-        return image
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-    def _validate(self):
+        if not self.image_filter(self.image):
+            raise ValueError(f'Image `{self.image}` is not sutable for '
+                             f'builder `{self}`')
+
         for worker in self.workers:
             if not worker.supports(self.image.platform):
                 raise ValueError(f"Worker {worker} doesn't support the "
                                  f"image's platform {self.image.platform}")
+
+    @classmethod
+    def image_filter(cls, image):
+        return True
 
     def _render_properties(self):
         """Render docker properties dinamically.
@@ -255,13 +208,11 @@ class DockerBuilder(Builder):
         docker_builder : List[DockerBuilder]
             Builder instances.
         """
-        suitable_images = filter_instances(DockerImage, images)
-        suitable_images = filter_except(cls._is_image_suitable,
-                                        suitable_images)
+        suitable_images = filter(InstanceOf(DockerImage), images)
+        suitable_images = filter(cls.image_filter, suitable_images)
 
-        suitable_workers = filter_instances(DockerLatentWorker, workers)
-        suitable_workers = filter_except(cls._is_worker_suitable,
-                                         suitable_workers)
+        suitable_workers = filter(InstanceOf(DockerLatentWorker), workers)
+        suitable_workers = filter(cls.worker_filter, suitable_workers)
         suitable_workers = list(suitable_workers)
 
         # join the images with the suitable workers
