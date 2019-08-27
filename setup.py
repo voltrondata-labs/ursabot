@@ -12,8 +12,6 @@ if sys.version_info < (3, 6):
     sys.exit('Python < 3.6 is not supported due to missing asyncio support')
 
 
-_pydantic_fork = 'git+https://github.com/kszucs/pydantic@preserve_annotations'
-
 # TODO(kszucs): add package data, change maintainer
 setup(
     name='ursabot',

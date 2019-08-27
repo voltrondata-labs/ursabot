@@ -14,7 +14,6 @@ import operator
 from pathlib import Path
 from typing import Union, List, Dict, Callable, Optional
 
-# from pydantic import BaseModel, validator
 from buildbot.plugins import util, steps
 from buildbot.util import safeTranslate, bytes2unicode
 from buildbot.config import BuilderConfig

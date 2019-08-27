@@ -17,7 +17,6 @@ from contextlib import contextmanager
 from typing import List, Callable, Optional
 
 import toolz
-from pydantic import BaseModel
 from twisted.python.compat import execfile
 from zope.interface import implementer
 from buildbot import interfaces
@@ -33,10 +32,10 @@ from buildbot.www.auth import AuthBase
 from buildbot.www.authz import Authz
 from buildbot.secrets.providers.base import SecretProviderBase
 
-from .docker import ImageCollection
+from .docker import ImageCollection, DockerImage
 from .hooks import GithubHook
 from .builders import Builder
-from .utils import Filter
+from .utils import Filter, Annotable
 
 __all__ = [
     'Config',
@@ -66,10 +65,7 @@ def collect_global_errors(and_raise=False):
             raise errors
 
 
-class Config(BaseModel):
-
-    class Config:
-        arbitrary_types_allowed = True
+class Config(Annotable):
 
     @classmethod
     def load_from(cls, path, variable, inject_globals=None):
@@ -84,7 +80,7 @@ class ProjectConfig(Config):
 
     name: str
     repo: str
-    images: ImageCollection = []
+    images: List[DockerImage] = []
     commands: List[Callable] = []
     pollers: List[ChangeSource] = []
     workers: List[AbstractWorker] = []
@@ -122,7 +118,7 @@ class MasterConfig(Config):
     database_url: str = 'sqlite:///ursabot.sqlite'
     auth: Optional[AuthBase] = None
     authz: Optional[Authz] = None
-    change_hook: GithubHook = None
+    change_hook: Optional[GithubHook] = None
     secret_providers: List[SecretProviderBase] = []
 
     def project(self, name):

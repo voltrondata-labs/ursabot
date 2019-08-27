@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
 from buildbot.plugins import util
@@ -172,6 +173,15 @@ def test_inheritance():
             'b': 'B_'
         }
 
+    class TestClassVar(Builder):
+        my_string: ClassVar[str] = 'something'
+
+    class TestClassVar2(TestClassVar):
+        pass
+
+    class TestClassVar3(TestClassVar2):
+        my_string = 'something else'
+
     test = Test(name='test', workers=[LocalWorker('a')])
     test_child = TestChild(name='test-child', workers=[LocalWorker('b')])
     test_merge = TestMerge(name='test-merge', workers=[LocalWorker('c')])
@@ -209,6 +219,10 @@ def test_inheritance():
         'f': 'F__',
     }
     assert test_merge_extend.tags == ['a', 'b', 'a_', 'b_']
+
+    assert TestClassVar.my_string == 'something'
+    assert TestClassVar2.my_string == 'something'
+    assert TestClassVar3.my_string == 'something else'
 
 
 def test_builddir():
