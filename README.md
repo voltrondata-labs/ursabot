@@ -326,7 +326,6 @@ class TestDockerBuilder(DockerBuilder):
         ShellCommand(args2),
         # ...
     ]
-    images = [miniconda]
 
 
 docker_worker = DockerLatentWorker(
@@ -338,8 +337,9 @@ docker_worker = DockerLatentWorker(
 
 # instantiates builders based on the available workers, the Builder's
 # images and the workers are matched based on their architecture
-docker_builders = TestDockerBuilder.builders_for(
-    workers=[docker_worker]
+docker_builders = TestDockerBuilder.combine_with(
+    workers=[docker_worker],
+    images=[miniconda]
 )
 
 scheduler = AnyBranchScheduler(

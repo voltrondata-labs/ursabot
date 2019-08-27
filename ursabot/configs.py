@@ -281,8 +281,6 @@ class FileLoader(ComparableMixin):
         local_dict = {
             # inject global variables, useful for including configurations
             **self.inject_globals,
-            # TODO(kszucs): is it required?
-            'basedir': basedir.expanduser(),
             '__file__': config
         }
 
