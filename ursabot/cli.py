@@ -237,7 +237,9 @@ def start_master(obj, no_daemon, start_timeout):
         'nodaemon': no_daemon,
         'start_timeout': start_timeout
     }
-    start(command_cfg)  # loads the config through the buildbot.tac
+    result = start(command_cfg)  # loads the config through the buildbot.tac
+    if result > 0:
+        raise click.Abort('Failed to start the Buildbot master!')
 
     url = obj['config'].url
     click.echo('Buildbot UI is available at: ' + click.style(url, fg='green'))
@@ -261,7 +263,11 @@ def stop_master(obj, clean, no_wait):
         'clean': clean,
         'no-wait': no_wait
     }
-    stop(command_cfg)
+    result = stop(command_cfg)
+    if result > 0:
+        raise click.Abort('Failed to stop the Buildbot master!')
+
+    click.echo('Buildbot has been successfully stopped!')
 
 
 @ursabot.command('restart')
@@ -289,7 +295,9 @@ def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
         'clean': clean,
         'no-wait': no_wait
     }
-    restart(command_cfg)
+    result = restart(command_cfg)
+    if result > 0:
+        raise click.Abort('Failed to restart the Buildbot master!')
 
     url = obj['config'].url
     click.echo('Buildbot UI is available at: ' + click.style(url, fg='green'))

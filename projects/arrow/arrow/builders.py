@@ -257,7 +257,17 @@ r_check = R(
 
 
 class CrossbowTrigger(DockerBuilder):
-    # TODO(kszucs): add docstring which will be the builders description
+    """Trigger crossbow builds
+
+    The crossbow tool is hosted within arrow, so we need to clone both arrow
+    and the crossbow repository which serves as a queue for 3rdparty CI
+    services like Travis or CircleCI. Then using crossbow's command line
+    interface it triggers builds by adding new branches to the crossbow
+    repository.
+    This builder is driven via buildbot properties, the `crossbow_args`
+    property is set by the github hook which parses the github comments like
+    `@ursabot package -g conda`. For more see commands.py.
+    """
     tags = ['crossbow']
     env = dict(
         GIT_COMMITTER_NAME='ursabot',
@@ -300,6 +310,11 @@ class CrossbowTrigger(DockerBuilder):
 
 
 class CppBenchmark(DockerBuilder):
+    """Run C++ benchmarks via the Archery CLI tool
+
+    This builder is parametrized with builtbot properties which are set by
+    the github hook, for more see commands.py
+    """
     tags = ['arrow', 'cpp', 'benchmark']
     properties = dict(
         CMAKE_INSTALL_PREFIX='/usr/local',
