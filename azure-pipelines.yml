@@ -1,6 +1,6 @@
 
 jobs:
-  - job: Test Ursabot
+  - job: TestUrsabot
     pool:
       vmImage: 'ubuntu-latest'
     steps:
@@ -15,14 +15,14 @@ jobs:
           flake8 ursabot
           pytest -v --run-integration ursabot
 
-  - job: Run Arrow Builder
+  - job: TestArrowBuilder
     pool:
       vmImage: 'ubuntu-latest'
     strategy:
       matrix:
-        AMD64-Ubuntu-18.04-C++:
+        AMD64_Ubuntu_1804_CPP:
           BUILDER: 'AMD64 Ubuntu 18.04 C++'
-        AMD64-Ubuntu-18.04-Python-3:
+        AMD64_Ubuntu_1804_Python_3:
           BUILDER: 'AMD64 Ubuntu 18.04 Python3'
           # - 'AMD64 Conda C++'
           # - 'AMD64 Conda R'
