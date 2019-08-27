@@ -30,19 +30,19 @@ jobs:
           BUILDER: 'AMD64 Conda Python 2.7'
         AMD64 Conda Python 3.6:
           BUILDER: 'AMD64 Conda Python 3.6'
-        AMD64_Conda_Python_37:
+        AMD64 Conda Python 3.7:
           BUILDER: 'AMD64 Conda Python 3.7'
-        AMD64_Java_OpenJDK_8:
+        AMD64 Java OpenJDK 8:
           BUILDER: 'AMD64 Java OpenJDK 8'
-        AMD64_Java_OpenJDK_11:
+        AMD64 Java OpenJDK 11:
           BUILDER: 'AMD64 Java OpenJDK 11'
-        AMD64_Debian_9_Rust_1_35:
+        AMD64 Debian 9 Rust 1.35:
           BUILDER: 'AMD64 Debian 9 Rust 1.35'
-        AMD64_Debian_9_Go_1_12_6:
+        AMD64 Debian 9 Go 1.12.6:
           BUILDER: 'AMD64 Debian 9 Go 1.12.6'
-        AMD64_Debian_9_Go_1_11_11:
+        AMD64 Debian 9 Go 1.11.11:
           BUILDER: 'AMD64 Debian 9 Go 1.11.11'
-        AMD64_Debian_9_NodeJS_11:
+        AMD64 Debian 9 NodeJS 11:
           BUILDER: 'AMD64 Debian 9 NodeJS 11'
     steps:
       - task: UsePythonVersion@0
