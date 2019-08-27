@@ -51,6 +51,7 @@ class Builder(Annotable):
     next_worker: Optional[Callable] = None
     can_start_build: Optional[Callable] = None
     collapse_requests: Optional[Callable] = None
+    worker_filter: Optional[WorkerFilter] = lambda w: True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -64,10 +65,6 @@ class Builder(Annotable):
             if not self.worker_filter(worker):
                 raise ValueError(f'Worker `{worker}` is not suitable for '
                                  f'builder `{self}`')
-
-    @classmethod
-    def worker_filter(cls, worker):
-        return True
 
     def _render_properties(self):
         props = Properties(
@@ -122,6 +119,7 @@ class DockerBuilder(Builder):
     workers: List[DockerLatentWorker]
     volumes: List[Renderable] = []
     hostconfig: Dict[str, Renderable] = {}
+    image_filter: Optional[ImageFilter] = lambda i: True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -134,10 +132,6 @@ class DockerBuilder(Builder):
             if not worker.supports(self.image.platform):
                 raise ValueError(f"Worker {worker} doesn't support the "
                                  f"image's platform {self.image.platform}")
-
-    @classmethod
-    def image_filter(cls, image):
-        return True
 
     def _render_properties(self):
         """Render docker properties dinamically.

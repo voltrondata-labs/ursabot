@@ -1,15 +1,12 @@
 from pathlib import Path
-from typing import ClassVar
 
 import pytest
-import toolz
-
 from buildbot.plugins import util
 from buildbot.config import BuilderConfig
 from buildbot.process.factory import BuildFactory
 
 from ursabot.builders import Builder, DockerBuilder
-from ursabot.utils import Platform, Merge, Extend
+from ursabot.utils import Platform, Merge, Extend, Filter, Matching
 from ursabot.workers import Worker, LocalWorker, DockerLatentWorker
 from ursabot.docker import DockerImage
 
@@ -343,18 +340,14 @@ def test_builder_worker_filter():
     class Good1(Builder):
         name = 'test'
         steps = []
-
-        @classmethod
-        def worker_filter(cls, w):
-            return True
+        worker_filter = lambda w: True  # noqa
 
     class Good2(Builder):
         name = 'test'
         steps = []
-
-        @staticmethod
-        def worker_filter(w):
-            return True
+        worker_filter = Filter(
+            name=Matching('worker_*')
+        )
 
     for good in [Good1, Good2]:
         workers = plain_workers
@@ -403,13 +396,7 @@ def test_builder_combine_with_unfildered_workers():
 def test_builder_combine_with_only_linux_workers():
     class LinuxBuilder(Builder):
         steps = []
-
-        @staticmethod
-        def worker_filter(worker):
-            try:
-                return worker.platform.system == 'linux'
-            except AttributeError:
-                return False
+        worker_filter = lambda w: w.platform.system == 'linux'  # noqa
 
     pairs = [
         ('AMD64 Ubuntu 18.04 Testing', [c, e, f]),
@@ -426,11 +413,7 @@ def test_builder_combine_with_only_linux_workers():
 
 def test_builder_combine_with_darwin_workers():
     class MacosBuilder(Builder):
-        platform: ClassVar[Platform] = amd64_macos
-
-        @classmethod
-        def worker_filter(cls, worker):
-            return worker.supports(cls.platform)
+        worker_filter = lambda worker: worker.supports(amd64_macos)  # noqa
 
     pairs = [
         ('AMD64 Macos 10.14 Test', [h])
@@ -447,14 +430,6 @@ def test_docker_builder_worker_and_image_filters():
     class Good(DockerBuilder):
         name = 'test'
         steps = []
-
-        @classmethod
-        def worker_filter(cls, worker):
-            return True
-
-        @classmethod
-        def image_filter(cls, image):
-            return True
 
     builder = Good(image=ubuntu_docker_image, workers=[b, a])
     assert builder.image == ubuntu_docker_image
@@ -502,14 +477,8 @@ def test_docker_builder_worker_and_image_filters():
     class UbuntuDockerOnLinuxHost(DockerBuilder):
         name = 'test'
         steps = []
-
-        @classmethod
-        def worker_filter(cls, worker):
-            return worker.platform.system == 'linux'
-
-        @classmethod
-        def image_filter(cls, image):
-            return image.platform.distro == 'ubuntu'
+        worker_filter = lambda w: w.platform.system == 'linux'  # noqa
+        image_filter = lambda i: i.platform.distro == 'ubuntu'  # noqa
 
     bldr = UbuntuDockerOnLinuxHost(
         image=ubuntu_image,
@@ -561,11 +530,11 @@ def test_docker_builder_combine_with_workers_and_images():
     for builder in builders:
         assert builder == expected[builder.name]
 
-    class TestApt(DockerBuilder):
+    def is_debian_based(image):
+        return image.platform.distro in {'debian', 'ubuntu'}
 
-        @classmethod
-        def image_filter(cls, image):
-            return image.platform.distro in {'debian', 'ubuntu'}
+    class TestApt(DockerBuilder):
+        image_filter = is_debian_based
 
     builders = TestApt.combine_with(workers=all_workers, images=all_images)
     expected = {

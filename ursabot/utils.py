@@ -9,7 +9,6 @@ import platform
 import pathlib
 import fnmatch
 import itertools
-from contextlib import suppress
 from functools import wraps
 from typing import ClassVar
 

@@ -1,11 +1,11 @@
 import textwrap
 
 from buildbot.plugins import util
-from ursabot.builders import DockerBuilder, Extend, Merge
+from ursabot.builders import DockerBuilder
 from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
                            Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip,
                            GitHub, Maven, Go, Cargo, Npm, R)
-from ursabot.utils import Filter, Matching, AnyOf, Has
+from ursabot.utils import Filter, Matching, AnyOf, Has, Extend, Merge
 
 from .steps import Archery, Crossbow
 
