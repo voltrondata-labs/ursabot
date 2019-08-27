@@ -402,7 +402,7 @@ def local_test_workers(local=True, docker=True):
                     distro=None,
                     version=None
                 ),
-                docker_host='unix:///var/run/docker.sock',
+                docker_host=docker_client.api.base_url,
                 auto_pull=True,
                 always_pull=False,
                 hostconfig={'network_mode': 'host'},
