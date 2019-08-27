@@ -239,6 +239,9 @@ def start_master(obj, no_daemon, start_timeout):
     }
     start(command_cfg)  # loads the config through the buildbot.tac
 
+    url = obj['config'].url
+    click.echo('Buildbot UI is available at: ' + click.style(url, fg='green'))
+
 
 @ursabot.command('stop')
 @click.option('--clean', '-c', is_flag=True, default=False,
@@ -287,6 +290,9 @@ def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
         'no-wait': no_wait
     }
     restart(command_cfg)
+
+    url = obj['config'].url
+    click.echo('Buildbot UI is available at: ' + click.style(url, fg='green'))
 
 
 @ursabot.group()
