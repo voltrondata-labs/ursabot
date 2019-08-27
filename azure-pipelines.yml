@@ -41,7 +41,7 @@ jobs:
           versionSpec: 3.6
           architecture: 'x64'
       - script: |
-          pip install -e ursabot
+          pip install -e .
       - script: |
           pushd projects/arrow
           ursabot project build $(BUILDER)
