@@ -44,5 +44,5 @@ jobs:
           pip install -e .
       - script: |
           pushd projects/arrow
-          ursabot project build $(BUILDER)
+          ursabot project build "$BUILDER"
           popd
