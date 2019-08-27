@@ -1,8 +1,8 @@
-pool:
-  vmImage: 'ubuntu-latest'
 
 jobs:
   - job: Test Ursabot
+    pool:
+      vmImage: 'ubuntu-latest'
     strategy:
     matrix:
       Python35:
@@ -24,6 +24,8 @@ jobs:
           pytest -v --run-integration ursabot
 
   - job: Run Arrow Builders
+    pool:
+      vmImage: 'ubuntu-latest'
     strategy:
       matrix:
         builder:
