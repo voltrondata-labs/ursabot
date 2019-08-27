@@ -114,20 +114,23 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
 
     def checkConfig(self, name, password, docker_host, image=None,
                     command=None, volumes=None, hostconfig=None,
-                    auto_pull=False, always_pull=False, **kwargs):
+                    auto_pull=False, always_pull=False,
+                    follow_startup_logs=False, **kwargs):
         # Bypass the validation implemented in the parent class.
         if image is None:
             image = util.Property('docker_image', default=image)
         super().checkConfig(
             name, password, docker_host, image=image, command=command,
             volumes=volumes, hostconfig=hostconfig, autopull=auto_pull,
-            alwaysPull=always_pull, **kwargs
+            alwaysPull=always_pull, followStartupLogs=follow_startup_logs,
+            *kwargs
         )
 
     @ensure_deferred
     async def reconfigService(self, name, password, docker_host, image=None,
                               command=None, volumes=None, hostconfig=None,
-                              auto_pull=False, always_pull=False, **kwargs):
+                              auto_pull=False, always_pull=False,
+                              follow_startup_logs=False, **kwargs):
         # Set the default password to None so random one is generated.
         # Let the DockerBuilder instances to lazily extend the docker volumes
         # and hostconfig via the reserved docker_volumes and docker_hostconfig
@@ -147,7 +150,8 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
         return await super().reconfigService(
             name, password, docker_host, image=image, command=command,
             volumes=volumes, hostconfig=hostconfig, autopull=auto_pull,
-            alwaysPull=always_pull, **kwargs
+            alwaysPull=always_pull, followStartupLogs=follow_startup_logs,
+            **kwargs
         )
 
     @ensure_deferred
@@ -398,7 +402,8 @@ def local_test_workers(local=True, docker=True):
                 auto_pull=True,
                 always_pull=False,
                 hostconfig={'network_mode': 'host'},
-                masterFQDN=os.getenv('MASTER_FQDN')
+                masterFQDN=os.getenv('MASTER_FQDN'),
+                follow_startup_logs=True
             )
             workers.append(worker)
 
