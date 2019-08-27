@@ -39,7 +39,7 @@ workers = [
         platform=Platform.detect(),
         docker_host='unix:///var/run/docker.sock',
         hostconfig={'network_mode': 'host'},
-        masterFQDN=os.getenv('MASTER_FQDN')
+        masterFQDN=os.getenv('MASTER_FQDN', 'localhost')
     )
 ]
 echoer = DockerBuilder(
