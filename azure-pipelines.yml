@@ -21,20 +21,30 @@ jobs:
       matrix:
         AMD64_Ubuntu_1804_CPP:
           BUILDER: 'AMD64 Ubuntu 18.04 C++'
-        AMD64_Ubuntu_1804_Python_3:
-          BUILDER: 'AMD64 Ubuntu 18.04 Python3'
-          # - 'AMD64 Conda C++'
-          # - 'AMD64 Conda R'
-          # - 'AMD64 Conda Python 2.7'
-          # - 'AMD64 Conda Python 3.6'
-          # - 'AMD64 Conda Python 3.7'
-          # - 'AMD64 Java OpenJDK 8'
-          # - 'AMD64 Java OpenJDK 11'
-          # - 'AMD64 Debian 9 Rust 1.35'
-          # - 'AMD64 Debian 9 Go 1.12.6'
-          # - 'AMD64 Debian 9 Go 1.11.11'
-          # - 'AMD64 Debian 9 NodeJS 11'
-
+        # AMD64_Ubuntu_1804_Python_3:
+        #   BUILDER: 'AMD64 Ubuntu 18.04 Python 3'
+        # AMD64_Conda_CPP:
+        #   BUILDER: 'AMD64 Conda C++'
+        # AMD64_Conda_R:
+        #   BUILDER: 'AMD64 Conda R'
+        # AMD64_Conda_Python_27:
+        #   BUILDER: 'AMD64 Conda Python 2.7'
+        # AMD64_Conda_Python_36:
+        #   BUILDER: 'AMD64 Conda Python 3.6'
+        # AMD64_Conda_Python_37:
+        #   BUILDER: 'AMD64 Conda Python 3.7'
+        # AMD64_Java_OpenJDK_8:
+        #   BUILDER: 'AMD64 Java OpenJDK 8'
+        # AMD64_Java_OpenJDK_11:
+        #   BUILDER: 'AMD64 Java OpenJDK 11'
+        # AMD64_Debian_9_Rust_1_35:
+        #   BUILDER: 'AMD64 Debian 9 Rust 1.35'
+        # AMD64_Debian_9_Go_1_12_6:
+        #   BUILDER: 'AMD64 Debian 9 Go 1.12.6'
+        # AMD64_Debian_9_Go_1_11_11:
+        #   BUILDER: 'AMD64 Debian 9 Go 1.11.11'
+        # AMD64_Debian_9_NodeJS_11:
+        #   BUILDER: 'AMD64 Debian 9 NodeJS 11'
     steps:
       - task: UsePythonVersion@0
         inputs:
