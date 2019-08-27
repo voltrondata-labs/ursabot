@@ -123,7 +123,7 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
             name, password, docker_host, image=image, command=command,
             volumes=volumes, hostconfig=hostconfig, autopull=auto_pull,
             alwaysPull=always_pull, followStartupLogs=follow_startup_logs,
-            *kwargs
+            **kwargs
         )
 
     @ensure_deferred
