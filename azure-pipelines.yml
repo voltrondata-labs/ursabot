@@ -1,19 +1,57 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
+jobs:
+  - job: Ursabot
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: 3.6
+          architecture: 'x64'
+      - script: |
+          pip install -r requirements.txt
+      - script: |
+          flake8 ursabot
+          pytest -v --run-integration ursabot
 
-trigger:
-- master
-
-pool:
-  vmImage: 'ubuntu-latest'
-
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
-
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+  - job: Arrow
+    pool:
+      vmImage: 'ubuntu-latest'
+    strategy:
+      matrix:
+        AMD64 Ubuntu 18.04 C++:
+          BUILDER: 'AMD64 Ubuntu 18.04 C++'
+        AMD64 Ubuntu 18.04 Python 3:
+          BUILDER: 'AMD64 Ubuntu 18.04 Python 3'
+        AMD64 Conda C++:
+          BUILDER: 'AMD64 Conda C++'
+        AMD64 Conda R:
+          BUILDER: 'AMD64 Conda R'
+        AMD64 Conda Python 2.7:
+          BUILDER: 'AMD64 Conda Python 2.7'
+        AMD64 Conda Python 3.6:
+          BUILDER: 'AMD64 Conda Python 3.6'
+        AMD64 Conda Python 3.7:
+          BUILDER: 'AMD64 Conda Python 3.7'
+        AMD64 Java OpenJDK 8:
+          BUILDER: 'AMD64 Java OpenJDK 8'
+        AMD64 Java OpenJDK 11:
+          BUILDER: 'AMD64 Java OpenJDK 11'
+        AMD64 Debian 9 Rust 1.35:
+          BUILDER: 'AMD64 Debian 9 Rust 1.35'
+        AMD64 Debian 9 Go 1.12.6:
+          BUILDER: 'AMD64 Debian 9 Go 1.12.6'
+        AMD64 Debian 9 Go 1.11.11:
+          BUILDER: 'AMD64 Debian 9 Go 1.11.11'
+        AMD64 Debian 9 NodeJS 11:
+          BUILDER: 'AMD64 Debian 9 NodeJS 11'
+    steps:
+      - task: UsePythonVersion@0
+        inputs:
+          versionSpec: 3.6
+          architecture: 'x64'
+      - script: |
+          pip install -e .
+      - script: |
+          pushd projects/arrow
+          ursabot -v project build "$BUILDER"
+          popd

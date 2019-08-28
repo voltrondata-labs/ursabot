@@ -18,7 +18,39 @@ from twisted.trial import unittest
 from buildbot.util import httpclientservice
 from buildbot.util import service
 
-from ursabot.utils import GithubClientService, ensure_deferred
+from ursabot.utils import GithubClientService, Filter, Glob, ensure_deferred
+
+
+def test_filter():
+    def filter_list(f, items):
+        return list(filter(f, items))
+
+    Item = namedtuple('Item', ('name', 'id'))
+    items = [
+        Item(name='tset', id=1),
+        Item(name='test', id=2),
+        Item(name='else', id=3),
+        Item(name='test', id=4),
+        Item(name='test', id=4)
+    ]
+
+    f = Filter(id=1)
+    assert filter_list(f, items) == [
+        Item(name='tset', id=1)
+    ]
+
+    f = Filter(name='test', id=2)
+    assert filter_list(f, items) == [
+        Item(name='test', id=2)
+    ]
+
+    f = Filter(name=Glob('t*'))
+    assert filter_list(f, items) == [
+        Item(name='tset', id=1),
+        Item(name='test', id=2),
+        Item(name='test', id=4),
+        Item(name='test', id=4)
+    ]
 
 
 Request = namedtuple('Request', ['method', 'url', 'params', 'headers', 'data'])

@@ -6,6 +6,7 @@
 
 import io
 import logging
+import warnings
 from pathlib import Path
 from contextlib import redirect_stdout, redirect_stderr
 
@@ -21,13 +22,17 @@ from twisted.python.log import PythonLoggingObserver
 
 from .builders import DockerBuilder
 from .configs import Config, MasterConfig
-from .utils import ensure_deferred, matching
+from .utils import Matching, Filter, ensure_deferred
 from .master import TestMaster
 
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 logger_ = Logger()  # twisted's logger
+
+
+# TODO(kszucs): try to use asyncio reactor with uvloop instead of the default
+#               twisted one
 
 
 class UrsabotConfigErrors(click.ClickException):
@@ -43,7 +48,7 @@ class UrsabotConfigErrors(click.ClickException):
 
 
 @click.group()
-@click.option('--verbose/--quiet', '-v', default=False, is_flag=True)
+@click.option('--verbose/--quiet', '-v/-q', default=False, is_flag=True)
 @click.option('--config-path', '-c', default='master.cfg',
               help='Configuration file path')
 @click.option('--config-variable', '-cv', default='master',
@@ -64,10 +69,14 @@ def ursabot(ctx, verbose, config_path, config_variable):
     stderr, stdout = io.StringIO(), io.StringIO()
     try:
         with redirect_stderr(stderr), redirect_stdout(stdout):
-            config = Config.load_from(config_path, variable=config_variable)
+            with warnings.catch_warnings(record=True) as catched_warnings:
+                config = Config.load_from(config_path,
+                                          variable=config_variable)
     except ConfigErrors as e:
         raise UrsabotConfigErrors(e)
     finally:
+        for warning in catched_warnings:
+            click.echo(click.style(str(warning.message), fg='red'), err=True)
         if verbose:
             stderr, stdout = stderr.getvalue(), stdout.getvalue()
             if stderr:
@@ -99,10 +108,23 @@ def project(obj, project):
     Retrieves the selected project's configurations, the project's name must be
     explicitly passed if the master is configured with multiple projects.
     """
-    try:
-        obj['project'] = obj['config'].project(name=project)
-    except Exception as e:
-        raise click.UsageError(str(e))
+    config = obj['config']
+    project_names = ', '.join(p.name for p in config.projects)
+
+    if project is None:
+        if len(config.projects) == 1:
+            project = config.projects[0]
+        else:
+            raise click.UsageError(f'Master config has multiple projects, one '
+                                   f'must be selected: {project_names}')
+    else:
+        try:
+            project = config.project(name=project)
+        except KeyError:
+            raise click.UsageError(f'Invalid project name {project}, possible '
+                                   f'values are: {project_names}')
+
+    obj['project'] = project
 
 
 @ursabot.command('desc')
@@ -116,13 +138,13 @@ def master_desc(obj):
     config = obj['config']
 
     click.echo('Docker images:')
-    click.echo(ul(config.images))
+    click.echo(ul(i.fqn for i in config.images))
     click.echo()
     click.echo('Workers:')
     click.echo(ul(config.workers))
     click.echo()
     click.echo('Builders:')
-    click.echo(ul(config.builders))
+    click.echo(ul(b.name for b in config.builders))
     click.echo()
 
 
@@ -138,13 +160,13 @@ def project_desc(obj):
     click.echo(f'Repo: {project.repo}')
     click.echo()
     click.echo('Docker images:')
-    click.echo(ul(project.images))
+    click.echo(ul(i.fqn for i in project.images))
     click.echo()
     click.echo('Workers:')
     click.echo(ul(project.workers))
     click.echo()
     click.echo('Builders:')
-    click.echo(ul(project.builders))
+    click.echo(ul(b.name for b in project.builders))
     click.echo()
 
 
@@ -215,7 +237,12 @@ def start_master(obj, no_daemon, start_timeout):
         'nodaemon': no_daemon,
         'start_timeout': start_timeout
     }
-    start(command_cfg)  # loads the config through the buildbot.tac
+    result = start(command_cfg)  # loads the config through the buildbot.tac
+    if result > 0:
+        raise click.Abort('Failed to start the Buildbot master!')
+
+    url = obj['config'].url
+    click.echo('Buildbot UI is available at: ' + click.style(url, fg='green'))
 
 
 @ursabot.command('stop')
@@ -236,7 +263,11 @@ def stop_master(obj, clean, no_wait):
         'clean': clean,
         'no-wait': no_wait
     }
-    stop(command_cfg)
+    result = stop(command_cfg)
+    if result > 0:
+        raise click.Abort('Failed to stop the Buildbot master!')
+
+    click.echo('Buildbot has been successfully stopped!')
 
 
 @ursabot.command('restart')
@@ -264,7 +295,12 @@ def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
         'clean': clean,
         'no-wait': no_wait
     }
-    restart(command_cfg)
+    result = restart(command_cfg)
+    if result > 0:
+        raise click.Abort('Failed to restart the Buildbot master!')
+
+    url = obj['config'].url
+    click.echo('Buildbot UI is available at: ' + click.style(url, fg='green'))
 
 
 @ursabot.group()
@@ -276,15 +312,18 @@ def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
               help='Password to authenticate dockerhub with')
 @click.option('--arch', '-a', default=None,
               help='Filter images by architecture')
-@click.option('--os', '-o', default=None,
+@click.option('--system', '-s', default=None,
               help='Filter images by operating system')
+@click.option('--distro', '-d', default=None,
+              help='Filter images by the distribution of the operating system')
 @click.option('--tag', '-t', default=None,
               help='Filter images by operating system')
 @click.option('--variant', '-v', default=None,
               help='Filter images by variant')
 @click.option('--name', '-n', default=None, help='Filter images by name')
 @click.pass_obj
-def docker(obj, docker_host, docker_username, docker_password, **kwargs):
+def docker(obj, docker_host, docker_username, docker_password, name, tag,
+           variant, arch, system, distro):
     """Subcommand to build docker images for the docker builders
 
     It loads the docker images defined in the master's configuration.
@@ -299,12 +338,20 @@ def docker(obj, docker_host, docker_username, docker_password, **kwargs):
     if docker_username is not None:
         client.login(username=docker_username, password=docker_password)
 
-    filters = {k: matching(pattern) for k, pattern in kwargs.items()
-               if pattern is not None}
-    images = config.images.filter(**filters)
+    image_filter = Filter(
+        name=Matching(name),
+        tag=Matching(tag),
+        variant=Matching(variant),
+        platform=Filter(
+            arch=Matching(arch),
+            system=Matching(system),
+            distro=Matching(distro)
+        )
+    )
+    filtered = list(filter(image_filter, config.images))
 
     obj['client'] = client
-    obj['images'] = images
+    obj['images'] = filtered
 
 
 @docker.command('list')
@@ -388,7 +435,7 @@ def _use_local_sources(builder, sources):
 @project.command('build')
 @click.argument('builder_name', nargs=1)
 @click.option('--repo', '-r', default=None,
-              help='Repository to clone, defaults to the Project\'s repo.')
+              help="Repository to clone, defaults to the Project's repo.")
 @click.option('--branch', '-b', default='master', help='Branch to clone')
 @click.option('--commit', '-c', default=None, help='Commit to clone')
 @click.option('--pull-request', '-pr', type=int, default=None,
@@ -402,7 +449,7 @@ def _use_local_sources(builder, sources):
                    'It must be passed in `source:destination` form.'
                    'Useful for running builders on local repositories. '
                    'If any source mount is defined, then all of the '
-                   'builder\'s source checkouts are faked out, so each '
+                   "builder's source checkouts are faked out, so each "
                    'checkout step must be provided.')
 @click.option('--attach-on-failure', '-a', is_flag=True, default=False,
               help='If a build fails and it is executed withing a '
@@ -426,13 +473,13 @@ def project_build(obj, builder_name, repo, branch, commit, pull_request,
 
     # check that the triggerable builder exists
     try:
-        builder = project.builders.get(name=builder_name)
+        builder = project.builder(name=builder_name)
     except KeyError:
         available = '\n'.join(f' - {b.name}' for b in project.builders)
         raise click.ClickException(
             f"Project {project.name} doesn't have a builder named "
-            f"`{builder_name}`.\n Select one from the following list: \n"
-            f"{available}"
+            f'`{builder_name}`.\n Select one from the following list: \n'
+            f'{available}'
         )
     else:
         click.echo(f'Triggering builder: {builder}')

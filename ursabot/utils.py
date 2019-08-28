@@ -4,13 +4,17 @@
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
 
+import copy
+import platform
 import pathlib
 import fnmatch
 import itertools
-import functools
-import operator
+from functools import wraps
+from typing import ClassVar
 
+import distro
 import toolz
+import typeguard
 from twisted.internet import defer
 from buildbot.util import httpclientservice
 from buildbot.util.logger import Logger
@@ -18,11 +22,14 @@ from buildbot.util.logger import Logger
 __all__ = [
     'ensure_deferred',
     'read_dependency_list',
+    'AnyOf',
+    'AllOf',
+    'Matching',
+    'Glob',
     'Filter',
-    'startswith',
-    'any_of',
-    'has',
-    'Collection',
+    'Annotable',
+    'Merge',
+    'Extend',
     'HTTPClientService',
     'GithubClientService',
 ]
@@ -31,7 +38,7 @@ log = Logger()
 
 
 def ensure_deferred(fn):
-    @functools.wraps(fn)
+    @wraps(fn)
     def wrapper(*args, **kwargs):
         result = fn(*args, **kwargs)
         return defer.ensureDeferred(result)
@@ -46,95 +53,329 @@ def read_dependency_list(path):
     return [l for l in lines if not l.startswith('#')]
 
 
-class Combinable:
+# Utilities for validation and declarative definitions
+
+
+class Marker:
+
+    def resolve(self, parent):
+        raise NotImplementedError()
+
+
+class Merge(Marker, dict):
+
+    def resolve(self, parent):
+        if not isinstance(parent, dict):
+            raise TypeError('Merge marker can only be used on a '
+                            'parent field with dictionary type')
+        return {**parent, **self}
+
+
+class Extend(Marker, list):
+
+    def resolve(self, parent):
+        if not isinstance(parent, list):
+            raise TypeError('Extend marker can only be used on a '
+                            'parent field with list type')
+        return parent + self
+
+
+class MISSING:
+    pass
+
+
+class Field:
+
+    __slots__ = ('name', 'type', 'default')
+
+    def __init__(self, name, type, default):
+        self.name = name
+        self.type = type
+        self.default = default
+        if default is not MISSING:
+            self.validate(default)
+
+    def with_default(self, new_default):
+        return Field(name=self.name, type=self.type, default=new_default)
+
+    def validate(self, value):
+        typeguard.check_type(self.name, value, self.type)
+
+
+class AnnotableMeta(type):
+
+    def __new__(metacls, clsname, bases, attrs):
+        class_anns, instance_anns = {}, {}
+        for name, type in attrs.get('__annotations__', {}).items():
+            if getattr(type, '__origin__', None) is ClassVar:
+                class_anns[name] = type.__args__[0]
+            else:
+                instance_anns[name] = type
+
+        class_fields, instance_fields = {}, {}
+        for base in reversed(bases):
+            instance_fields.update(getattr(base, '__fields__', {}))
+            class_fields.update(getattr(base, '__class_fields__', {}))
+
+        attrs['__fields__'] = metacls._update_fields(
+            instance_anns, instance_fields, attrs
+        )
+        attrs['__class_fields__'] = metacls._update_fields(
+            class_anns, class_fields, attrs
+        )
+
+        return super().__new__(metacls, clsname, bases, attrs)
 
     @classmethod
-    def _binop(cls, fn, other):
-        if isinstance(other, cls):
-            return cls(fn)
-        else:
-            return NotImplemented
+    def _update_fields(metacls, annotations, fields, attrs):
+        # fields with new default values
+        new_defaults = {}
+        for name, field in fields.items():
+            if name in attrs:
+                default = attrs[name]
+                if isinstance(default, Marker):
+                    default = default.resolve(field.default)
+                new_defaults[name] = field.with_default(default)
 
-    def __or__(self, other):
-        def _or(*args, **kwargs):
-            return self(*args, **kwargs) or other(*args, **kwargs)
-        return self._binop(_or, other)
+        # newly annotated fields
+        new_fields = {}
+        for name, type in annotations.items():
+            default = attrs.get(name, MISSING)
+            new_fields[name] = Field(name, type=type, default=default)
 
-    def __and__(self, other):
-        def _and(*args, **kwargs):
-            return self(*args, **kwargs) and other(*args, **kwargs)
-        return self._binop(_and, other)
-
-
-class Filter(Combinable):
-
-    __slot__ = ('fn',)
-
-    def __init__(self, fn):
-        self.fn = fn
-
-    def __call__(self, *args, **kwargs):
-        return self.fn(*args, **kwargs)
+        return {**fields, **new_defaults, **new_fields}
 
 
-def startswith(prefix):
-    return Filter(lambda value: value.startswith(prefix))
+class Annotable(metaclass=AnnotableMeta):
+
+    def __init__(self, **kwargs):
+        # TODO(kszucs): collect errors
+        for name, field in self.__fields__.items():
+            try:
+                value = kwargs[name]
+                if isinstance(value, Marker):
+                    value = value.resolve(field.default)
+            except KeyError:
+                if field.default is MISSING:
+                    raise TypeError(
+                        f'missing required keyword-only argument: {name}'
+                    )
+                else:
+                    value = copy.copy(field.default)
+
+            field.validate(value)
+            setattr(self, name, value)
+
+    def __repr__(self):
+        classname = self.__class__.__name__
+        address = hex(id(self))
+        values = ' '.join(f'{k}={v}' for k, v in self._values())
+        return f'<{classname} {values} object at {address}>'
+
+    def __eq__(self, other):
+        return (
+            type(self) == type(other) and
+            self.asdict() == other.asdict()
+        )
+
+    def _values(self):
+        for name in self.__fields__.keys():
+            yield (name, getattr(self, name))
+
+    def asdict(self):
+        return dict(self._values())
 
 
-def any_of(*values):
-    return Filter(lambda value: value in values)
+# Utilities for filtering
 
 
-def has(*needles):
-    return Filter(lambda haystack: set(needles).issubset(set(haystack)))
+def Has(*needles):
+    return lambda haystack: set(needles).issubset(set(haystack))
 
 
-def matching(glob_pattern):
-    return Filter(lambda value: fnmatch.fnmatch(value, glob_pattern))
+def InstanceOf(cls):
+    return lambda value: isinstance(value, cls)
 
 
-def any_matching(glob_pattern):
-    return Filter(lambda values: bool(fnmatch.filter(values, glob_pattern)))
+def Matching(pattern):
+    if pattern is None:
+        return lambda v: True
+    else:
+        return lambda v: fnmatch.fnmatch(v, pattern)
 
 
-class Collection(list):
+def Glob(pattern):
+    return lambda vs: fnmatch.filter(vs, pattern)
 
-    def get(self, **kwargs):
-        """Retrieves a single entry from the collection."""
-        results = self.filter(**kwargs)
-        if len(results) == 0:
-            raise KeyError('No entry can be found by the filter conditions')
-        elif len(results) > 1:
-            raise KeyError('Multiple entries can be found by the conditions')
-        else:
-            return results[0]
 
-    def filter(self, **kwargs):
-        """Filters the values based on the passed conditions.
-
-        The filters can be passed as property=(value or filter function) form.
-        """
-        items = self
-        for by, value in kwargs.items():
-            if callable(value):
-                fn = lambda item: value(getattr(item, by))  # noqa:E731
+def AnyOf(*validators):
+    def check(value):
+        for validator in validators:
+            if callable(validator):
+                if validator(value):
+                    return True
             else:
-                fn = lambda item: getattr(item, by) == value  # noqa:E731
-            # XXX: without consuming the iterator only the first filter works
-            items = tuple(filter(fn, items))
-        return self.__class__(items)
+                if value == validator:
+                    return True
+        return False
+    return check
 
-    def groupby(self, *args):
-        return toolz.groupby(operator.attrgetter(*args), self)
 
-    def unique(self):
-        return self.__class__(toolz.unique(self))
+def AllOf(*validators):
+    def check(value):
+        for validator in validators:
+            if callable(validator):
+                if not validator(value):
+                    return False
+            else:
+                if value != validator:
+                    return False
+        return True
+    return check
 
-    def __add__(self, other):
-        if isinstance(other, self.__class__):
-            return self.__class__(super().__add__(other))
+
+def Filter(**kwargs):
+    def check(obj):
+        for attr, validator in kwargs.items():
+            value = getattr(obj, attr)
+            if callable(validator):
+                if not validator(value):
+                    return False
+            else:
+                if value != validator:
+                    return False
+        return True
+    return check
+
+
+# Platform definition
+
+# from enum import Enum
+#
+#
+# class Arch(str, Enum):
+#     AMD64 = 'AMD64'
+#     ARM64V8 = 'ARM64v8'
+#     ARM32V7 = 'ARM32v7'
+#
+#
+# class System(str, Enum):
+#     WINDOWS = 'Windows'
+#     DARWIN = 'Darwin'
+#     LINUX = 'Linux'
+#
+#
+# class Linux(str, Enum):
+#     ALPINE = 'Alpine'
+#     DEBIAN = 'Debian'
+#     UBUNTU = 'Ubuntu'
+#     CENTOS = 'CentOS'
+#     FEDORA = 'Fedora'
+#
+#     @property
+#     def system(self):
+#         return System.LINUX
+#
+#
+# class Darwin(str, Enum):
+#     MACOS = 'macOS'
+#
+#     @property
+#     def system(self):
+#         return System.DARWIN
+#
+#
+# class Windows(str, Enum):
+#     WINDOWS = 'Windows'
+#
+#     @property
+#     def system(self):
+#         return System.WINDOWS
+#
+
+
+class Platform:
+
+    __slots__ = ('arch', 'system', 'distro', 'version', 'codename')
+
+    _architectures = {
+        'x86_64': 'amd64'
+    }
+    _systems = {
+        'debian': 'linux',
+        'ubuntu': 'linux',
+        'centos': 'linux',
+        'alpine': 'linux',
+        'fedora': 'linux',
+        'macos': 'darwin',
+        'windows': 'windows'
+    }
+
+    def __init__(self, arch, distro, version, system=None, codename=None):
+        arch = self._architectures.get(arch, arch)
+        if arch not in {'amd64', 'arm64v8', 'arm32v7'}:
+            raise ValueError(f'invalid architecture `{arch}`')
+
+        system = system or self._systems.get(distro)
+        if system not in {'linux', 'darwin', 'windows'}:
+            raise ValueError(f'invalid system `{system}`')
+
+        self.arch = arch
+        self.system = system
+        self.distro = distro
+        self.version = version
+        self.codename = codename
+
+    def title(self):
+        return f'{self.arch.upper()} {self.distro.capitalize()} {self.version}'
+
+    def __eq__(self, other):
+        return (
+            self.arch == other.arch and
+            self.system == other.system and
+            self.distro == other.distro and
+            self.version == other.version
+        )
+
+    def __hash__(self):
+        return hash((self.arch, self.system, self.distro, self.version))
+
+    def __str__(self):
+        arch = self.arch or 'unknown'
+        distro = self.distro or 'unknown'
+        version = self.version or 'unknown'
+        return f'{arch}-{distro}-{version}'
+
+    def __repr__(self):
+        return (f'<Platform arch={self.arch} system={self.system} '
+                f'distro={self.distro} version={self.version} at {id(self)}>')
+
+    @classmethod
+    def detect(cls):
+        system = platform.system().lower()
+        if system == 'windows':
+            dist = 'windows'
+            version, *_ = platform.win32_ver()
+            codename = None
+        elif system == 'darwin':
+            dist = 'macos'
+            version, *_ = platform.mac_ver()
+            codename = None
         else:
-            return NotImplemented
+            dist = distro.id()
+            version = distro.version()
+            codename = distro.codename()
+
+        return cls(
+            arch=platform.machine(),
+            system=system,
+            distro=dist,
+            version=version,
+            codename=codename
+        )
+
+
+# Buildbot utilities
 
 
 class HTTPClientService(httpclientservice.HTTPClientService):

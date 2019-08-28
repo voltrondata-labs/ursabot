@@ -8,12 +8,12 @@ from buildbot.process.results import FAILURE, EXCEPTION
 
 from dotenv import load_dotenv
 from ursabot.master import TestMaster as _TestMaster
-from ursabot.utils import ensure_deferred
+from ursabot.utils import ensure_deferred, Platform
 from ursabot.configs import MasterConfig, ProjectConfig
 from ursabot.builders import DockerBuilder
 from ursabot.schedulers import AnyBranchScheduler
-from ursabot.workers import docker_workers_for, DockerLatentWorker
-from ursabot.docker import DockerImage, worker_images_for
+from ursabot.workers import DockerLatentWorker
+from ursabot.docker import DockerImage, ImageCollection, worker_image_for
 from ursabot.steps import ShellCommand
 
 
@@ -24,19 +24,40 @@ load_dotenv()
 name = 'test'
 repo = 'https://github.com/ursa-labs/ursabot'
 
-images = worker_images_for([
-    DockerImage('test', base='python:3.7', os='debian-9', arch='amd64')
-])
-workers = docker_workers_for(
-    archs=['amd64'],
-    masterFQDN=os.getenv('MASTER_FQDN')
+image = DockerImage(
+    name='test',
+    base='python:3.7',
+    platform=Platform(distro='debian', version='9', arch='amd64')
 )
-echoer = DockerBuilder('echoer', image=images[0], workers=workers, steps=[
-    ShellCommand(command='echo 1337', as_shell=True)
-])
-failer = DockerBuilder('failer', image=images[0], workers=workers, steps=[
-    ShellCommand(command='unknown-command', as_shell=True)
-])
+worker_image = worker_image_for(image)
+images = ImageCollection([image, worker_image])
+
+workers = [
+    DockerLatentWorker(
+        'local-worker',
+        password=None,
+        platform=Platform.detect(),
+        docker_host='unix:///var/run/docker.sock',
+        hostconfig={'network_mode': 'host'},
+        masterFQDN=os.getenv('MASTER_FQDN', 'localhost')
+    )
+]
+echoer = DockerBuilder(
+    name='echoer',
+    image=worker_image,
+    workers=workers,
+    steps=[
+        ShellCommand(command='echo 1337', as_shell=True)
+    ]
+)
+failer = DockerBuilder(
+    name='failer',
+    image=worker_image,
+    workers=workers,
+    steps=[
+        ShellCommand(command='unknown-command', as_shell=True)
+    ]
+)
 builders = [echoer, failer]
 schedulers = [
     AnyBranchScheduler(name='TestScheduler', builders=builders)

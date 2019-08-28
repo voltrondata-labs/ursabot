@@ -26,9 +26,11 @@ setup(
         'buildbot-console-view',
         'buildbot-grid-view',
         'buildbot-waterfall-view',
+        'buildbot-worker',
         'buildbot-www',
         'buildbot',
         'click',
+        'distro',
         'docker-map',
         'docker',
         'dockerpty',
@@ -38,7 +40,8 @@ setup(
         'toolz',
         'toposort',
         'treq',
-        'twisted[tls]'
+        'twisted[tls]',
+        'typeguard'
     ],
     tests_require=['pytest>=3.9', 'mock'],
     entry_points={

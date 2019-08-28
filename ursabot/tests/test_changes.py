@@ -21,7 +21,7 @@ from buildbot.test.fake.change import Change as FakeChange
 from buildbot.test.unit import test_changes_filter as original
 
 from ursabot.changes import ChangeFilter
-from ursabot.utils import any_matching, any_of
+from ursabot.utils import Glob, AnyOf, AllOf
 
 
 class Change(FakeChange):
@@ -127,32 +127,32 @@ class TestChangeFilter(original.ChangeFilter):
             'python/tests/module.py'
         ])
 
-        self.setfilter(files=any_matching('rust/*'))
+        self.setfilter(files=Glob('rust/*'))
         self.yes(rust_change, 'rust change matches rust pattern')
         self.no(java_change, 'java change not matches rust pattern')
         self.no(cpp_change, 'cpp change not matches rust pattern')
         self.no(python_change, 'python change not matches rust pattern')
         self.check()
 
-        self.setfilter(files=any_matching('cpp/*'))
+        self.setfilter(files=Glob('cpp/*'))
         self.no(rust_change, 'rust change not matches cpp pattern')
         self.no(java_change, 'java change not matches cpp pattern')
         self.yes(cpp_change, 'cpp change matches cpp pattern')
         self.no(python_change, 'python change not matches rust pattern')
         self.check()
 
-        self.setfilter(files=any_matching('cpp/*') | any_matching('python/*'))
+        self.setfilter(files=AnyOf(Glob('cpp/*'), Glob('python/*')))
         self.no(rust_change, 'rust change not matches python pattern')
         self.no(java_change, 'java change not matches python pattern')
         self.yes(cpp_change, 'cpp change matches python pattern')
         self.yes(python_change, 'python change matches python pattern')
         self.check()
 
-        self.setfilter(files=(
-            any_matching('cpp/*') |
-            any_matching('python/*') |
-            any_matching('java/*') |
-            any_matching('rust/*')
+        self.setfilter(files=AnyOf(
+            Glob('cpp/*'),
+            Glob('python/*'),
+            Glob('java/*'),
+            Glob('rust/*')
         ))
         self.yes(rust_change, 'rust change matches integration pattern')
         self.yes(java_change, 'java change matches integration pattern')
@@ -163,13 +163,13 @@ class TestChangeFilter(original.ChangeFilter):
     def test_filter_or_combining(self):
         filter_a = ChangeFilter(
             project='a',
-            category=any_of(None, 'tag', 'pull'),
+            category=AnyOf(None, 'tag', 'pull'),
         )
         filter_b = ChangeFilter(
             project='b',
             category='pull',
         )
-        either = filter_a | filter_b
+        either = ChangeFilter(AnyOf(filter_a, filter_b))
 
         self.setfilter(either)
         self.yes(Change(project='a', category='tag'), 'on tag of project a')
@@ -183,12 +183,12 @@ class TestChangeFilter(original.ChangeFilter):
     def test_filter_and_combining(self):
         filter_a = ChangeFilter(
             project='a',
-            category=any_of(None, 'tag', 'pull'),
+            category=AnyOf(None, 'tag', 'pull'),
         )
         filter_b = ChangeFilter(
-            files=any_matching('cpp/*')
+            files=Glob('cpp/*')
         )
-        both = filter_a & filter_b
+        both = ChangeFilter(AllOf(filter_a, filter_b))
 
         self.setfilter(both)
         self.yes(
