@@ -23,6 +23,7 @@ from twisted.python.log import PythonLoggingObserver
 from .builders import DockerBuilder
 from .configs import Config, MasterConfig
 from .utils import Matching, Filter, ensure_deferred
+from .docker import ImageCollection
 from .master import TestMaster
 
 
@@ -348,7 +349,7 @@ def docker(obj, docker_host, docker_username, docker_password, name, tag,
             distro=Matching(distro)
         )
     )
-    filtered = list(filter(image_filter, config.images))
+    filtered = ImageCollection(i for i in config.images if image_filter(i))
 
     obj['client'] = client
     obj['images'] = filtered
