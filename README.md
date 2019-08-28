@@ -150,6 +150,15 @@ ursabot checkconfig
 ursabot -c arrow/master.cfg checkconfig
 ```
 
+The top-level `master.cfg` contains the production configuration for 
+ci.ursalabs.org so it requires additional dependencies like `pass`. 
+To install `pass`:
+
+```bash
+which apt && sudo -H apt install -V -y pass
+which brew && brew install pass
+```
+
 ## Run a local instance of Ursabot
 
 After installation master's database must be initialized:
