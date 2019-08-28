@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include LICENSE_BSD
+
+recursive-include ursabot *.py
+
+prune projects
+exclude .gitignore Dockerfile
+exclude *.cfg *.tac *.yml *.yaml
