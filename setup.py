@@ -12,16 +12,24 @@ if sys.version_info < (3, 6):
     sys.exit('Python < 3.6 is not supported due to missing asyncio support')
 
 
-# TODO(kszucs): add package data, change maintainer
+def readme():
+    with open('README.md') as f:
+        return f.read()
+
+
 setup(
     name='ursabot',
-    description='Ursa-labs continuous integration tool',
+    description='Extension for the Buildbot continuous integration tool',
+    keywords=['ursabot', 'buildbot', 'ci', 'continuous-integration'],
+    long_description=readme(),
+    long_description_content_type='text/markdown',
     use_scm_version=True,
     url='http://github.com/ursa-labs/ursabot',
-    maintainer='Krisztian Szucs',
-    maintainer_email='szucs.krisztian@gmail.com',
+    maintainer='Ursa-Labs team',
+    maintainer_email='team@ursalabs.org',
     packages=['ursabot'],
     setup_requires=['setuptools_scm'],
+    python_requires='>=3.6',
     install_requires=[
         'buildbot-console-view',
         'buildbot-grid-view',
