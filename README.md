@@ -301,7 +301,7 @@ master = MasterConfig(
 ```
 
 The `DockerBuilder` provides more flexibility, faster builds and better worker
-isolation, Ursabot uses `DockerBuilders` extensively.
+isolation, Ursabot uses `DockerBuilder` extensively.
 
 ```python
 from ursabot.docker import DockerImage
