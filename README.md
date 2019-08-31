@@ -210,7 +210,7 @@ ursabot project build -p prop=value -p myprop=myvalue 'AMD64 Conda C++'
 
 ### Attach on failure
 
-Ursabot supports debugging failed builds with attach attaching ordinary shells
+Ursabot supports debugging failed builds with attaching ordinary shells
 to the still running workers - where the build has previously failed.
 
 Use the `--attach-on-failure` or `-a` flags.
