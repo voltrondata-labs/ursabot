@@ -173,14 +173,6 @@ Start/stop/restart the master:
 ursabot -v start|stop|restart
 ```
 
-Define the configuration environment (prod|test) and start the service:
-
-```bash
-export URSABOT_ENV=test  # this is the default
-buildbot restart ursabot
-tail -f ursabot/twisted.log
-```
-
 Then open `http://localhost:8100` in the browser.
 
 ## Commands for local reproducibility
