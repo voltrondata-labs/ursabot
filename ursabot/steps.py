@@ -19,6 +19,7 @@ from buildbot.interfaces import IRenderable
 from .utils import ensure_deferred
 
 __all__ = [
+    'Bundle',
     'Cargo',
     'CMake',
     'CTest',
@@ -27,6 +28,7 @@ __all__ = [
     'Go',
     'Make',
     'Maven',
+    'Meson',
     'Mkdir',
     'Ninja',
     'Npm',
@@ -103,6 +105,11 @@ class ShellCommand(buildstep.ShellMixin, buildstep.BuildStep):
         cmd = await self.makeRemoteShellCommand(command=self.command)
         await self.runCommand(cmd)
         return cmd.results()
+
+
+class Bundle(ShellCommand):
+    name = 'Bundler'
+    command = ['bundle']
 
 
 class CMake(steps.CMake):
@@ -301,6 +308,11 @@ GitHub = steps.GitHub
 class Maven(ShellCommand):
     name = 'Maven'
     command = ['mvn']
+
+
+class Meson(ShellCommand):
+    name = 'Meson'
+    command = ['meson']
 
 
 class Npm(ShellCommand):
