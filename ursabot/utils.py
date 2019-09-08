@@ -199,9 +199,9 @@ def InstanceOf(cls):
 
 def Matching(pattern):
     if pattern is None:
-        return lambda v: True
+        return lambda v: v is None
     else:
-        return lambda v: fnmatch.fnmatch(v, pattern)
+        return lambda v: fnmatch.fnmatch(str(v), pattern)
 
 
 def Glob(pattern):

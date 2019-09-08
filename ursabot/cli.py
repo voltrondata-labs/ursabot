@@ -311,20 +311,22 @@ def restart_master(obj, no_daemon, start_timeout, clean, no_wait):
               help='Username to authenticate dockerhub with')
 @click.option('--docker-password', '-dp', default=None,
               help='Password to authenticate dockerhub with')
-@click.option('--arch', '-a', default=None,
+@click.option('--arch', '-a', default='*',
               help='Filter images by architecture')
-@click.option('--system', '-s', default=None,
+@click.option('--system', '-s', default='*',
               help='Filter images by operating system')
-@click.option('--distro', '-d', default=None,
+@click.option('--distro', '-d', default='*',
               help='Filter images by the distribution of the operating system')
-@click.option('--tag', '-t', default=None,
+@click.option('--tag', '-t', default='*',
               help='Filter images by operating system')
-@click.option('--variant', '-v', default=None,
+@click.option('--variant', '-v', default='*',
               help='Filter images by variant')
-@click.option('--name', '-n', default=None, help='Filter images by name')
+@click.option('--no-variant', default=False, is_flag=True,
+              help='Filter images by having empty/no variant set')
+@click.option('--name', '-n', default='*', help='Filter images by name')
 @click.pass_obj
 def docker(obj, docker_host, docker_username, docker_password, name, tag,
-           variant, arch, system, distro):
+           variant, no_variant, arch, system, distro):
     """Subcommand to build docker images for the docker builders
 
     It loads the docker images defined in the master's configuration.
@@ -338,6 +340,9 @@ def docker(obj, docker_host, docker_username, docker_password, name, tag,
     client = DockerClientWrapper(docker_host)
     if docker_username is not None:
         client.login(username=docker_username, password=docker_password)
+
+    if no_variant:
+        variant = None
 
     image_filter = Filter(
         name=Matching(name),

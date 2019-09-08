@@ -53,6 +53,11 @@ matrix:
         - pushd projects/arrow
         - ursabot project build 'AMD64 Ubuntu 18.04 C++'
         - popd
+    - name: "AMD64 Ubuntu 18.04 C GLib"
+      script:
+        - pushd projects/arrow
+        - ursabot project build 'AMD64 Ubuntu 18.04 C GLib'
+        - popd
     - name: "AMD64 Ubuntu 18.04 R"
       script:
         - pushd projects/arrow

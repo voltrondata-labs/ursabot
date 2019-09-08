@@ -3,8 +3,8 @@ import textwrap
 from buildbot.plugins import util
 from ursabot.builders import DockerBuilder
 from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
-                           Ninja, SetupPy, CTest, CMake, PyTest, Mkdir, Pip,
-                           GitHub, Maven, Go, Cargo, Npm, R)
+                           Ninja, SetupPy, Bundle, CTest, CMake, PyTest,
+                           Meson, Mkdir, Pip, GitHub, Maven, Go, Cargo, Npm, R)
 from ursabot.utils import Filter, Matching, AnyOf, Has, Extend, Merge
 
 from .steps import Archery, Crossbow
@@ -190,6 +190,35 @@ cpp_install = Ninja(
     name='Install C++',
     workdir='cpp/build'
 )
+c_glib_meson = Meson(
+    args=[
+        'build',
+        '--prefix', util.Property('CMAKE_INSTALL_PREFIX'),
+        '--libdir', util.Property('CMAKE_INSTALL_LIBDIR'),
+        '-Dgtk_doc=true',
+    ],
+    workdir='c_glib'
+)
+c_glib_compile = Ninja(
+    j=util.Property('ncpus', 6),
+    name='Compile C GLib',
+    workdir='c_glib/build'
+)
+c_glib_install = Ninja(
+    'install',
+    name='Install C GLib',
+    workdir='c_glib/build'
+)
+c_glib_install_test_dependencies = Bundle(
+    'install',
+    name='Install test dependencies',
+    workdir='c_glib'
+)
+c_glib_test = Ninja(
+    'test',
+    name='Test C GLib',
+    workdir='c_glib/build'
+)
 python_install = SetupPy(
     args=['develop'],
     name='Build PyArrow',
@@ -349,11 +378,12 @@ class CppBenchmark(DockerBuilder):
 
 
 class CppTest(DockerBuilder):
-    tags = ['arrow', 'cpp', 'parquet', 'plasma']
+    tags = ['arrow', 'cpp', 'gandiva', 'parquet', 'plasma']
     volumes = [
         util.Interpolate('%(prop:builddir)s:/root/.ccache:rw')
     ]
     properties = dict(
+        ARROW_GANDIVA='ON',
         ARROW_PARQUET='ON',
         ARROW_PLASMA='ON',
         CMAKE_INSTALL_PREFIX='/usr/local',
@@ -398,6 +428,27 @@ class CppCudaTest(CppTest):
         variant='cuda',
         platform=Filter(
             arch='amd64'
+        )
+    )
+
+
+class CGLibTest(CppTest):
+    tags = Extend(['c-glib'])
+    steps = Extend([
+        # runs the C++ tests too
+        c_glib_meson,
+        c_glib_compile,
+        c_glib_install,
+        c_glib_install_test_dependencies,
+        c_glib_test,
+    ])
+    image_filter = Filter(
+        name='c-glib',
+        tag='worker',
+        variant=None,
+        platform=Filter(
+            arch=AnyOf('amd64', 'arm64v8'),
+            distro='ubuntu'
         )
     )
 

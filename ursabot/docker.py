@@ -38,7 +38,8 @@ __all__ = [
     'apt',
     'apk',
     'pip',
-    'conda'
+    'conda',
+    'gem',
 ]
 
 logger = logging.getLogger(__name__)
@@ -405,6 +406,17 @@ def conda(*packages, files=tuple()):
     """)
     args = tuple(f'--file {f}' for f in files) + packages
     args = indent(' \\\n'.join(args), _tab)
+    cmd = indent(template.format(args), _tab)
+    return cmd.lstrip()
+
+
+def gem(*packages):
+    """Generates gem install command"""
+    template = dedent("""
+        gem install \\
+        {}
+    """)
+    args = indent(' \\\n'.join(packages), _tab)
     cmd = indent(template.format(args), _tab)
     return cmd.lstrip()
 

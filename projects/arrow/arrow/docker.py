@@ -2,7 +2,7 @@ from pathlib import Path
 
 from ursabot.docker import ImageCollection, DockerImage, worker_image_for
 from ursabot.docker import ENTRYPOINT, ADD, RUN, ENV, SHELL
-from ursabot.docker import pip, apt, apk, symlink, conda
+from ursabot.docker import pip, apt, apk, symlink, conda, gem
 from ursabot.utils import Platform, read_dependency_list
 
 """
@@ -19,8 +19,11 @@ docker_assets = Path(__file__).parent.parent / 'docker'
 python_symlinks = {'/usr/local/bin/python': '/usr/bin/python3',
                    '/usr/local/bin/pip': '/usr/bin/pip3'}
 
-ubuntu_pkgs = read_dependency_list(docker_assets / 'pkgs-ubuntu.txt')
-alpine_pkgs = read_dependency_list(docker_assets / 'pkgs-alpine.txt')
+cpp_ubuntu_pkgs = read_dependency_list(docker_assets / 'pkgs-cpp-ubuntu.txt')
+cpp_alpine_pkgs = read_dependency_list(docker_assets / 'pkgs-cpp-alpine.txt')
+c_glib_ubuntu_pkgs = read_dependency_list(
+    docker_assets / 'pkgs-c-glib-ubuntu.txt'
+)
 python_steps = [
     ADD(docker_assets / 'requirements.txt'),
     ADD(docker_assets / 'requirements-test.txt'),
@@ -51,7 +54,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
                 version=ubuntu_version
             ),
             steps=[
-                RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
+                RUN(apt(*cpp_ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
             ]
         )
@@ -62,6 +65,16 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             steps=[
                 RUN(apt('libbenchmark-dev')),
                 RUN(pip('click', 'pandas'))
+            ]
+        )
+        c_glib = DockerImage(
+            name='c-glib',
+            base=cpp,
+            title=f'{basetitle} C GLib',
+            steps=[
+                RUN(apt(*c_glib_ubuntu_pkgs)),
+                RUN(pip('meson')),
+                RUN(gem('bundler')),
             ]
         )
         r = DockerImage(
@@ -82,7 +95,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
             title=f'{basetitle} Python 3',
             steps=python_steps
         )
-        images.extend([cpp, cpp_benchmark, r, python])
+        images.extend([cpp, cpp_benchmark, c_glib, r, python])
 
     # ALPINE
     for alpine_version in ['3.9']:
@@ -100,7 +113,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
                 version=alpine_version
             ),
             steps=[
-                RUN(apk(*alpine_pkgs, 'ccache', 'python3-dev', 'py3-pip')),
+                RUN(apk(*cpp_alpine_pkgs, 'ccache', 'python3-dev', 'py3-pip')),
                 RUN(symlink(python_symlinks))
             ]
         )
@@ -215,7 +228,7 @@ for arch in ['amd64']:
             ),
             variant='cuda',
             steps=[
-                RUN(apt(*ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
+                RUN(apt(*cpp_ubuntu_pkgs, 'ccache', 'python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
             ]
         )
