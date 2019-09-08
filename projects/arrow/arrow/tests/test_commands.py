@@ -36,7 +36,7 @@ def test_crossbow_commands(command, expected_args):
     props = ursabot(command)
     expected = {
         'command': 'crossbow',
-        'crossbow_repo': 'https://github.com/ursa-labs/crossbow',
+        'crossbow_repo': 'ursa-labs/crossbow',
         'crossbow_args': expected_args
     }
     assert props == expected
