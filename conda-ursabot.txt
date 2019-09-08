@@ -13,7 +13,6 @@ click
 distro
 docker-map
 dockerpty
-pydantic
 python-dotenv
 ruamel.yaml
 tabulate

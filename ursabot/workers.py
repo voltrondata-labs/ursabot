@@ -19,6 +19,7 @@ from twisted.internet import threads
 from buildbot import config
 from buildbot.plugins import util
 from buildbot.util.logger import Logger
+from buildbot.interfaces import IRenderable
 from buildbot.interfaces import LatentWorkerCannotSubstantiate
 from buildbot.interfaces import LatentWorkerFailedToSubstantiate
 from buildbot.worker.base import Worker
@@ -115,22 +116,35 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
     def checkConfig(self, name, password, docker_host, image=None,
                     command=None, volumes=None, hostconfig=None,
                     auto_pull=False, always_pull=False,
-                    follow_startup_logs=False, **kwargs):
+                    follow_startup_logs=False, max_builds=None,
+                    **kwargs):
         # Bypass the validation implemented in the parent class.
         if image is None:
             image = util.Property('docker_image', default=image)
+
+        if IRenderable.providedBy(image):
+            if max_builds is None:
+                max_builds = 1
+            if max_builds > 1:
+                raise config.error(
+                    'If the image set as a property, then `max_builds` must '
+                    'be set to 1 to avoid running builders requiring '
+                    'different docker images'
+                )
+
         super().checkConfig(
             name, password, docker_host, image=image, command=command,
             volumes=volumes, hostconfig=hostconfig, autopull=auto_pull,
             alwaysPull=always_pull, followStartupLogs=follow_startup_logs,
-            **kwargs
+            max_builds=max_builds, **kwargs
         )
 
     @ensure_deferred
     async def reconfigService(self, name, password, docker_host, image=None,
                               command=None, volumes=None, hostconfig=None,
                               auto_pull=False, always_pull=False,
-                              follow_startup_logs=False, **kwargs):
+                              follow_startup_logs=False, max_builds=None,
+                              **kwargs):
         # Set the default password to None so random one is generated.
         # Let the DockerBuilder instances to lazily extend the docker volumes
         # and hostconfig via the reserved docker_volumes and docker_hostconfig
@@ -147,11 +161,14 @@ class DockerLatentWorker(BaseWorker, DockerLatentWorker):
             hostconfig or {},
             util.Property('docker_hostconfig', default={})
         )
+        if max_builds is None:
+            max_builds = 1
+
         result = await super().reconfigService(
             name, password, docker_host, image=image, command=command,
             volumes=volumes, hostconfig=hostconfig, autopull=auto_pull,
             alwaysPull=always_pull, followStartupLogs=follow_startup_logs,
-            **kwargs
+            max_builds=max_builds, **kwargs
         )
         log.info(
             f'DockerLatentWorker configured with masterFQDN: {self.masterFQDN}'
@@ -348,6 +365,7 @@ def load_workers_from(config_path, **kwargs):
             worker = DockerLatentWorker(
                 w['name'],
                 password=None,
+                max_builds=1,
                 tags=w.get('tags', []),
                 properties={'ncpus': w.get('ncpus')},
                 platform=Platform(

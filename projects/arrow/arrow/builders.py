@@ -282,7 +282,7 @@ class CrossbowTrigger(DockerBuilder):
         ),
         GitHub(
             name='Clone Crossbow',
-            repourl=util.Property('crossbow_repo'),
+            repourl=util.Interpolate('https://github.com/%(prop:crossbow_repo)s'),
             workdir='crossbow',
             branch='master',
             mode='full',
