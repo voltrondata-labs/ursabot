@@ -15,6 +15,8 @@
 #
 # Copyright Buildbot Team Members
 
+import pytest
+from buildbot.config import ConfigErrors
 from buildbot.plugins import util
 from buildbot.test.fake import docker
 from buildbot.test.fake import fakemaster
@@ -66,7 +68,13 @@ class TestDockerLatentWorker(TestDockerLatentWorker):
         assert isinstance(bs.hostconfig, util.Transform)
 
     def test_constructor_noimage_nodockerfile(self):
-        pass  # don't raise
+        bs = self.setupWorker('bot', 'pass', 'unix:///var/run/docker.sock')
+        assert bs.image == util.Property('docker_image')
+        assert bs.max_builds == 1
+
+        with pytest.raises(ConfigErrors):
+            self.setupWorker('bot', 'pass', 'unix:///var/run/docker.sock',
+                             max_builds=2)
 
     def test_start_instance_noimage_pull(self):
         bs = self.setupWorker(

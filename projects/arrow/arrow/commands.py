@@ -89,8 +89,9 @@ def benchmark(baseline, suite_filter, benchmark_filter):
 @click.pass_obj
 def crossbow(props, repo):
     """Trigger crossbow builds for this pull request"""
+    # TODO(kszucs): validate the repo format
     props['command'] = 'crossbow'
-    props['crossbow_repo'] = f'https://github.com/{repo}'
+    props['crossbow_repo'] = repo
 
 
 @crossbow.command()
