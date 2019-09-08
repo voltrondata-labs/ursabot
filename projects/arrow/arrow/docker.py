@@ -21,7 +21,9 @@ python_symlinks = {'/usr/local/bin/python': '/usr/bin/python3',
 
 cpp_ubuntu_pkgs = read_dependency_list(docker_assets / 'pkgs-cpp-ubuntu.txt')
 cpp_alpine_pkgs = read_dependency_list(docker_assets / 'pkgs-cpp-alpine.txt')
-c_glib_ubuntu_pkgs = read_dependency_list(docker_assets / 'pkgs-c-glib-ubuntu.txt')
+c_glib_ubuntu_pkgs = read_dependency_list(
+    docker_assets / 'pkgs-c-glib-ubuntu.txt'
+)
 python_steps = [
     ADD(docker_assets / 'requirements.txt'),
     ADD(docker_assets / 'requirements-test.txt'),
