@@ -82,6 +82,7 @@ class CrossbowReport(CrossbowBuilder):
     steps = Extend([
         SetPropertyFromCommand(
             'crossbow_job_id',
+            extract_fn=lambda stdout, stderr: stdout.strip(),
             command=Crossbow(
                 args=[
                     '--github-token', util.Secret('ursabot/github_token'),
