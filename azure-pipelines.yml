@@ -22,6 +22,8 @@ jobs:
           BUILDER: 'AMD64 Ubuntu 18.04 C++'
         AMD64 Ubuntu 18.04 C GLib:
           BUILDER: 'AMD64 Ubuntu 18.04 C GLib'
+        AMD64 Ubuntu 18.04 R:
+          BUILDER: 'AMD64 Ubuntu 18.04 R'
         AMD64 Ubuntu 18.04 Python 3:
           BUILDER: 'AMD64 Ubuntu 18.04 Python 3'
         AMD64 Conda C++:
