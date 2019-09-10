@@ -1,7 +1,7 @@
 from buildbot.plugins import util
 from ursabot.builders import DockerBuilder
 from ursabot.utils import Extend, Filter
-from ursabot.steps import GitHub
+from ursabot.steps import GitHub, SetPropertyFromCommand
 from .steps import Crossbow
 
 
@@ -80,6 +80,13 @@ class CrossbowSubmit(CrossbowBuilder):
 
 class CrossbowReport(CrossbowBuilder):
     steps = Extend([
+        SetPropertyFromCommand(
+            'crossbow_job_id',
+            command=Crossbow(
+                args=['latest-prefix', crossbow_prefix]
+            ),
+            workdir='arrow/dev/tasks'
+        ),
         Crossbow(
             args=util.FlattenList([
                 '--github-token', util.Secret('ursabot/github_token'),
@@ -93,7 +100,7 @@ class CrossbowReport(CrossbowBuilder):
                 '--recipient-email', 'team@ursalabs.org',
                 '--smtp-user', util.Secret('crossbow/smtp_user'),
                 '--smtp-password', util.Secret('crossbow/smtp_password'),
-                util.Property('crossbow_args', [])
+                util.Property('crossbow_job_id')
             ]),
             workdir='arrow/dev/tasks',
             result_file='result.txt'

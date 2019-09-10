@@ -136,16 +136,19 @@ class SetPropertyFromCommand(ShellCommand):
     description = ['Setting']
     descriptionDone = ['Set']
 
-    def __init__(self, property, extract_fn=lambda stdout, stderr: stdout,
+    def __init__(self, property, command=tuple(),
+                 extract_fn=lambda stdout, stderr: stdout,
                  collect_stdout=True, collect_stderr=False,
                  source='SetPropertyFromCommand', **kwargs):
-        super().__init__(**kwargs)
         assert callable(extract_fn)
         self.extract_fn = extract_fn
         self.source = source
         self.property = property
         self.collect_stdout = collect_stdout
         self.collect_stderr = collect_stderr
+        if isinstance(command, ShellCommand):
+            command = command.command
+        super().__init__(command=command, **kwargs)
 
     @ensure_deferred
     async def run(self):
