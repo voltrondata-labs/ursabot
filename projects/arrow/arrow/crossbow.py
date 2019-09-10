@@ -97,7 +97,7 @@ class CrossbowReport(CrossbowBuilder):
                 '--send',
                 '--poll',
                 '--poll-max-minutes', 120,
-                '--poll-internal-minutes', 15,
+                '--poll-interval-minutes', 15,
                 '--sender-name', 'Crossbow',
                 '--sender-email', 'crossbow@ursalabs.org',
                 '--recipient-email', 'team@ursalabs.org',
