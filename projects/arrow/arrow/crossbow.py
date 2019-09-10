@@ -83,7 +83,10 @@ class CrossbowReport(CrossbowBuilder):
         SetPropertyFromCommand(
             'crossbow_job_id',
             command=Crossbow(
-                args=['latest-prefix', crossbow_prefix]
+                args=[
+                    '--github-token', util.Secret('ursabot/github_token'),
+                    'latest-prefix', crossbow_prefix
+                ]
             ),
             workdir='arrow/dev/tasks'
         ),
