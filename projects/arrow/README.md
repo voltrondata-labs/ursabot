@@ -137,7 +137,7 @@ The following commands are spinning up a long-running local buildmaster,
 including as web interface and all of the configured services (authentication,
 authorization, reporters, pollers etc.).
 
-Firt master's database must be initialized:
+First, master's database must be initialized:
 
 ```bash
 $ ursabot -v upgrade-master
@@ -187,6 +187,8 @@ $ ursabot project -p apache/arrow desc
 
 Arrow's [master.cfg][master.cfg] only contains a single project called arrow
 and a master configuration usable for local testing (both via CLI and webUI).
+
+If you're testing out builds locally, you'll probably want to `cd projects/arrow` before running these commands. 
 
 ### Validate the configuration
 
