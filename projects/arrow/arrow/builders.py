@@ -247,12 +247,11 @@ r_deps = R(
         textwrap.dedent("""
             install.packages(
                 "remotes",
-                repo = "http://cran.rstudio.com/"
+                repo = "https://cloud.r-project.org/"
             )
             remotes::install_deps(
                 dependencies = TRUE,
-                upgrade = "never",
-                repos = "https://cran.rstudio.com"
+                repos = "https://cloud.r-project.org/"
             )
         """)
     ],
@@ -262,7 +261,10 @@ r_deps = R(
 r_build = R(
     args=['CMD', 'build', '.'],
     name='Build',
-    workdir='r'
+    workdir='r',
+    env={
+        'R_LD_LIBRARY_PATH': ld_library_path
+    }
 )
 r_install = R(
     args=['CMD', 'INSTALL', 'arrow_*tar.gz'],
@@ -270,16 +272,16 @@ r_install = R(
     name='Install',
     workdir='r',
     env={
-        'LD_LIBRARY_PATH': ld_library_path
+        'R_LD_LIBRARY_PATH': ld_library_path
     }
 )
 r_check = R(
-    args=['CMD', 'check', 'arrow_*tar.gz', '--no-manual'],
+    args=['CMD', 'check', 'arrow_*tar.gz', '--no-manual', '--as-cran'],
     as_shell=True,  # to expand *
     name='Check',
     workdir='r',
     env={
-        'LD_LIBRARY_PATH': ld_library_path,
+        'R_LD_LIBRARY_PATH': ld_library_path,
         '_R_CHECK_FORCE_SUGGESTS_': 'false'
     }
 )
@@ -459,7 +461,6 @@ class RTest(CppTest):
         # runs the C++ tests too
         r_deps,
         r_build,
-        r_install,
         r_check
     ])
     image_filter = Filter(
@@ -594,7 +595,6 @@ class RCondaTest(CppCondaTest):
     steps = Extend([
         r_deps,
         r_build,
-        r_install,
         r_check
     ])
     image_filter = Filter(
