@@ -6,11 +6,13 @@
 
 from buildbot.plugins import util
 from buildbot.schedulers.basic import AnyBranchScheduler, SingleBranchScheduler
-from buildbot.schedulers.trysched import Try_Userpass
+from buildbot.schedulers.timed import Nightly as NightlyScheduler
+from buildbot.schedulers.trysched import Try_Userpass as TryScheduler
 from buildbot.schedulers.forcesched import ForceScheduler
 
 __all__ = [
     'ForceScheduler',
+    'NightlyScheduler',
     'TryScheduler',
     'AnyBranchScheduler',
     'SingleBranchScheduler'
@@ -54,7 +56,7 @@ class ForceScheduler(SchedulerMixin, ForceScheduler):
         super().__init__(*args, codebases=[codebase], **kwargs)
 
 
-class TryScheduler(SchedulerMixin, Try_Userpass):
+class TryScheduler(SchedulerMixin, TryScheduler):
     pass
 
 
@@ -63,4 +65,8 @@ class AnyBranchScheduler(SchedulerMixin, AnyBranchScheduler):
 
 
 class SingleBranchScheduler(SchedulerMixin, SingleBranchScheduler):
+    pass
+
+
+class NightlyScheduler(SchedulerMixin, NightlyScheduler):
     pass
