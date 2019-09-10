@@ -101,12 +101,11 @@ class CrossbowReport(CrossbowBuilder):
                 '--poll-interval-minutes', 15,
                 '--sender-name', 'Crossbow',
                 '--sender-email', 'crossbow@ursalabs.org',
-                '--recipient-email', 'team@ursalabs.org',
+                '--recipient-email', 'dev@arrow.apache.org',
                 '--smtp-user', util.Secret('crossbow/smtp_user'),
                 '--smtp-password', util.Secret('crossbow/smtp_password'),
                 util.Property('crossbow_job_id')
             ]),
-            workdir='arrow/dev/tasks',
-            result_file='result.txt'
+            workdir='arrow/dev/tasks'
         )
     ])
