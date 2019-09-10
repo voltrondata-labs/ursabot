@@ -60,7 +60,7 @@ class CrossbowSubmit(CrossbowBuilder):
     steps = Extend([
         Crossbow(
             args=util.FlattenList([
-                '--output-file', 'result.yaml'
+                '--output-file', 'result.yaml',
                 '--github-token', util.Secret('ursabot/github_token'),
                 'submit',
                 '--job-prefix', util.Property('crossbow_prefix', 'ursabot'),
