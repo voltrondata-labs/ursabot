@@ -5,6 +5,17 @@ from ursabot.steps import GitHub
 from .steps import Crossbow
 
 
+arrow_repository = util.Property(
+    'repository',
+    default='https://github.com/apache/arrow'
+)
+crossbow_repository = util.Property(
+    'crossbow_repository',
+    default='https://github.com/ursa-labs/crossbow'
+)
+crossbow_prefix = util.Property('crossbow_prefix', 'ursabot')
+
+
 class CrossbowBuilder(DockerBuilder):
     """Builder to trigger various crossbow tasks
 
@@ -22,19 +33,13 @@ class CrossbowBuilder(DockerBuilder):
     steps = [
         GitHub(
             name='Clone Arrow',
-            repourl=util.Property(
-                'repository',
-                default='https://github.com/apache/arrow'
-            ),
+            repourl=arrow_repository,
             workdir='arrow',
             mode='full'
         ),
         GitHub(
             name='Clone Crossbow',
-            repourl=util.Property(
-                'crossbow_repository',
-                default='https://github.com/ursa-labs/crossbow'
-            ),
+            repourl=crossbow_repository,
             workdir='crossbow',
             branch='master',
             mode='full',
@@ -63,8 +68,8 @@ class CrossbowSubmit(CrossbowBuilder):
                 '--output-file', 'result.yaml',
                 '--github-token', util.Secret('ursabot/github_token'),
                 'submit',
-                '--job-prefix', util.Property('crossbow_prefix', 'ursabot'),
-                '--arrow-remote', util.Property('repository'),
+                '--arrow-remote', arrow_repository,
+                '--job-prefix', crossbow_prefix,
                 util.Property('crossbow_args', [])
             ]),
             workdir='arrow/dev/tasks',
