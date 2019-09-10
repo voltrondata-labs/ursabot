@@ -4,9 +4,9 @@ from buildbot.plugins import util
 from ursabot.builders import DockerBuilder
 from ursabot.utils import Filter, Matching, AnyOf, Has, Extend, Merge
 from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
-                           Mkdir, GitHub, SetupPy, PyTest, Pip)
-from .steps import (Archery, Ninja, Bundle, CTest, CMake, Meson, Maven, Go,
-                    Cargo, Npm, R)
+                           Mkdir, GitHub, SetupPy, PyTest, Pip, CMake)
+from .steps import (Archery, Ninja, Bundle, CTest, Meson, Maven, Go, Cargo,
+                    Npm, R)
 
 
 # prefer GitHub over Git step
