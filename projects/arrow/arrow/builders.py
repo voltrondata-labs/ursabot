@@ -12,7 +12,10 @@ from .steps import (Archery, Ninja, Bundle, CTest, Meson, Maven, Go, Cargo,
 # prefer GitHub over Git step
 checkout_arrow = GitHub(
     name='Clone Arrow',
-    repourl=util.Property('repository'),
+    repourl=util.Property(
+        'repository',
+        default='https://github.com/apache/arrow'
+    ),
     workdir='.',
     submodules=True,
     mode='full'

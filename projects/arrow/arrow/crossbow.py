@@ -22,14 +22,18 @@ class CrossbowBuilder(DockerBuilder):
     steps = [
         GitHub(
             name='Clone Arrow',
-            repourl=util.Property('repository'),
+            repourl=util.Property(
+                'repository',
+                default='https://github.com/apache/arrow'
+            ),
             workdir='arrow',
             mode='full'
         ),
         GitHub(
             name='Clone Crossbow',
-            repourl=(
-                util.Interpolate('https://github.com/%(prop:crossbow_repo)s')
+            repourl=util.Property(
+                'crossbow_repository',
+                default='https://github.com/ursa-labs/crossbow'
             ),
             workdir='crossbow',
             branch='master',
