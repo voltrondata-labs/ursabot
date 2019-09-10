@@ -81,7 +81,7 @@ class CrossbowReport(CrossbowBuilder):
                 '--poll-internal-minutes', 15,
                 '--sender-name', 'Crossbow',
                 '--sender-email', 'crossbow@ursalabs.org',
-                '--recipient-email', 'szucs.krisztian@gmail.com',
+                '--recipient-email', 'team@ursalabs.org',
                 '--smtp-user', util.Secret('crossbow/smtp_user'),
                 '--smtp-password', util.Secret('crossbow/smtp_password'),
                 util.Property('crossbow_args', [])
