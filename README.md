@@ -59,12 +59,12 @@ Currently available commands:
     automatically, but this is a convinient way to force a re-build.
   - `@ursabot benchmark`: Triggers C++ benchmarks and sends back the results as
     a github comment and highlights the regressions.
-  - `@ursabot crossbow test cpp-python`: Triggers the `cpp-python` test group
-    defined in [test.yml][crossbow-tests] and responds with a URL pointing to
+  - `@ursabot crossbow submit cpp-python`: Triggers the `cpp-python` group
+    defined in [tasks.yml][crossbow-tasks] and responds with a URL pointing to
     submitted crossbow branches at the github UI showing the build statuses.
-  - `@ursabot crossbow package -g wheel -g conda`: Triggers the `wheel` and
+  - `@ursabot crossbow submit -g wheel -g conda`: Triggers the `wheel` and
     `conda` crossbow packaging groups defined in [tasks.yml][crossbow-tasks].
-  - `@ursabot crossbow package wheel-win-cp35m wheel-win-cp36m`: Triggers only
+  - `@ursabot crossbow submit wheel-win-cp35m wheel-win-cp36m`: Triggers only
     two tasks passed explicitly.
 
 Note that the commands won't trigger any builds if the commit message contains
@@ -150,8 +150,8 @@ ursabot checkconfig
 ursabot -c arrow/master.cfg checkconfig
 ```
 
-The top-level `master.cfg` contains the production configuration for 
-ci.ursalabs.org so it requires additional dependencies like `pass`. 
+The top-level `master.cfg` contains the production configuration for
+ci.ursalabs.org so it requires additional dependencies like `pass`.
 To install `pass`:
 
 ```bash
@@ -518,7 +518,6 @@ More closely Ursabot related:
 [archery-readme]: https://github.com/apache/arrow/tree/master/dev/archery
 [crossbow-readme]: https://github.com/apache/arrow/tree/master/dev/tasks
 [crossbow-repo]: https://github.com/ursa-labs/crossbow
-[crossbow-tests]: https://github.com/apache/arrow/blob/master/dev/tasks/tests.yml#L18
 [crossbow-tasks]: https://github.com/apache/arrow/blob/master/dev/tasks/tasks.yml#L18
 [ursabot-repo]: https://github.com/ursa-labs/ursabot
 [ursabot-url]: https://ci.ursalabs.org

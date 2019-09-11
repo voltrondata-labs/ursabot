@@ -109,12 +109,12 @@ Currently available commands:
     automatically, but this is a convinient way to force a re-build.
   - `@ursabot benchmark`: Triggers C++ benchmarks and sends back the results as
     a github comment and highlights the regressions.
-  - `@ursabot crossbow test cpp-python`: Triggers the `cpp-python` test group
-    defined in [test.yml][crossbow-tests] and responds with a URL pointing to
+  - `@ursabot crossbow submit cpp-python`: Triggers the `cpp-python` group
+    defined in [tasks.yml][crossbow-tasks] and responds with a URL pointing to
     submitted crossbow branches at the github UI showing the build statuses.
-  - `@ursabot crossbow package -g wheel -g conda`: Triggers the `wheel` and
+  - `@ursabot crossbow submit -g wheel -g conda`: Triggers the `wheel` and
     `conda` crossbow packaging groups defined in [tasks.yml][crossbow-tasks].
-  - `@ursabot crossbow package wheel-win-cp35m wheel-win-cp36m`: Triggers only
+  - `@ursabot crossbow submit wheel-win-cp35m wheel-win-cp36m`: Triggers only
     two tasks passed explicitly.
 
 Note that the commands won't trigger any builds if the commit message contains
@@ -188,7 +188,7 @@ $ ursabot project -p apache/arrow desc
 Arrow's [master.cfg][master.cfg] only contains a single project called arrow
 and a master configuration usable for local testing (both via CLI and webUI).
 
-If you're testing out builds locally, you'll probably want to `cd projects/arrow` before running these commands. 
+If you're testing out builds locally, you'll probably want to `cd projects/arrow` before running these commands.
 
 ### Validate the configuration
 
@@ -312,7 +312,10 @@ See ursabot's [documentation][ursabot-adding-builders].
 
 See ursabot's [documentation][ursabot-adding-images].
 
-
+[github-reactions]: https://help.github.com/en/articles/about-conversations-on-github#reacting-to-ideas-in-comments
+[crossbow-readme]: https://github.com/apache/arrow/tree/master/dev/tasks
+[crossbow-repo]: https://github.com/ursa-labs/crossbow
+[crossbow-tasks]: https://github.com/apache/arrow/blob/master/dev/tasks/tasks.yml#L18
 [ursabot-config]: https://github.com/ursa-labs/ursabot#configuring-ursabot
 [ursabot-adding-builders]: https://github.com/ursa-labs/ursabot#adding-a-new-builders
 [ursabot-adding-images]: https://github.com/ursa-labs/ursabot#define-docker-images
