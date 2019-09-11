@@ -14,23 +14,23 @@ def test_ursabot_commands(command, expected_props):
 
 
 @pytest.mark.parametrize(('command', 'expected_args'), [
-    ('crossbow test -g docker', ['-c', 'tests.yml', '-g', 'docker']),
-    ('crossbow test -g integration -g docker',
-     ['-c', 'tests.yml', '-g', 'integration', '-g', 'docker']),
-    ('crossbow test -g docker -g cpp-python',
-     ['-c', 'tests.yml', '-g', 'docker', '-g', 'cpp-python']),
-    ('crossbow package wheel-osx-cp27m ubuntu-xenial',
+    ('crossbow submit -g docker', ['-c', 'tasks.yml', '-g', 'docker']),
+    ('crossbow submit -g integration -g docker',
+     ['-c', 'tasks.yml', '-g', 'integration', '-g', 'docker']),
+    ('crossbow submit -g docker -g cpp-python',
+     ['-c', 'tasks.yml', '-g', 'docker', '-g', 'cpp-python']),
+    ('crossbow submit wheel-osx-cp27m ubuntu-xenial',
      ['-c', 'tasks.yml', 'wheel-osx-cp27m', 'ubuntu-xenial']),
-    ('crossbow package -g wheel -g conda',
+    ('crossbow submit -g wheel -g conda',
      ['-c', 'tasks.yml', '-g', 'wheel', '-g', 'conda']),
-    ('crossbow package -g wheel -g conda wheel-win-cp37m wheel-osx-cp27m',
+    ('crossbow submit -g wheel -g conda wheel-win-cp37m wheel-osx-cp27m',
      ['-c', 'tasks.yml', '-g', 'wheel', '-g', 'conda', 'wheel-win-cp37m',
       'wheel-osx-cp27m']),
-    ('crossbow test docker-python-3.6-nopandas docker-python-3.7-nopandas',
-     ['-c', 'tests.yml', 'docker-python-3.6-nopandas',
+    ('crossbow submit docker-python-3.6-nopandas docker-python-3.7-nopandas',
+     ['-c', 'tasks.yml', 'docker-python-3.6-nopandas',
       'docker-python-3.7-nopandas']),
-    ('crossbow test -g cpp-python docker-python-3.6-nopandas',
-     ['-c', 'tests.yml', '-g', 'cpp-python', 'docker-python-3.6-nopandas'])
+    ('crossbow submit -g cpp-python docker-python-3.6-nopandas',
+     ['-c', 'tasks.yml', '-g', 'cpp-python', 'docker-python-3.6-nopandas'])
 ])
 def test_crossbow_commands(command, expected_args):
     props = ursabot(command)
@@ -44,9 +44,9 @@ def test_crossbow_commands(command, expected_args):
 
 
 @pytest.mark.parametrize(('command', 'expected_repo'), [
-    ('crossbow test -g docker', 'ursa-labs/crossbow'),
-    ('crossbow -r ursa-labs/crossbow test -g docker', 'ursa-labs/crossbow'),
-    ('crossbow -r kszucs/crossbow test -g docker', 'kszucs/crossbow'),
+    ('crossbow submit -g docker', 'ursa-labs/crossbow'),
+    ('crossbow -r ursa-labs/crossbow submit -g docker', 'ursa-labs/crossbow'),
+    ('crossbow -r kszucs/crossbow submit -g docker', 'kszucs/crossbow'),
 ])
 def test_crossbow_repo(command, expected_repo):
     props = ursabot(command)
@@ -54,7 +54,7 @@ def test_crossbow_repo(command, expected_repo):
         'command': 'crossbow',
         'crossbow_repo': expected_repo,
         'crossbow_repository': f'https://github.com/{expected_repo}',
-        'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
+        'crossbow_args': ['-c', 'tasks.yml', '-g', 'docker']
     }
     assert props == expected
 
@@ -63,9 +63,11 @@ def test_crossbow_repo(command, expected_repo):
     ('buil', 'No such command "buil".'),
     ('bench', 'No such command "bench".'),
     ('crossbow something', 'No such command "something".'),
-    ('crossbow test -g pkgs', 'Invalid value for "--group" / "-g": '
-                              'invalid choice: pkgs. '
-                              '(choose from docker, integration, cpp-python)')
+    ('crossbow submit -g pkgs', 'Invalid value for "--group" / "-g": '
+                                'invalid choice: pkgs. '
+                                '(choose from docker, integration, '
+                                'cpp-python, conda, wheel, linux, gandiva, '
+                                'nightly)')
 ])
 def test_wrong_commands(command, expected_msg):
     with pytest.raises(CommandError) as excinfo:
