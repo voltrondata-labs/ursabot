@@ -19,26 +19,16 @@ from buildbot.interfaces import IRenderable
 from .utils import ensure_deferred
 
 __all__ = [
-    'Bundle',
-    'Cargo',
     'CMake',
-    'CTest',
     'Env',
     'GitHub',
-    'Go',
-    'Make',
-    'Maven',
-    'Meson',
     'Mkdir',
-    'Ninja',
-    'Npm',
     'Pip',
     'PyTest',
-    'R',
+    'SetupPy',
     'ResultLogMixin',
     'SetPropertiesFromEnv',
     'SetPropertyFromCommand',
-    'SetupPy',
     'ShellCommand',
 ]
 
@@ -107,11 +97,6 @@ class ShellCommand(buildstep.ShellMixin, buildstep.BuildStep):
         return cmd.results()
 
 
-class Bundle(ShellCommand):
-    name = 'Bundler'
-    command = ['bundle']
-
-
 class CMake(steps.CMake):
 
     name = 'CMake'
@@ -151,16 +136,19 @@ class SetPropertyFromCommand(ShellCommand):
     description = ['Setting']
     descriptionDone = ['Set']
 
-    def __init__(self, property, extract_fn=lambda stdout, stderr: stdout,
+    def __init__(self, property, command=tuple(),
+                 extract_fn=lambda stdout, stderr: stdout,
                  collect_stdout=True, collect_stderr=False,
                  source='SetPropertyFromCommand', **kwargs):
-        super().__init__(**kwargs)
         assert callable(extract_fn)
         self.extract_fn = extract_fn
         self.source = source
         self.property = property
         self.collect_stdout = collect_stdout
         self.collect_stderr = collect_stderr
+        if isinstance(command, ShellCommand):
+            command = command.command
+        super().__init__(command=command, **kwargs)
 
     @ensure_deferred
     async def run(self):
@@ -256,36 +244,6 @@ class Env(ShellCommand):
     command = ['env']
 
 
-class Ninja(ShellCommand):
-    # TODO(kszucs): add proper descriptions
-    name = 'Ninja'
-    command = ['ninja']
-
-    def __init__(self, *targets, **kwargs):
-        args = []
-        for ninja_option in {'j', 'k', 'l', 'n'}:
-            value = kwargs.pop(ninja_option, None)
-            if value is not None:
-                args.extend([f'-{ninja_option}', value])
-        args.extend(targets)
-        super().__init__(args=args, **kwargs)
-
-
-class CTest(ShellCommand):
-    name = 'CTest'
-    command = ['ctest']
-
-    def __init__(self, output_on_failure=False, **kwargs):
-        args = []
-        if output_on_failure:
-            args.append('--output-on-failure')
-        for ctest_option in {'j', 'L', 'R', 'E'}:
-            value = kwargs.pop(ctest_option, None)
-            if value is not None:
-                args.extend([f'-{ctest_option}', value])
-        super().__init__(args=args, **kwargs)
-
-
 class SetupPy(ShellCommand):
     name = 'Setup.py'
     command = ['python', 'setup.py']
@@ -303,38 +261,3 @@ class Pip(ShellCommand):
 
 Mkdir = steps.MakeDirectory
 GitHub = steps.GitHub
-
-
-class Maven(ShellCommand):
-    name = 'Maven'
-    command = ['mvn']
-
-
-class Meson(ShellCommand):
-    name = 'Meson'
-    command = ['meson']
-
-
-class Npm(ShellCommand):
-    name = 'NPM'
-    command = ['npm']
-
-
-class Go(ShellCommand):
-    name = 'Go'
-    command = ['go']
-
-
-class Cargo(ShellCommand):
-    name = 'Cargo'
-    command = ['cargo']
-
-
-class R(ShellCommand):
-    name = 'R'
-    command = ['R']
-
-
-class Make(ShellCommand):
-    name = 'Make'
-    command = ['make']

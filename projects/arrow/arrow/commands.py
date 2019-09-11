@@ -91,7 +91,8 @@ def crossbow(props, repo):
     """Trigger crossbow builds for this pull request"""
     # TODO(kszucs): validate the repo format
     props['command'] = 'crossbow'
-    props['crossbow_repo'] = repo
+    props['crossbow_repo'] = repo  # github user/repo
+    props['crossbow_repository'] = f'https://github.com/{repo}'  # git url
 
 
 @crossbow.command()

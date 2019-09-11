@@ -2,18 +2,20 @@ import textwrap
 
 from buildbot.plugins import util
 from ursabot.builders import DockerBuilder
-from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
-                           Ninja, SetupPy, Bundle, CTest, CMake, PyTest,
-                           Meson, Mkdir, Pip, GitHub, Maven, Go, Cargo, Npm, R)
 from ursabot.utils import Filter, Matching, AnyOf, Has, Extend, Merge
-
-from .steps import Archery, Crossbow
+from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
+                           Mkdir, GitHub, SetupPy, PyTest, Pip, CMake)
+from .steps import (Archery, Ninja, Bundle, CTest, Meson, Maven, Go, Cargo,
+                    Npm, R)
 
 
 # prefer GitHub over Git step
 checkout_arrow = GitHub(
     name='Clone Arrow',
-    repourl=util.Property('repository'),
+    repourl=util.Property(
+        'repository',
+        default='https://github.com/apache/arrow'
+    ),
     workdir='.',
     submodules=True,
     mode='full'
@@ -285,61 +287,6 @@ r_check = R(
         '_R_CHECK_FORCE_SUGGESTS_': 'false'
     }
 )
-
-
-class CrossbowTrigger(DockerBuilder):
-    """Trigger crossbow builds
-
-    The crossbow tool is hosted within arrow, so we need to clone both arrow
-    and the crossbow repository which serves as a queue for 3rdparty CI
-    services like Travis or CircleCI. Then using crossbow's command line
-    interface it triggers builds by adding new branches to the crossbow
-    repository.
-    This builder is driven via buildbot properties, the `crossbow_args`
-    property is set by the github hook which parses the github comments like
-    `@ursabot package -g conda`. For more see commands.py.
-    """
-    tags = ['crossbow']
-    env = dict(
-        GIT_COMMITTER_NAME='ursabot',
-        GIT_COMMITTER_EMAIL='ursabot@ci.ursalabs.org'
-    )
-    steps = [
-        GitHub(
-            name='Clone Arrow',
-            repourl=util.Property('repository'),
-            workdir='arrow',
-            mode='full'
-        ),
-        GitHub(
-            name='Clone Crossbow',
-            repourl=(
-                util.Interpolate('https://github.com/%(prop:crossbow_repo)s')
-            ),
-            workdir='crossbow',
-            branch='master',
-            mode='full',
-            # quite misleasing option, but it prevents checking out the branch
-            # set in the sourcestamp by the pull request, which refers to arrow
-            alwaysUseLatest=True
-        ),
-        Crossbow(
-            args=util.FlattenList([
-                '--github-token', util.Secret('ursabot/github_token'),
-                'submit',
-                '--output', 'job.yml',
-                '--job-prefix', 'ursabot',
-                '--arrow-remote', util.Property('repository'),
-                util.Property('crossbow_args', [])
-            ]),
-            workdir='arrow/dev/tasks',
-            result_file='job.yml'
-        )
-    ]
-    image_filter = Filter(
-        name='crossbow',
-        tag='worker'
-    )
 
 
 class CppBenchmark(DockerBuilder):

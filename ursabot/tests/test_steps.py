@@ -171,6 +171,30 @@ class TestSetPropertyFromCommand(BuildStepTestCase):
 
         return await self.runStep()
 
+    @ensure_deferred
+    async def test_run_property_from_another_command(self):
+        command = ShellCommand(command='echo', args=['something', 'else'])
+        self.setupStep(
+            SetPropertyFromCommand(
+                property='echoed',
+                command=command,
+                workdir='build',
+            )
+        )
+        self.expectCommands(
+            ExpectShell(
+                workdir='build',
+                command=['echo', 'something', 'else']
+            ) +
+            ExpectShell.log('stdio', stdout='something else') +
+            0
+        )
+        self.expectLogfile('stdio', 'something else')
+        self.expectOutcome(result=SUCCESS)
+        self.expectProperty('echoed', 'something else')
+
+        return await self.runStep()
+
 
 def upload_string(string):
     def behavior(command):

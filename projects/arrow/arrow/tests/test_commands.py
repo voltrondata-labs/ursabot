@@ -37,6 +37,7 @@ def test_crossbow_commands(command, expected_args):
     expected = {
         'command': 'crossbow',
         'crossbow_repo': 'ursa-labs/crossbow',
+        'crossbow_repository': 'https://github.com/ursa-labs/crossbow',
         'crossbow_args': expected_args
     }
     assert props == expected
@@ -52,6 +53,7 @@ def test_crossbow_repo(command, expected_repo):
     expected = {
         'command': 'crossbow',
         'crossbow_repo': expected_repo,
+        'crossbow_repository': f'https://github.com/{expected_repo}',
         'crossbow_args': ['-c', 'tests.yml', '-g', 'docker']
     }
     assert props == expected
