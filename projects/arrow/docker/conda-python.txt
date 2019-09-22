@@ -11,6 +11,7 @@ numpy>=1.14
 pandas
 pytest
 pytest-faulthandler
+pytest-lazy-fixture
 pytz
 setuptools
 setuptools_scm

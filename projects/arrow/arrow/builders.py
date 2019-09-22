@@ -51,6 +51,8 @@ definitions = dict(
     ARROW_COMPUTE='ON',
     # Build the Arrow CUDA extensions (requires CUDA toolkit)
     ARROW_CUDA='OFF',
+    # Build S3 filesystem bindings (requires aws-sdk-cpp)
+    ARROW_S3='OFF',
     # Compiler flags to append when compiling Arrow
     ARROW_CXXFLAGS='',
     # Compile with extra error context (line numbers, code)
@@ -229,6 +231,7 @@ python_install = SetupPy(
         ARROW_HOME=util.Property('CMAKE_INSTALL_PREFIX'),
         PYARROW_CMAKE_GENERATOR=util.Property('CMAKE_GENERATOR'),
         PYARROW_BUILD_TYPE=util.Property('CMAKE_BUILD_TYPE'),
+        PYARROW_WITH_S3=util.Property('ARROW_S3'),
         PYARROW_WITH_ORC=util.Property('ARROW_ORC'),
         PYARROW_WITH_CUDA=util.Property('ARROW_CUDA'),
         PYARROW_WITH_FLIGHT=util.Property('ARROW_FLIGHT'),
@@ -495,6 +498,7 @@ class CppCondaTest(DockerBuilder):
         util.Interpolate('%(prop:builddir)s:/root/.ccache:rw')
     ]
     properties = dict(
+        ARROW_S3='ON',
         ARROW_FLIGHT='ON',
         ARROW_PLASMA='ON',
         ARROW_PARQUET='ON',

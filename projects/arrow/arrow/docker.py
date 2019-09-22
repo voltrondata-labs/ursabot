@@ -128,8 +128,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
 # CONDA
 for arch in ['amd64']:
     basetitle = f'{arch.upper()} Conda'
-    miniconda_version = 'latest'
-
+    
     base = DockerImage(
         name=f'base',
         title=basetitle,
@@ -144,10 +143,12 @@ for arch in ['amd64']:
         variant='conda',
         steps=[
             RUN(apt('wget')),
-            # install miniconda
+            # install miniconda and minio
             ENV(PATH='/opt/conda/bin:$PATH'),
-            ADD(docker_assets / 'install_conda.sh'),
-            RUN('/install_conda.sh', miniconda_version, arch, '/opt/conda'),
+            ADD(docker_assets / 'install_conda.sh',
+                docker_assets / 'install_minio.sh'),
+            RUN('/install_conda.sh', 'latest', arch, '/opt/conda'),
+            RUN('/install_minio.sh', 'latest', arch, '/usr/local'),
             # run conda activate
             SHELL(['/bin/bash', '-l', '-c']),
             ENTRYPOINT(['/bin/bash', '-l', '-c']),
