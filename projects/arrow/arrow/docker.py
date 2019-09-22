@@ -128,7 +128,7 @@ for arch in ['amd64', 'arm64v8', 'arm32v7']:
 # CONDA
 for arch in ['amd64']:
     basetitle = f'{arch.upper()} Conda'
-    
+
     base = DockerImage(
         name=f'base',
         title=basetitle,
