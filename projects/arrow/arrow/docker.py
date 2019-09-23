@@ -147,8 +147,6 @@ for arch in ['amd64']:
             ENV(PATH='/opt/conda/bin:$PATH'),
             ADD(docker_assets / 'install_conda.sh'),
             RUN('/install_conda.sh', 'latest', arch, '/opt/conda'),
-            ADD(docker_assets / 'install_minio.sh'),
-            RUN('/install_minio.sh', 'latest', arch, '/usr/local'),
             # run conda activate
             SHELL(['/bin/bash', '-l', '-c']),
             ENTRYPOINT(['/bin/bash', '-l', '-c']),
@@ -172,6 +170,9 @@ for arch in ['amd64']:
         steps=[
             # install tzdata required for gandiva tests
             RUN(apt('tzdata')),
+            # install minio server to run S3 tests
+            ADD(docker_assets / 'install_minio.sh'),
+            RUN('/install_minio.sh', 'latest', arch, '/usr/local'),
             # install cpp dependencies
             ADD(docker_assets / 'conda-linux.txt'),
             ADD(docker_assets / 'conda-cpp.txt'),
