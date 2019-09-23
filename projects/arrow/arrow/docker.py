@@ -145,9 +145,9 @@ for arch in ['amd64']:
             RUN(apt('wget')),
             # install miniconda and minio
             ENV(PATH='/opt/conda/bin:$PATH'),
-            ADD(docker_assets / 'install_conda.sh',
-                docker_assets / 'install_minio.sh'),
+            ADD(docker_assets / 'install_conda.sh'),
             RUN('/install_conda.sh', 'latest', arch, '/opt/conda'),
+            ADD(docker_assets / 'install_minio.sh'),
             RUN('/install_minio.sh', 'latest', arch, '/usr/local'),
             # run conda activate
             SHELL(['/bin/bash', '-l', '-c']),
