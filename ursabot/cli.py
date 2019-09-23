@@ -426,10 +426,8 @@ def _use_local_sources(builder, sources):
             )
         )
 
-    # add the volumes and re-render the properties because of the interpolated
-    # variables
+    # add the volumes to the builder
     builder.volumes.extend(volumes)
-    builder._render_docker_properties()
 
     # remove the source steps from the build factory, setting notReally make
     # the source steps to fake the checkouts

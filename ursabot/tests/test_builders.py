@@ -9,7 +9,7 @@ from buildbot.process.factory import BuildFactory
 from ursabot.builders import Builder, DockerBuilder
 from ursabot.utils import Platform, Merge, Extend, Filter, Matching
 from ursabot.workers import Worker, LocalWorker, DockerLatentWorker
-from ursabot.docker import DockerImage
+from ursabot.docker import DockerImage, WORKDIR
 
 
 amd64_macos = Platform(arch='amd64', distro='macos', version='10.14')
@@ -42,7 +42,10 @@ ubuntu_docker_image = DockerImage(
         distro='ubuntu',
         arch='amd64',
         version='18.04'
-    )
+    ),
+    steps=[
+        WORKDIR('/root')
+    ]
 )
 debian_docker_image = DockerImage(
     name='debian',
@@ -325,7 +328,10 @@ def test_docker_specific_properties():
             'shm_size': util.Transform(to_gigabytes, 2 * 1024**3)
         }
         volumes = [
-            util.Interpolate('%(prop:builddir)s:/root/.ccache:rw')
+            util.Interpolate('%(prop:builddir)s:/root/.ccache:rw'),
+            util.Interpolate(
+                '%(prop:builddir)s/subdir:%(prop:docker_workdir)s/subdir:rw'
+            )
         ]
 
     builder = Test(name='test', image=ubuntu_docker_image,
@@ -334,7 +340,11 @@ def test_docker_specific_properties():
     assert config.properties == {
         'A': 'test',
         'docker_image': str(ubuntu_docker_image),
-        'docker_volumes': ['test:/root/.ccache:rw'],
+        'docker_volumes': [
+            'test:/root/.ccache:rw',
+            'test/subdir:/root/subdir:rw',
+        ],
+        'docker_workdir': '/root',
         'docker_hostconfig': {'shm_size': '2G'}
     }
 
