@@ -171,12 +171,14 @@ class DockerBuilder(Builder):
         props = Properties(
             buildername=str(self.name),
             builddir=str(self.builddir),
-            workerbuilddir=str(self.workerbuilddir)
+            workerbuilddir=str(self.workerbuilddir),
+            docker_image=str(self.image),
+            docker_workdir=self.image.workdir,
         )
         rendered = props.render({
             **self.properties,
             'docker_image': str(self.image),
-            # 'docker_workdir': self.image.workdir,
+            'docker_workdir': self.image.workdir,
             'docker_volumes': self.volumes,
             'docker_hostconfig': self.hostconfig
         })

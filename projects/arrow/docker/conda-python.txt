@@ -7,6 +7,7 @@
 cython>=0.29.7
 cloudpickle
 hypothesis
+minio
 numpy>=1.14
 pandas
 pytest
