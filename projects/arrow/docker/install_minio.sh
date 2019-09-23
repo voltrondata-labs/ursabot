@@ -29,5 +29,5 @@ VERSION=$1
 ARCH=${archs[$2]}
 PREFIX=$3
 
-wget -P ${PREFIX}/bin https://dl.min.io/server/minio/release/linux-${ARCH}/minio
+wget -nv -P ${PREFIX}/bin https://dl.min.io/server/minio/release/linux-${ARCH}/minio
 chmod +x ${PREFIX}/bin/minio
