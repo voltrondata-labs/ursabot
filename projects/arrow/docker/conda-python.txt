@@ -6,6 +6,7 @@
 
 cython>=0.29.7
 cloudpickle
+fastparquet
 hypothesis
 minio
 numpy>=1.14
