@@ -501,6 +501,10 @@ def project_build(obj, builder_name, repo, branch, commit, pull_request,
             )
         _use_local_sources(builder, sources)
 
+    # update the builder's properties
+    if properties:
+        builder.properties.update(properties)
+
     # construct the sourcestamp which will trigger the builders
     if pull_request is not None:
         branch = f'refs/pull/{pull_request}/merge'
@@ -527,8 +531,7 @@ def project_build(obj, builder_name, repo, branch, commit, pull_request,
         nonlocal result
         try:
             async with master:
-                result = await master.build(builder.name, sourcestamp,
-                                            properties=properties)
+                result = await master.build(builder.name, sourcestamp)
         finally:
             reactor.stop()
 
