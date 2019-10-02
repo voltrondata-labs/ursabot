@@ -58,28 +58,52 @@ jobs:
   #         "${{ matrix.builder }}"
 
   macos-go:
-    name: Docker Linux
+    name: MacOS Go
     runs-on: macOS-latest
-
+  
     steps:
       - name: Show Environment
         run: env
-
       - name: Checkout Ursabot
         uses: actions/checkout@v1
-        
       - name: Install Python
         uses: actions/setup-python@v1
         with:
           python-version: '3.7'
-
       - name: Install Ursabot
         run: pip install -e .
 
-      - name: Install Go
-        uses: actions/setup-go@v1
-
+      - name: Setup Go
+        uses: "actions/setup-go@v1"
       - name: Run Go Builder
         run: |
           cd projects/arrow
-          ursabot project desc
+          ursabot -v project
+          ursabot -v project build "AMD64 Macos 10.14.6 Go"
+          popd
+
+  macos-java:
+    name: MacOS Java
+    runs-on: macOS-latest
+  
+    steps:
+      - name: Show Environment
+        run: env
+      - name: Checkout Ursabot
+        uses: actions/checkout@v1
+      - name: Install Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+      - name: Install Ursabot
+        run: pip install -e .
+
+      - name: Setup Java
+        uses: "actions/setup-java@v1"
+      - name: Run Java Builder
+        run: |
+          cd projects/arrow
+          ursabot -v project
+          ursabot -v project build "AMD64 Macos 10.14.6 Java"
+          popd
+
