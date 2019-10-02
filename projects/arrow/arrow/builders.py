@@ -614,7 +614,7 @@ class JSTest(UnixBuilder):
         Npm(['run', 'build'], workdir='js', name='Build'),
         Npm(['run', 'test'], workdir='js', name='Test')
     ]
-    
+
 
 class DockerJSTest(DockerBuilder, JSTest):
     volumes = [

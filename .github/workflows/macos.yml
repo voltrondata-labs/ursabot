@@ -35,7 +35,7 @@ jobs:
 
   #   - name: Checkout Ursabot
   #     uses: actions/checkout@v1
-      
+
   #   - name: Install Python
   #     uses: actions/setup-python@v1
   #     with:
@@ -60,7 +60,7 @@ jobs:
   macos-go:
     name: MacOS Go
     runs-on: macOS-latest
-  
+
     steps:
       - name: Show Environment
         run: env
@@ -84,10 +84,37 @@ jobs:
           ursabot -v project build "AMD64 Macos 10.14.6 Go"
           popd
 
+  macos-rust:
+    name: MacOS Rust
+    runs-on: macOS-latest
+
+    steps:
+      - name: Show Environment
+        run: env
+      - name: Checkout Ursabot
+        uses: actions/checkout@v1
+      - name: Install Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+      - name: Install Ursabot
+        run: pip install -e .
+
+      - name: Setup Rust
+        uses: hecrj/setup-rust-action@v1
+        with:
+          rust-version: nightly
+      - name: Run Rust Builder
+        run: |
+          pushd projects/arrow
+          ursabot -v project
+          ursabot -v project build "AMD64 Macos 10.14.6 Rust"
+          popd
+
   macos-java:
     name: MacOS Java
     runs-on: macOS-latest
-  
+
     steps:
       - name: Show Environment
         run: env
