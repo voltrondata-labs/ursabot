@@ -79,7 +79,7 @@ jobs:
           go-version: '1.13.1'
       - name: Run Go Builder
         run: |
-          cd projects/arrow
+          pushd projects/arrow
           ursabot -v project
           ursabot -v project build "AMD64 Macos 10.14.6 Go"
           popd
@@ -106,7 +106,7 @@ jobs:
           java-version: '1.8'
       - name: Run Java Builder
         run: |
-          cd projects/arrow
+          pushd projects/arrow
           ursabot -v project
           ursabot -v project build "AMD64 Macos 10.14.6 Java"
           popd
