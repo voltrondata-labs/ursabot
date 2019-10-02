@@ -3,10 +3,6 @@
 #
 # Use of this source code is governed by a BSD 2-Clause
 # license that can be found in the LICENSE_BSD file.
-#
-# This file contains function or sections of code that are marked as being
-# derivative works of Buildbot. The above license only applies to code that
-# is not marked as such.
 
 import toolz
 import warnings
@@ -92,11 +88,13 @@ class Builder(Annotable):
         )
 
     @classmethod
-    def combine_with(cls, workers, name, **kwargs):
+    def combine_with(cls, workers, name=None, **kwargs):
         # instantiate builders by applying Builder.worker_filter and grouping
         # the workers based on architecture or criteria
         suitable_workers = filter(InstanceOf(Worker), workers)
-        suitable_workers = filter(cls.worker_filter, workers)
+        suitable_workers = filter(cls.worker_filter, suitable_workers)
+
+        name = name or cls.__name__
 
         workers_by_platform = toolz.groupby(
             operator.attrgetter('platform'),

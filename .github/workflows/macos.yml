@@ -1,0 +1,85 @@
+name: Buildbot
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  # docker-linux:
+  #   name: Docker Linux
+  #   runs-on: ubuntu-latest
+
+  #   strategy:
+  #     matrix:
+  #       builder:
+  #       - "AMD64 Debian 9 Rust 1.35"
+  #       - "AMD64 Debian 9 Go 1.11.11"
+  #       - "AMD64 Debian 9 Go 1.12.6"
+  #       - "AMD64 Conda C++"
+  #       - "AMD64 Conda Python 2.7"
+  #       - "AMD64 Conda Python 3.6"
+  #       - "AMD64 Conda Python 3.7"
+  #       - "AMD64 Conda R"
+  #       - "AMD64 Debian 9 NodeJS 11"
+  #       - "AMD64 Java OpenJDK 11"
+  #       - "AMD64 Java OpenJDK 8"
+  #       - "AMD64 Ubuntu 18.04 C GLib"
+  #       - "AMD64 Ubuntu 18.04 C++"
+  #       - "AMD64 Ubuntu 18.04 Python 3"
+  #       - "AMD64 Ubuntu 18.04 R"
+
+  #   steps:
+
+  #   - name: Show Environment
+  #     run: env
+
+  #   - name: Checkout Ursabot
+  #     uses: actions/checkout@v1
+      
+  #   - name: Install Python
+  #     uses: actions/setup-python@v1
+  #     with:
+  #       python-version: '3.7'
+
+  #   - name: Install Ursabot
+  #     run: pip install -e .
+
+  #   - name: Check Ursabot Command
+  #     run: ursabot --help
+
+  #   - name: Run ${{ matrix.builder }} Builder
+  #     run: |
+  #       cd projects/arrow
+  #       ursabot project build \
+  #         --repo https://github.com/$GITHUB_REPOSITORY \
+  #         --branch $GITHUB_REF \
+  #         --commit $GITHUB_SHA \
+  #         --property ARROW_S3=OFF \
+  #         "${{ matrix.builder }}"
+
+  macos-go:
+    name: Docker Linux
+    runs-on: macOS-latest
+
+    steps:
+      - name: Show Environment
+        run: env
+
+      - name: Checkout Ursabot
+        uses: actions/checkout@v1
+        
+      - name: Install Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.7'
+
+      - name: Install Ursabot
+        run: pip install -e .
+
+      - name: Install Go
+        uses: actions/setup-go@v1
+
+      - name: Run Go Builder
+        run: |
+          cd projects/arrow
+          ursabot project desc
