@@ -309,12 +309,12 @@ for arch in ['amd64']:
 
 # RUST
 for arch in ['amd64']:
-    for rust_version in ['1.35']:
+    for rust_version in ['nightly-2019-11-14']:
         rust = DockerImage(
             name=f'rust-{rust_version}',
             title=f'{arch.upper()} Debian 9 Rust {rust_version}',
             org='ursalab',
-            base=f'{arch}/rust:{rust_version}-stretch',
+            base=f'{arch}/rust:stretch',
             platform=Platform(
                 arch=arch,
                 system='linux',
@@ -322,6 +322,8 @@ for arch in ['amd64']:
                 version='9'
             ),
             steps=[
+                RUN(f'rustup default {rust_version}'),
+                RUN('rustup component add rustfmt'),
                 RUN(apt('python3', 'python3-pip')),
                 RUN(symlink(python_symlinks))
             ]
