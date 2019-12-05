@@ -1,7 +1,7 @@
 import textwrap
 
 from buildbot.plugins import util
-from ursabot.builders import DockerBuilder
+from ursabot.builders import DockerBuilder, Builder
 from ursabot.utils import Filter, Matching, AnyOf, Has, Extend, Merge
 from ursabot.steps import (SetPropertiesFromEnv, SetPropertyFromCommand,
                            Mkdir, GitHub, SetupPy, PyTest, Pip, CMake)
@@ -292,6 +292,14 @@ r_check = R(
 )
 
 
+class UnixBuilder(Builder):
+    worker_filter = Filter(
+        platform=Filter(
+            system=AnyOf('linux', 'darwin')
+        )
+    )
+
+
 class CppBenchmark(DockerBuilder):
     """Run C++ benchmarks via the Archery CLI tool
 
@@ -574,7 +582,7 @@ class PythonCondaTest(CppCondaTest):
     )
 
 
-class JavaTest(DockerBuilder):
+class JavaTest(UnixBuilder):
     tags = ['arrow', 'java']
     steps = [
         checkout_arrow,
@@ -584,6 +592,9 @@ class JavaTest(DockerBuilder):
             name='Maven Test',
         )
     ]
+
+
+class DockerJavaTest(DockerBuilder, JavaTest):
     image_filter = Filter(
         name=Matching('java*'),
         tag='worker',
@@ -593,11 +604,8 @@ class JavaTest(DockerBuilder):
     )
 
 
-class JSTest(DockerBuilder):
+class JSTest(UnixBuilder):
     tags = ['arrow', 'js']
-    volumes = [
-        util.Interpolate('%(prop:builddir)s:/root/.npm:rw')
-    ]
     steps = [
         checkout_arrow,
         Npm(['install', '-g', 'npm@latest'], workdir='js', name='Update NPM'),
@@ -605,6 +613,12 @@ class JSTest(DockerBuilder):
         Npm(['run', 'lint'], workdir='js', name='Lint'),
         Npm(['run', 'build'], workdir='js', name='Build'),
         Npm(['run', 'test'], workdir='js', name='Test')
+    ]
+
+
+class DockerJSTest(DockerBuilder, JSTest):
+    volumes = [
+        util.Interpolate('%(prop:builddir)s:/root/.npm:rw')
     ]
     image_filter = Filter(
         name=Matching('js*'),
@@ -615,7 +629,7 @@ class JSTest(DockerBuilder):
     )
 
 
-class GoTest(DockerBuilder):
+class GoTest(UnixBuilder):
     tags = ['arrow', 'go']
     env = {
         'GO111MODULE': 'on',
@@ -633,6 +647,9 @@ class GoTest(DockerBuilder):
             name='Go Test',
         )
     ]
+
+
+class DockerGoTest(DockerBuilder, GoTest):
     image_filter = Filter(
         name=Matching('go*'),
         tag='worker',
@@ -642,7 +659,7 @@ class GoTest(DockerBuilder):
     )
 
 
-class RustTest(DockerBuilder):
+class RustTest(UnixBuilder):
     tags = ['arrow', 'rust']
     env = dict(
         ARROW_TEST_DATA=arrow_test_data_path,
@@ -661,6 +678,9 @@ class RustTest(DockerBuilder):
             name='Rust Test'
         )
     ]
+
+
+class DockerRustTest(DockerBuilder, RustTest):
     image_filter = Filter(
         name=Matching('rust*'),
         tag='worker',

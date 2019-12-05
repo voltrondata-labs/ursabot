@@ -30,6 +30,7 @@ __all__ = [
     'Annotable',
     'Merge',
     'Extend',
+    'Prepend',
     'HTTPClientService',
     'GithubClientService',
 ]
@@ -78,6 +79,15 @@ class Extend(Marker, list):
             raise TypeError('Extend marker can only be used on a '
                             'parent field with list type')
         return parent + self
+
+
+class Prepend(Marker, list):
+
+    def resolve(self, parent):
+        if not isinstance(parent, list):
+            raise TypeError('Prepend marker can only be used on a '
+                            'parent field with list type')
+        return self + parent
 
 
 class MISSING:
@@ -327,7 +337,12 @@ class Platform:
         self.codename = codename
 
     def title(self):
-        return f'{self.arch.upper()} {self.distro.capitalize()} {self.version}'
+        title = self.arch.upper()
+        if self.distro:
+            title += f' {self.distro.capitalize()}'
+        if self.version:
+            title += f' {self.version}'
+        return title
 
     def __eq__(self, other):
         return (
