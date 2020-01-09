@@ -98,9 +98,6 @@ def crossbow(props, repo):
 @crossbow.command()
 @click.argument('task', nargs=-1, required=False)
 @click.option('--group', '-g', multiple=True,
-              type=click.Choice(['docker', 'integration', 'cpp-python',
-                                 'conda', 'wheel', 'linux', 'gandiva',
-                                 'nightly']),
               help='Submit task groups as defined in tests.yml')
 @click.pass_obj
 def submit(props, task, group):
