@@ -63,11 +63,6 @@ def test_crossbow_repo(command, expected_repo):
     ('buil', 'No such command "buil".'),
     ('bench', 'No such command "bench".'),
     ('crossbow something', 'No such command "something".'),
-    ('crossbow submit -g pkgs', 'Invalid value for "--group" / "-g": '
-                                'invalid choice: pkgs. '
-                                '(choose from docker, integration, '
-                                'cpp-python, conda, wheel, linux, gandiva, '
-                                'nightly)')
 ])
 def test_wrong_commands(command, expected_msg):
     with pytest.raises(CommandError) as excinfo:
