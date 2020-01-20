@@ -66,7 +66,7 @@ class CrossbowSubmit(CrossbowBuilder):
         Crossbow(
             args=util.FlattenList([
                 '--output-file', 'result.yaml',
-                '--github-token', util.Secret('ursabot/github_token'),
+                '--github-token', util.Secret('kszucs/github_status_token'),
                 'submit',
                 '--arrow-remote', arrow_repository,
                 '--job-prefix', crossbow_prefix,
@@ -85,7 +85,7 @@ class CrossbowReport(CrossbowBuilder):
             extract_fn=lambda stdout, stderr: stdout.strip(),
             command=Crossbow(
                 args=[
-                    '--github-token', util.Secret('ursabot/github_token'),
+                    '--github-token', util.Secret('kszucs/github_status_token'),
                     'latest-prefix', crossbow_prefix
                 ]
             ),
@@ -93,7 +93,7 @@ class CrossbowReport(CrossbowBuilder):
         ),
         Crossbow(
             args=util.FlattenList([
-                '--github-token', util.Secret('ursabot/github_token'),
+                '--github-token', util.Secret('kszucs/github_status_token'),
                 'report',
                 '--send',
                 '--poll',
