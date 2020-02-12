@@ -91,29 +91,32 @@ class CrossbowReport(CrossbowBuilder):
             ),
             workdir='arrow/dev/tasks'
         ),
-        # Crossbow(
-        #     args=util.FlattenList([
-        #         '--github-token', util.Secret('ursabot/github_token'),
-        #         'report',
-        #         '--send',
-        #         '--poll',
-        #         '--poll-max-minutes', 120,
-        #         '--poll-interval-minutes', 15,
-        #         '--sender-name', 'Crossbow',
-        #         '--sender-email', 'crossbow@ursalabs.org',
-        #         '--recipient-email', 'dev@arrow.apache.org',
-        #         '--smtp-user', util.Secret('crossbow/smtp_user'),
-        #         '--smtp-password', util.Secret('crossbow/smtp_password'),
-        #         util.Property('crossbow_job_id')
-        #     ]),
-        #     workdir='arrow/dev/tasks'
-        # ),
         Crossbow(
+            name='Generate and send nightly report',
             args=util.FlattenList([
-                '--github-token', util.Secret('kszucs/github_status_token'),
+                '--github-token', util.Secret('ursabot/github_token'),
+                'report',
+                '--send',
+                '--poll',
+                '--poll-max-minutes', 120,
+                '--poll-interval-minutes', 15,
+                '--sender-name', 'Crossbow',
+                '--sender-email', 'crossbow@ursalabs.org',
+                '--recipient-email', 'dev@arrow.apache.org',
+                '--smtp-user', util.Secret('crossbow/smtp_user'),
+                '--smtp-password', util.Secret('crossbow/smtp_password'),
+                util.Property('crossbow_job_id')
+            ]),
+            workdir='arrow/dev/tasks'
+        ),
+        Crossbow(
+            name="Update Crossbow's Github page",
+            args=util.FlattenList([
+                '--github-token', util.Secret('ursabot/github_token'),
                 'github-page',
                 'generate',
-                '-n', 20
+                '-n', 20,
+                '--github-push-token', util.Secret('kszucs/github_status_token')
             ]),
             workdir='arrow/dev/tasks'
         )
