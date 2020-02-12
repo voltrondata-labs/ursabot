@@ -85,27 +85,35 @@ class CrossbowReport(CrossbowBuilder):
             extract_fn=lambda stdout, stderr: stdout.strip(),
             command=Crossbow(
                 args=[
-                    '--github-token',
-                    util.Secret('kszucs/github_status_token'),
+                    '--github-token', util.Secret('ursabot/github_token'),
                     'latest-prefix', crossbow_prefix
                 ]
             ),
             workdir='arrow/dev/tasks'
         ),
+        # Crossbow(
+        #     args=util.FlattenList([
+        #         '--github-token', util.Secret('ursabot/github_token'),
+        #         'report',
+        #         '--send',
+        #         '--poll',
+        #         '--poll-max-minutes', 120,
+        #         '--poll-interval-minutes', 15,
+        #         '--sender-name', 'Crossbow',
+        #         '--sender-email', 'crossbow@ursalabs.org',
+        #         '--recipient-email', 'dev@arrow.apache.org',
+        #         '--smtp-user', util.Secret('crossbow/smtp_user'),
+        #         '--smtp-password', util.Secret('crossbow/smtp_password'),
+        #         util.Property('crossbow_job_id')
+        #     ]),
+        #     workdir='arrow/dev/tasks'
+        # ),
         Crossbow(
             args=util.FlattenList([
                 '--github-token', util.Secret('kszucs/github_status_token'),
-                'report',
-                '--send',
-                '--poll',
-                '--poll-max-minutes', 120,
-                '--poll-interval-minutes', 15,
-                '--sender-name', 'Crossbow',
-                '--sender-email', 'crossbow@ursalabs.org',
-                '--recipient-email', 'dev@arrow.apache.org',
-                '--smtp-user', util.Secret('crossbow/smtp_user'),
-                '--smtp-password', util.Secret('crossbow/smtp_password'),
-                util.Property('crossbow_job_id')
+                'github-page',
+                'generate',
+                '-n', 20
             ]),
             workdir='arrow/dev/tasks'
         )
