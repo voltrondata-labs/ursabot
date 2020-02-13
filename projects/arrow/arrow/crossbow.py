@@ -85,7 +85,7 @@ class CrossbowReport(CrossbowBuilder):
             extract_fn=lambda stdout, stderr: stdout.strip(),
             command=Crossbow(
                 args=[
-                    '--github-token', 
+                    '--github-token',
                     util.Secret('kszucs/github_status_token'),
                     'latest-prefix', crossbow_prefix
                 ]
