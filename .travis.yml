@@ -78,11 +78,6 @@ matrix:
         - pushd projects/arrow
         - ursabot project build 'AMD64 Conda R'
         - popd
-    - name: "AMD64 Conda Python 2.7"
-      script:
-        - pushd projects/arrow
-        - ursabot project build 'AMD64 Conda Python 2.7'
-        - popd
     - name: "AMD64 Conda Python 3.6"
       script:
         - pushd projects/arrow
