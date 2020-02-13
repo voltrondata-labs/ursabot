@@ -85,16 +85,16 @@ class CrossbowReport(CrossbowBuilder):
             extract_fn=lambda stdout, stderr: stdout.strip(),
             command=Crossbow(
                 args=[
-                    '--github-token',
-                    util.Secret('kszucs/github_status_token'),
+                    '--github-token', util.Secret('ursabot/github_token'),
                     'latest-prefix', crossbow_prefix
                 ]
             ),
             workdir='arrow/dev/tasks'
         ),
         Crossbow(
+            name='Generate and send nightly report',
             args=util.FlattenList([
-                '--github-token', util.Secret('kszucs/github_status_token'),
+                '--github-token', util.Secret('ursabot/github_token'),
                 'report',
                 '--send',
                 '--poll',
@@ -106,6 +106,18 @@ class CrossbowReport(CrossbowBuilder):
                 '--smtp-user', util.Secret('crossbow/smtp_user'),
                 '--smtp-password', util.Secret('crossbow/smtp_password'),
                 util.Property('crossbow_job_id')
+            ]),
+            workdir='arrow/dev/tasks'
+        ),
+        Crossbow(
+            name="Update Crossbow's Github page",
+            args=util.FlattenList([
+                '--github-token', util.Secret('ursabot/github_token'),
+                'github-page',
+                'generate',
+                '-n', 20,
+                '--github-push-token',
+                util.Secret('kszucs/github_status_token')
             ]),
             workdir='arrow/dev/tasks'
         )
