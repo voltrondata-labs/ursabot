@@ -116,7 +116,8 @@ class CrossbowReport(CrossbowBuilder):
                 'github-page',
                 'generate',
                 '-n', 20,
-                '--github-push-token', util.Secret('kszucs/github_status_token')
+                '--github-push-token',
+                util.Secret('kszucs/github_status_token')
             ]),
             workdir='arrow/dev/tasks'
         )
