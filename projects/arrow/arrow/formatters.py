@@ -64,6 +64,13 @@ class CrossbowCommentFormatter(MarkdownFormatter):
     _markdown_badge = '[![{title}]({badge})]({url})'
 
     badges = {
+        'github': _markdown_badge.format(
+            title='Github Actions',
+            url=(
+                'https://github.com/{repo}/workflows/Crossbow/'
+                'badge.svg?branch={branch}'
+            )
+        ),
         'azure': _markdown_badge.format(
             title='Azure',
             url=(
