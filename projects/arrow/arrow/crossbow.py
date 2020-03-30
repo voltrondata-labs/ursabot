@@ -7,7 +7,7 @@
 from buildbot.plugins import util
 from ursabot.builders import DockerBuilder
 from ursabot.utils import Extend, Filter
-from ursabot.steps import GitHub, SetPropertyFromCommand
+from ursabot.steps import GitHub
 from .steps import Crossbow
 
 
@@ -84,37 +84,8 @@ class CrossbowSubmit(CrossbowBuilder):
     ])
 
 
-class CrossbowReport(CrossbowBuilder):
+class CrossbowGithubPage(CrossbowBuilder):
     steps = Extend([
-        SetPropertyFromCommand(
-            'crossbow_job_id',
-            extract_fn=lambda stdout, stderr: stdout.strip(),
-            command=Crossbow(
-                args=[
-                    '--github-token', util.Secret('ursabot/github_token'),
-                    'latest-prefix', crossbow_prefix
-                ]
-            ),
-            workdir='arrow/dev/tasks'
-        ),
-        Crossbow(
-            name='Generate and send nightly report',
-            args=util.FlattenList([
-                '--github-token', util.Secret('ursabot/github_token'),
-                'report',
-                '--send',
-                '--poll',
-                '--poll-max-minutes', 120,
-                '--poll-interval-minutes', 15,
-                '--sender-name', 'Crossbow',
-                '--sender-email', 'crossbow@ursalabs.org',
-                '--recipient-email', 'dev@arrow.apache.org',
-                '--smtp-user', util.Secret('crossbow/smtp_user'),
-                '--smtp-password', util.Secret('crossbow/smtp_password'),
-                util.Property('crossbow_job_id')
-            ]),
-            workdir='arrow/dev/tasks'
-        ),
         Crossbow(
             name="Update Crossbow's Github page",
             args=util.FlattenList([
