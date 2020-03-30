@@ -7,7 +7,7 @@
 from buildbot.plugins import util
 from ursabot.builders import DockerBuilder
 from ursabot.utils import Extend, Filter
-from ursabot.steps import GitHub, SetPropertyFromCommand
+from ursabot.steps import GitHub
 from .steps import Crossbow
 
 
