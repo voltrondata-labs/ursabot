@@ -82,20 +82,3 @@ class CrossbowSubmit(CrossbowBuilder):
             result_file='result.yaml'
         )
     ])
-
-
-class CrossbowGithubPage(CrossbowBuilder):
-    steps = Extend([
-        Crossbow(
-            name="Update Crossbow's Github page",
-            args=util.FlattenList([
-                '--github-token', util.Secret('ursabot/github_token'),
-                'github-page',
-                'generate',
-                '-n', 20,
-                '--github-push-token',
-                util.Secret('kszucs/github_status_token')
-            ]),
-            workdir='arrow/dev/tasks'
-        )
-    ])
