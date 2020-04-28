@@ -315,7 +315,7 @@ for arch in ['amd64']:
 
 # RUST
 for arch in ['amd64']:
-    for rust_version in ['nightly-2019-11-14']:
+    for rust_version in ['nightly-2020-04-22']:
         rust = DockerImage(
             name=f'rust-{rust_version}',
             title=f'{arch.upper()} Debian 9 Rust {rust_version}',
