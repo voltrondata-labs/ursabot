@@ -319,7 +319,7 @@ class CppBenchmark(DockerBuilder):
                 '--output=diff.json',
                 util.Property('benchmark_options', []),
                 'WORKSPACE',
-                util.Property('benchmark_baseline', 'master')
+                util.Property('benchmark_baseline', 'origin/master')
             ]),
             result_file='diff.json'
         )
