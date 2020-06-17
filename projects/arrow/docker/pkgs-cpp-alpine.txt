@@ -19,5 +19,6 @@ make
 musl-dev
 ninja
 openssl-dev
+utf8proc-dev
 wget
 zlib-dev
