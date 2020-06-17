@@ -22,6 +22,7 @@ liblz4-dev
 libre2-dev
 libsnappy-dev
 libssl-dev
+libutf8proc-dev
 libzstd1-dev
 ninja-build
 rapidjson-dev
