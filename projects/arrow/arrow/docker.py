@@ -136,7 +136,7 @@ for arch in ['amd64']:
     basetitle = f'{arch.upper()} Conda'
 
     base = DockerImage(
-        name=f'base',
+        name='base',
         title=basetitle,
         org='ursalab',
         base=f'{arch}/ubuntu:18.04',

@@ -28,11 +28,20 @@ def build():
 @click.argument('baseline', type=str, metavar='[<baseline>]', default=None,
                 required=False)
 @click.option('--suite-filter', metavar='<regex>', show_default=True,
-              type=str, default=None, help='Regex filtering benchmark suites.')
+              type=str, default=None,
+              help='Regex filtering benchmark suites.')
 @click.option('--benchmark-filter', metavar='<regex>', show_default=True,
               type=str, default=None,
               help='Regex filtering benchmarks.')
-def benchmark(baseline, suite_filter, benchmark_filter):
+@click.option("--cc", metavar="<compiler>", help="C compiler.", default=None)
+@click.option("--cxx", metavar="<compiler>", help="C++ compiler.",
+              default=None)
+@click.option("--cxx-flags", help="C++ compiler flags.", default=None)
+@click.option("--repetitions", type=int, default=1, show_default=True,
+              help=("Number of repetitions of each benchmark. Increasing "
+                    "may improve result precision."))
+def benchmark(baseline, suite_filter, benchmark_filter, cc, cxx, cxx_flags,
+              repetitions):
     """Run the benchmark suite in comparison mode.
 
     This command will run the benchmark suite for tip of the branch commit
@@ -81,6 +90,14 @@ def benchmark(baseline, suite_filter, benchmark_filter):
     if benchmark_filter:
         benchmark_filter = shlex.quote(benchmark_filter)
         opts.append(f'--benchmark-filter={benchmark_filter}')
+    if cc:
+        opts.append(f'--cc={cc}')
+    if cxx:
+        opts.append(f'--cxx={cxx}')
+    if cxx_flags:
+        opts.append(f'--cxx-flags={cxx_flags}')
+    if repetitions:
+        opts.append(f'--repetitions={repetitions}')
 
     if opts:
         props['benchmark_options'] = opts

@@ -12,7 +12,8 @@ from ..commands import ursabot
 
 @pytest.mark.parametrize(('command', 'expected_props'), [
     ('build', {'command': 'build'}),
-    ('benchmark', {'command': 'benchmark'})
+    ('benchmark', {'command': 'benchmark',
+                   'benchmark_options': ['--repetitions=1']})
 ])
 def test_ursabot_commands(command, expected_props):
     props = ursabot(command)
@@ -61,6 +62,25 @@ def test_crossbow_repo(command, expected_repo):
         'crossbow_repo': expected_repo,
         'crossbow_repository': f'https://github.com/{expected_repo}',
         'crossbow_args': ['-c', 'tasks.yml', '-g', 'docker']
+    }
+    assert props == expected
+
+
+def test_benchmark_options():
+    command = (
+        'benchmark --suite-filter=arrow-compute-vector-sort-benchmark '
+        '--cc=clang-8 --cxx=clang++-8 --cxx-flags=anything'
+    )
+    props = ursabot(command)
+    expected = {
+        'command': 'benchmark',
+        'benchmark_options': [
+            '--suite-filter=arrow-compute-vector-sort-benchmark',
+            '--cc=clang-8',
+            '--cxx=clang++-8',
+            '--cxx-flags=anything',
+            '--repetitions=1'
+        ]
     }
     assert props == expected
 
