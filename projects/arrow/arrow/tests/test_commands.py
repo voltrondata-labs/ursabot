@@ -86,9 +86,9 @@ def test_benchmark_options():
 
 
 @pytest.mark.parametrize(('command', 'expected_msg'), [
-    ('buil', "No such command 'buil'."),
-    ('bench', "No such command 'bench'."),
-    ('crossbow something', "No such command 'something'."),
+    ('buil', 'No such command "buil".'),
+    ('bench', 'No such command "bench".'),
+    ('crossbow something', 'No such command "something".'),
 ])
 def test_wrong_commands(command, expected_msg):
     with pytest.raises(CommandError) as excinfo:
