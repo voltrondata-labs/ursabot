@@ -12,7 +12,8 @@ from ..commands import ursabot
 
 @pytest.mark.parametrize(('command', 'expected_props'), [
     ('build', {'command': 'build'}),
-    ('benchmark', {'command': 'benchmark'})
+    ('benchmark', {'command': 'benchmark',
+                   'benchmark_options': ['--repetitions=1']})
 ])
 def test_ursabot_commands(command, expected_props):
     props = ursabot(command)
@@ -65,10 +66,29 @@ def test_crossbow_repo(command, expected_repo):
     assert props == expected
 
 
+def test_benchmark_options():
+    command = (
+        'benchmark --suite-filter=arrow-compute-vector-sort-benchmark '
+        '--cc=clang-8 --cxx=clang++-8 --cxx-flags=anything'
+    )
+    props = ursabot(command)
+    expected = {
+        'command': 'benchmark',
+        'benchmark_options': [
+            '--suite-filter=arrow-compute-vector-sort-benchmark',
+            '--cc=clang-8',
+            '--cxx=clang++-8',
+            '--cxx-flags=anything',
+            '--repetitions=1'
+        ]
+    }
+    assert props == expected
+
+
 @pytest.mark.parametrize(('command', 'expected_msg'), [
-    ('buil', 'No such command "buil".'),
-    ('bench', 'No such command "bench".'),
-    ('crossbow something', 'No such command "something".'),
+    ('buil', "No such command 'buil'."),
+    ('bench', "No such command 'bench'."),
+    ('crossbow something', "No such command 'something'."),
 ])
 def test_wrong_commands(command, expected_msg):
     with pytest.raises(CommandError) as excinfo:
