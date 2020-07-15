@@ -348,7 +348,8 @@ class CppTest(DockerBuilder):
         CMAKE_INSTALL_LIBDIR='lib'
     )
     env = {
-        'PARQUET_TEST_DATA': parquet_test_data_path  # for parquet
+        'ARROW_TEST_DATA': arrow_test_data_path,
+        'PARQUET_TEST_DATA': parquet_test_data_path
     }
     steps = [
         checkout_arrow,
