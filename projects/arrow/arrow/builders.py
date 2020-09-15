@@ -250,7 +250,10 @@ python_test = PyTest(
     name='Test PyArrow',
     args=['pyarrow'],
     workdir='python',
-    env={'LD_LIBRARY_PATH': ld_library_path}
+    env=dict(
+        LD_LIBRARY_PATH=ld_library_path,
+        PYARROW_TEST_LARGE_MEMORY='ON'
+    )
 )
 r_deps = R(
     args=[
