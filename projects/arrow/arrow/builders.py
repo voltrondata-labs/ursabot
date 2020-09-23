@@ -252,7 +252,8 @@ python_test = PyTest(
     workdir='python',
     env=dict(
         LD_LIBRARY_PATH=ld_library_path,
-        PYARROW_TEST_LARGE_MEMORY='ON'
+        PYARROW_TEST_LARGE_MEMORY='ON',
+        PYARROW_TEST_MEMORY_LEAK='ON'
     )
 )
 r_deps = R(
