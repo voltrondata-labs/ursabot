@@ -273,7 +273,7 @@ for arch in ['amd64']:
 
 # JAVASCRIPT
 for arch in ['amd64']:
-    for nodejs_version in ['11']:
+    for nodejs_version in ['14']:
         js = DockerImage(
             name=f'js-{nodejs_version}',
             title=f'{arch.upper()} Debian 9 NodeJS {nodejs_version}',
