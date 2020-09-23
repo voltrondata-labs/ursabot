@@ -12,6 +12,7 @@ hypothesis
 minio
 numpy>=1.14
 pandas
+psutil
 pytest
 pytest-faulthandler
 pytest-lazy-fixture
