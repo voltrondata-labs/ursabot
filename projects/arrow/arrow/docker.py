@@ -205,7 +205,7 @@ for arch in ['amd64']:
     )
     images.extend([crossbow, cpp, cpp_benchmark, r])
 
-    for python_version in ['3.6', '3.7', '3.8']:
+    for python_version in ['3.6', '3.7', '3.8', '3.9']:
         python = DockerImage(
             name=f'python-{python_version}',
             base=cpp,
