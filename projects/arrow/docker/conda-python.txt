@@ -8,6 +8,7 @@ cffi
 cython>=0.29.7
 cloudpickle
 fastparquet
+fsspec
 hypothesis
 minio
 numpy>=1.14
@@ -17,5 +18,6 @@ pytest
 pytest-faulthandler
 pytest-lazy-fixture
 pytz
+s3fs
 setuptools
 setuptools_scm
