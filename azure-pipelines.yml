@@ -34,6 +34,8 @@ jobs:
           BUILDER: 'AMD64 Conda Python 3.6'
         AMD64 Conda Python 3.7:
           BUILDER: 'AMD64 Conda Python 3.7'
+        AMD64 Conda Python 3.8:
+          BUILDER: 'AMD64 Conda Python 3.8'
         AMD64 Java OpenJDK 8:
           BUILDER: 'AMD64 Java OpenJDK 8'
         AMD64 Java OpenJDK 11:
